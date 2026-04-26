@@ -19,6 +19,7 @@ import {
   Copy,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
@@ -195,8 +196,13 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
           </span>
         )}
         {task.client && (
-          <span className="flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2 py-0.5">
-            <User size={10} />
+          <span className="flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-2 py-0.5">
+            <ClientBrandMark
+              name={task.client.name}
+              logoUrl={task.client.logo}
+              size={18}
+              roundedClassName="rounded-full"
+            />
             {task.client.name}
           </span>
         )}
@@ -300,14 +306,14 @@ export default function MyTasksPage() {
       const [tasksRes, teamRes, clientsRes] = await Promise.allSettled([
         supabase
           .from('tasks')
-          .select('*, client:clients(id,name)')
+          .select('*, client:clients(id,name,logo,slug)')
           .order('due_date', { ascending: true })
           .limit(500),
         supabase
           .from('team_members')
           .select('id,full_name,email,role,avatar_url,job_title,created_at')
           .order('full_name'),
-        supabase.from('clients').select('id,name,status').order('name'),
+        supabase.from('clients').select('id,name,status,logo,slug').order('name'),
       ]);
       if (tasksRes.status === 'rejected')
         console.error('[my-tasks] tasks fetch rejected:', tasksRes.reason);

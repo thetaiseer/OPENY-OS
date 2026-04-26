@@ -47,6 +47,7 @@ import {
   isVideo as isVideoFile,
   isPdf as isPdfFile,
 } from '@/components/ui/AssetsGrid';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { generateVideoThumbnail } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import AppModal from '@/components/ui/AppModal';
@@ -396,6 +397,7 @@ function ClientFolderCard({
   totalBytes,
   kindSummary,
   slug,
+  logoUrl,
   onView,
   onDownload,
   isDownloading,
@@ -409,6 +411,8 @@ function ClientFolderCard({
   totalBytes: number;
   kindSummary: string;
   slug?: string;
+  /** Client brand image when this card is a client folder (depth 0). */
+  logoUrl?: string | null;
   onView: () => void;
   onDownload: () => void;
   isDownloading: boolean;
@@ -497,10 +501,19 @@ function ClientFolderCard({
       </div>
       <div className="flex min-w-0 items-center gap-3">
         <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
-          style={{ background: 'rgba(99,102,241,0.1)' }}
+          className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
+          style={{ background: logoUrl ? 'var(--surface-2)' : 'rgba(99,102,241,0.1)' }}
         >
-          <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: 'var(--accent)' }} />
+          {logoUrl ? (
+            <ClientBrandMark
+              name={label}
+              logoUrl={logoUrl}
+              size={56}
+              roundedClassName="rounded-xl"
+            />
+          ) : (
+            <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: 'var(--accent)' }} />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold" style={{ color: 'var(--text)' }}>
@@ -683,6 +696,11 @@ function AssetsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const clientLogoByClientId = useMemo(() => {
+    const m: Record<string, string | null | undefined> = {};
+    for (const c of clients) m[c.id] = c.logo ?? null;
+    return m;
+  }, [clients]);
   const [scheduleCounts, setScheduleCounts] = useState<
     Record<string, { count: number; nextDate: string | null }>
   >({});
@@ -794,7 +812,7 @@ function AssetsPage() {
   useEffect(() => {
     supabase
       .from('clients')
-      .select('id, name, slug')
+      .select('id, name, slug, logo')
       .order('name')
       .then(({ data }) => {
         if (data) setClients(data as Client[]);
@@ -1639,6 +1657,7 @@ function AssetsPage() {
                     totalBytes={totalBytes}
                     kindSummary={kindSummary}
                     slug={clients.find((c) => c.name === key)?.slug}
+                    logoUrl={clients.find((c) => c.name === key)?.logo}
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
                     isDownloading={downloadingClient === key}
@@ -1697,6 +1716,7 @@ function AssetsPage() {
               onComments={(asset) => setCommentsAsset(asset)}
               onRename={(asset, name) => handleRename(asset, name)}
               onSchedule={(asset) => setScheduleAsset(asset)}
+              clientLogoByClientId={clientLogoByClientId}
             />
             {hasMore && (
               <div className="flex justify-center pt-2">

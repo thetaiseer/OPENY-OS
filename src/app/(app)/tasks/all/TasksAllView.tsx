@@ -43,6 +43,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import supabase from '@/lib/supabase';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
@@ -457,7 +458,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
     .map((id) => team.find((m) => m.id === id))
     .filter(Boolean) as TeamMember[];
 
-  const projectLabel = task.client?.name ?? (task.project_id ? t('projectLinked') : null);
+  const projectLabel = !task.client && task.project_id ? t('projectLinked') : null;
 
   return (
     <div
@@ -548,7 +549,26 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         </Badge>
       </div>
 
-      {projectLabel && (
+      {task.client ? (
+        <div
+          className="inline-flex max-w-full items-center gap-2 self-start rounded-full border px-2.5 py-1 text-xs"
+          style={{
+            background: 'var(--surface-2)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <ClientBrandMark
+            name={task.client.name}
+            logoUrl={task.client.logo}
+            size={22}
+            roundedClassName="rounded-full"
+          />
+          <span className="truncate font-medium" style={{ color: 'var(--text)' }}>
+            {task.client.name}
+          </span>
+        </div>
+      ) : projectLabel ? (
         <div
           className="inline-flex items-center gap-1.5 self-start rounded-full border px-2.5 py-1 text-xs"
           style={{
@@ -560,7 +580,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           <User size={11} />
           {projectLabel}
         </div>
-      )}
+      ) : null}
 
       {((task.platforms && task.platforms.length > 0) ||
         (task.post_types && task.post_types.length > 0)) && (
@@ -731,7 +751,19 @@ function TaskDetailModal({
             t('priority'),
             <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>,
           )}
-          {task.client && row(t('clients'), task.client.name)}
+          {task.client &&
+            row(
+              t('clients'),
+              <span className="inline-flex items-center gap-2">
+                <ClientBrandMark
+                  name={task.client.name}
+                  logoUrl={task.client.logo}
+                  size={28}
+                  roundedClassName="rounded-lg"
+                />
+                {task.client.name}
+              </span>,
+            )}
           {task.start_date && row(t('startDate'), fmtDate(task.start_date))}
           {task.due_date &&
             row(
@@ -959,6 +991,22 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
             {task.description}
           </p>
         )}
+        {task.client ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <ClientBrandMark
+              name={task.client.name}
+              logoUrl={task.client.logo}
+              size={24}
+              roundedClassName="rounded-lg"
+            />
+            <span
+              className="truncate text-xs font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {task.client.name}
+            </span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 text-xs">
             <span
@@ -1414,10 +1462,10 @@ export default function TasksPage() {
       const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
         supabase
           .from('tasks')
-          .select('*, client:clients(id,name)')
+          .select('*, client:clients(id,name,logo,slug)')
           .order('created_at', { ascending: false })
           .limit(200),
-        supabase.from('clients').select('id,name').order('name'),
+        supabase.from('clients').select('id,name,logo,slug').order('name'),
         supabase.from('projects').select('id,name,client_id').order('name'),
         // Select only the columns the UI actually uses to reduce payload size.
         supabase
@@ -2310,9 +2358,28 @@ export default function TasksPage() {
                         </p>
                       )}
                     </div>
-                    <p className="truncate text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      {task.client?.name ?? '-'}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-2">
+                      {task.client ? (
+                        <>
+                          <ClientBrandMark
+                            name={task.client.name}
+                            logoUrl={task.client.logo}
+                            size={26}
+                            roundedClassName="rounded-md"
+                          />
+                          <p
+                            className="truncate text-sm"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {task.client.name}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="truncate text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          -
+                        </p>
+                      )}
+                    </div>
                     <span
                       className="justify-self-start rounded-full border px-2.5 py-1 text-xs font-semibold"
                       style={{ background: tone.bg, color: tone.text, borderColor: tone.border }}

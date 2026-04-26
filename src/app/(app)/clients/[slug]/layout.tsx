@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, Building2, Mail, Phone, Globe, Pencil, Trash2 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
+import { useAuth } from '@/context/auth-context';
+import { useAppPeriod } from '@/context/app-period-context';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import AiImproveButton from '@/components/ui/AiImproveButton';
@@ -20,6 +22,7 @@ import type { Client } from '@/lib/types';
 import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { ClientWorkspaceContext } from './client-context';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -40,6 +43,8 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   const router = useRouter();
   const { t } = useLang();
   const { toast } = useToast();
+  const { role } = useAuth();
+  const { periodYm } = useAppPeriod();
 
   const [client, setClient] = useState<Client | null>(null);
   const [clientId, setClientId] = useState('');
@@ -55,8 +60,11 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
     industry: '',
     status: 'active',
     notes: '',
+    logo: '' as string,
   });
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   const loadClient = useCallback(async () => {
     setLoading(true);
@@ -124,17 +132,77 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
       industry: client.industry ?? '',
       status: client.status,
       notes: client.notes ?? '',
+      logo: client.logo ?? '',
     });
     setEditOpen(true);
+  };
+
+  const persistLogo = async (logoUrl: string | null) => {
+    if (!client) return;
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ logo: logoUrl, updated_at: new Date().toISOString() })
+      .eq('id', client.id)
+      .select(CLIENT_LIST_COLUMNS)
+      .single();
+    if (error) throw error;
+    setClient(data as Client);
+    setEditForm((f) => ({ ...f, logo: logoUrl ?? '' }));
+  };
+
+  const uploadClientLogoFile = async (file: File) => {
+    if (!client) return;
+    if (!file.type.startsWith('image/')) {
+      toast(t('clientLogoImageOnly'), 'error');
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set('file', file);
+      fd.set('fileName', file.name);
+      fd.set('fileType', file.type);
+      fd.set('fileSize', String(file.size));
+      fd.set('clientName', client.name);
+      fd.set('clientId', client.id);
+      fd.set('mainCategory', 'other');
+      fd.set('subCategory', '');
+      fd.set('monthKey', periodYm);
+      fd.set('customFileName', 'brand-logo');
+      const res = await fetch('/api/upload/presign', { method: 'POST', body: fd });
+      const j = (await res.json()) as { publicUrl?: string; error?: string };
+      if (!res.ok) throw new Error(j.error ?? t('clientLogoUploadFailed'));
+      if (!j.publicUrl) throw new Error(t('clientLogoUploadFailed'));
+      await persistLogo(j.publicUrl);
+      toast(t('clientLogoUploadOk'), 'success');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : t('clientLogoUploadFailed'), 'error');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const clearClientLogo = async () => {
+    if (!client?.logo && !editForm.logo) return;
+    setLogoUploading(true);
+    try {
+      await persistLogo(null);
+      toast(t('clientLogoRemoved'), 'success');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : t('clientLogoUploadFailed'), 'error');
+    } finally {
+      setLogoUploading(false);
+    }
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const { logo: _logoIgnored, ...restForm } = editForm;
       const { data, error } = await supabase
         .from('clients')
-        .update({ ...editForm, updated_at: new Date().toISOString() })
+        .update({ ...restForm, updated_at: new Date().toISOString() })
         .eq('id', client?.id ?? '')
         .select(CLIENT_LIST_COLUMNS)
         .single();
@@ -156,13 +224,18 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
   const handleDelete = async () => {
     if (!client) return;
-    if (!confirm(`Delete client "${client.name}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from('clients').delete().eq('id', client.id);
-    if (error) {
-      toast(error.message, 'error');
-      return;
+    if (!confirm(t('clientDeleteConfirm', { name: client.name }))) return;
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' });
+      const json = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        toast(json.error ?? t('clientDeleteFailed'), 'error');
+        return;
+      }
+      router.push('/clients');
+    } catch {
+      toast(t('clientDeleteFailed'), 'error');
     }
-    router.push('/clients');
   };
 
   // Determine active tab from pathname
@@ -210,12 +283,12 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <div className="flex items-start gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              {client.name?.charAt(0).toUpperCase()}
-            </div>
+            <ClientBrandMark
+              name={client.name}
+              logoUrl={client.logo}
+              size={56}
+              roundedClassName="rounded-2xl"
+            />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
@@ -269,9 +342,11 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
               <Button type="button" variant="secondary" onClick={handleEdit}>
                 <Pencil size={14} /> Edit
               </Button>
-              <Button type="button" variant="danger" onClick={() => void handleDelete()}>
-                <Trash2 size={14} /> Delete
-              </Button>
+              {role === 'owner' ? (
+                <Button type="button" variant="danger" onClick={() => void handleDelete()}>
+                  <Trash2 size={14} /> {t('deleteAction')}
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -333,6 +408,50 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
                 />
               </Field>
             </div>
+            <Field label={t('clientLogoField')}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <ClientBrandMark
+                  name={editForm.name || client.name}
+                  logoUrl={editForm.logo || undefined}
+                  size={72}
+                  roundedClassName="rounded-2xl"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) void uploadClientLogoFile(f);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={logoUploading}
+                    onClick={() => logoFileRef.current?.click()}
+                  >
+                    {logoUploading ? t('loading') : t('clientLogoUpload')}
+                  </Button>
+                  {editForm.logo ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={logoUploading}
+                      onClick={() => void clearClientLogo()}
+                    >
+                      {t('clientLogoRemove')}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {t('clientLogoHelp')}
+              </p>
+            </Field>
             <Field label={t('notes')}>
               <div className="mb-1 flex items-center justify-between">
                 <AiImproveButton

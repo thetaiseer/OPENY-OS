@@ -27,10 +27,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   if (typeof body.read === 'boolean') {
     updateData.read = body.read;
     if (body.read) updateData.read_at = new Date().toISOString();
+    else updateData.read_at = null;
   }
   if (typeof body.is_read === 'boolean') {
     updateData.read = body.is_read;
     if (body.is_read) updateData.read_at = new Date().toISOString();
+    else updateData.read_at = null;
   }
   if (typeof body.is_archived === 'boolean') {
     updateData.is_archived = body.is_archived;

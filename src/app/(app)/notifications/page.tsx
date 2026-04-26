@@ -19,6 +19,7 @@ import {
   Layout,
 } from 'lucide-react';
 import Link from 'next/link';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import EmptyState from '@/components/ui/EmptyState';
@@ -101,6 +102,11 @@ export default function NotificationsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [readFilter, setReadFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
@@ -116,6 +122,11 @@ export default function NotificationsPage() {
         } else if (activeTab !== 'all') {
           params.set('category', activeTab);
         }
+        if (searchQuery) params.set('q', searchQuery);
+        if (moduleFilter !== 'all') params.set('module', moduleFilter);
+        if (priorityFilter !== 'all') params.set('priority', priorityFilter);
+        if (readFilter !== 'all') params.set('read', readFilter);
+        if (typeFilter !== 'all') params.set('type', typeFilter);
         const res = await fetch(`/api/notifications?${params.toString()}`);
         if (!res.ok) throw new Error('fetch failed');
         const json = (await res.json()) as { notifications?: Notification[]; hasMore?: boolean };
@@ -130,7 +141,7 @@ export default function NotificationsPage() {
         setLoadingMore(false);
       }
     },
-    [user, activeTab],
+    [user, activeTab, searchQuery, moduleFilter, priorityFilter, readFilter, typeFilter],
   );
 
   useEffect(() => {
@@ -144,6 +155,19 @@ export default function NotificationsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read: true }),
+      });
+    } catch {
+      /* best-effort */
+    }
+  };
+
+  const markUnread = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+    try {
+      await fetch(`/api/notifications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read: false }),
       });
     } catch {
       /* best-effort */
@@ -186,6 +210,26 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const moduleOptions = [
+    { value: 'all', label: 'All modules' },
+    ...Array.from(new Set(notifications.map((n) => n.module).filter(Boolean) as string[])).map(
+      (m) => ({
+        value: m,
+        label: m,
+      }),
+    ),
+  ];
+  const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
+    const d = new Date(n.created_at);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diffDays = Math.floor((today - day) / 86400000);
+    const key = diffDays === 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : 'Older';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(n);
+    return acc;
+  }, {});
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -242,6 +286,63 @@ export default function NotificationsPage() {
         })}
       </div>
 
+      <div
+        className="grid grid-cols-1 gap-2 rounded-xl border p-3 md:grid-cols-5"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search notifications..."
+          className="h-9 rounded-lg px-3 text-sm outline-none"
+          style={{
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+          }}
+        />
+        <SelectDropdown
+          value={moduleFilter}
+          onChange={setModuleFilter}
+          options={moduleOptions}
+          fullWidth
+        />
+        <SelectDropdown
+          value={priorityFilter}
+          onChange={setPriorityFilter}
+          options={[
+            { value: 'all', label: 'All priorities' },
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'critical', label: 'Critical' },
+          ]}
+          fullWidth
+        />
+        <SelectDropdown
+          value={readFilter}
+          onChange={setReadFilter}
+          options={[
+            { value: 'all', label: 'All states' },
+            { value: 'false', label: 'Unread' },
+            { value: 'true', label: 'Read' },
+          ]}
+          fullWidth
+        />
+        <SelectDropdown
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { value: 'all', label: 'All types' },
+            { value: 'info', label: 'Info' },
+            { value: 'success', label: 'Success' },
+            { value: 'warning', label: 'Warning' },
+            { value: 'error', label: 'Error' },
+          ]}
+          fullWidth
+        />
+      </div>
+
       {/* ── Notification list ────────────────────────────────────────────── */}
       {loading ? (
         <div className="space-y-2">
@@ -264,104 +365,155 @@ export default function NotificationsPage() {
           }
         />
       ) : (
-        <div className="space-y-2">
-          {notifications.map((n) => {
-            const Icon = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
-            const color = getIconColor(n);
-            const priority = (n.priority ?? 'low') as NotificationPriority;
-            const priorityLbl = PRIORITY_LABEL[priority];
-            const isCritical = priority === 'critical';
-            const isHigh = priority === 'high';
-            const borderColor =
-              isCritical || isHigh ? PRIORITY_COLOR[priority] : n.read ? 'var(--border)' : color;
-
-            return (
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([group, items]) => (
+            <div key={group} className="space-y-2">
               <div
-                key={n.id}
-                className="flex items-start gap-3 rounded-xl border px-4 py-3 transition-all"
-                style={{
-                  background: n.read ? 'var(--surface)' : 'var(--surface-2)',
-                  borderColor,
-                  borderLeftWidth: n.read ? '1px' : '3px',
-                  opacity: n.read && !isCritical ? 0.75 : 1,
-                }}
+                className="rounded-lg px-2 py-1 text-xs font-semibold"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
               >
-                {/* Icon */}
-                <div
-                  className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: `${color}18` }}
-                >
-                  <Icon size={16} style={{ color }} />
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p
-                        className="truncate text-sm font-semibold"
-                        style={{ color: 'var(--text)' }}
-                      >
-                        {n.title}
-                      </p>
-                      {priorityLbl && (
-                        <span
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold"
-                          style={{
-                            background: `${PRIORITY_COLOR[priority]}20`,
-                            color: PRIORITY_COLOR[priority],
-                          }}
-                        >
-                          {priorityLbl}
-                        </span>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {fmtDate(n.created_at)}
-                    </span>
-                  </div>
-                  <p
-                    className="mt-0.5 line-clamp-2 text-xs"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {n.message}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex shrink-0 items-center gap-0.5">
-                  {n.action_url && (
-                    <Link
-                      href={n.action_url}
-                      className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
-                      style={{ color: 'var(--text-secondary)' }}
-                      title="Open related item"
-                    >
-                      <ExternalLink size={13} />
-                    </Link>
-                  )}
-                  {!n.read && (
-                    <button
-                      onClick={() => markRead(n.id)}
-                      className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
-                      style={{ color: 'var(--text-secondary)' }}
-                      title="Mark as read"
-                    >
-                      <Check size={13} />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => archiveNotif(n.id)}
-                    className="rounded-lg p-1.5 transition-colors hover:opacity-70"
-                    style={{ color: 'var(--text-secondary)' }}
-                    title="Archive"
-                  >
-                    <Archive size={13} />
-                  </button>
-                </div>
+                {group}
               </div>
-            );
-          })}
+              {items.map((n) => {
+                const Icon = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
+                const color = getIconColor(n);
+                const priority = (n.priority ?? 'low') as NotificationPriority;
+                const priorityLbl = PRIORITY_LABEL[priority];
+                const isCritical = priority === 'critical';
+                const isHigh = priority === 'high';
+                const borderColor =
+                  isCritical || isHigh
+                    ? PRIORITY_COLOR[priority]
+                    : n.read
+                      ? 'var(--border)'
+                      : color;
+
+                return (
+                  <div
+                    key={n.id}
+                    className="flex items-start gap-3 rounded-xl border px-4 py-3 transition-all"
+                    style={{
+                      background: n.read ? 'var(--surface)' : 'var(--surface-2)',
+                      borderColor,
+                      borderLeftWidth: n.read ? '1px' : '3px',
+                      opacity: n.read && !isCritical ? 0.75 : 1,
+                    }}
+                  >
+                    {/* Icon */}
+                    <div
+                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                      style={{ background: `${color}18` }}
+                    >
+                      <Icon size={16} style={{ color }} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p
+                            className="truncate text-sm font-semibold"
+                            style={{ color: 'var(--text)' }}
+                          >
+                            {n.title}
+                          </p>
+                          {priorityLbl && (
+                            <span
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold"
+                              style={{
+                                background: `${PRIORITY_COLOR[priority]}20`,
+                                color: PRIORITY_COLOR[priority],
+                              }}
+                            >
+                              {priorityLbl}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className="shrink-0 text-xs"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {fmtDate(n.created_at)}
+                        </span>
+                      </div>
+                      <p
+                        className="mt-0.5 line-clamp-2 text-xs"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {n.message}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        {n.module ? (
+                          <span
+                            className="rounded-full px-2 py-0.5"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {n.module}
+                          </span>
+                        ) : null}
+                        {n.category ? (
+                          <span
+                            className="rounded-full px-2 py-0.5"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {n.category}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      {n.action_url && (
+                        <Link
+                          href={n.action_url}
+                          className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+                          style={{ color: 'var(--text-secondary)' }}
+                          title="Open related item"
+                        >
+                          <ExternalLink size={13} />
+                        </Link>
+                      )}
+                      {!n.read && (
+                        <button
+                          onClick={() => markRead(n.id)}
+                          className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+                          style={{ color: 'var(--text-secondary)' }}
+                          title="Mark as read"
+                        >
+                          <Check size={13} />
+                        </button>
+                      )}
+                      {n.read && (
+                        <button
+                          onClick={() => markUnread(n.id)}
+                          className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
+                          style={{ color: 'var(--text-secondary)' }}
+                          title="Mark as unread"
+                        >
+                          <Check size={13} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => archiveNotif(n.id)}
+                        className="rounded-lg p-1.5 transition-colors hover:opacity-70"
+                        style={{ color: 'var(--text-secondary)' }}
+                        title="Archive"
+                      >
+                        <Archive size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
 
           {hasMore && (
             <button

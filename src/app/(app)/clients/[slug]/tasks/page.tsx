@@ -7,6 +7,7 @@ import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useClientWorkspace } from '../client-context';
 import type { Task, TeamMember, Client } from '@/lib/types';
 
@@ -121,10 +122,29 @@ export default function ClientTasksPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {client ? (
+          <div
+            className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-sm"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+          >
+            <ClientBrandMark
+              name={client.name}
+              logoUrl={client.logo}
+              size={28}
+              roundedClassName="rounded-lg"
+            />
+            <span className="min-w-0 truncate" style={{ color: 'var(--text)' }}>
+              <span className="font-semibold">{client.name}</span>
+              <span style={{ color: 'var(--text-secondary)' }}> — {t('tasksForThisClient')}</span>
+            </span>
+          </div>
+        ) : (
+          <span />
+        )}
         <button
           onClick={() => setNewTaskOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+          className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={14} />

@@ -25,6 +25,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input, Textarea, Field } from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
@@ -450,12 +451,13 @@ function ClientsPage() {
                 {/* ── Header ──────────────────────────────────────────────── */}
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      {client.name?.charAt(0).toUpperCase()}
-                    </div>
+                    <ClientBrandMark
+                      name={client.name}
+                      logoUrl={client.logo}
+                      size={44}
+                      roundedClassName="rounded-xl"
+                      className="shadow-sm"
+                    />
                     <div className="min-w-0">
                       <p
                         className="truncate text-base font-semibold leading-snug"

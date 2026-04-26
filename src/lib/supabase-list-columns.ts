@@ -122,7 +122,7 @@ export const ASSET_LIST_COLUMNS_MINIMAL = [
 ].join(',');
 
 export const ACTIVITY_LIST_COLUMNS =
-  'id,type,description,user_id,user_uuid,client_id,entity_type,entity_id,metadata_json,created_at';
+  'id,type,module,title,description,status,user_id,user_uuid,user_role,client_id,entity_type,entity_id,related_entity_type,related_entity_id,metadata_json,created_at';
 
 export const COMMENT_LIST_COLUMNS =
   'id,content,user_id,user_name,asset_id,task_id,entity_type,entity_id,parent_id,mentions,is_resolved,created_at';
@@ -132,12 +132,14 @@ export const NOTIFICATION_LIST_COLUMNS = [
   'title',
   'message',
   'type',
+  'module',
   'read',
   'read_at',
   'priority',
   'category',
   'is_archived',
   'actor_id',
+  'created_by',
   'metadata',
   'client_id',
   'user_id',
@@ -157,12 +159,17 @@ export const NOTIFICATION_LIST_COLUMNS = [
 export const ACTIVITY_API_COLUMNS = [
   'id',
   'type',
+  'module',
   'description',
+  'status',
   'user_id',
   'user_uuid',
+  'user_role',
   'client_id',
   'entity_type',
   'entity_id',
+  'related_entity_type',
+  'related_entity_id',
   'metadata_json',
   'created_at',
   'workspace_id',
@@ -221,7 +228,7 @@ export const PUBLISHING_SCHEDULE_COLUMNS =
 
 export const PUBLISHING_SCHEDULE_WITH_ASSET = `${PUBLISHING_SCHEDULE_COLUMNS},asset:assets(id, name, content_type, file_url, preview_url, client_name)`;
 
-export const TASK_WITH_CLIENT = `${TASK_LIST_COLUMNS},client:clients(id,name)`;
+export const TASK_WITH_CLIENT = `${TASK_LIST_COLUMNS},client:clients(id,name,logo,slug)`;
 
 export const NOTIFICATION_PREF_COLUMNS =
   'id,user_id,event_type,in_app_enabled,email_enabled,realtime_enabled,digest_enabled,mute_until,created_at,updated_at';

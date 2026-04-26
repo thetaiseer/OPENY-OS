@@ -3,6 +3,7 @@
 import {
   type ReactNode,
   type SelectHTMLAttributes,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -10,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Field } from '@/components/ui/Input';
@@ -110,7 +112,13 @@ export default function SelectDropdown({
   const [highlight, setHighlight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
 
   const initialHighlight = useMemo(() => {
     if (showEmptyRow && stringValue === '') return 0;
@@ -132,10 +140,45 @@ export default function SelectDropdown({
     if (autoFocus && triggerRef.current) triggerRef.current.focus();
   }, [autoFocus]);
 
+  const positionPanel = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = Math.min(320, Math.max(44, rowCount * 42 + 12));
+    const openAbove = spaceBelow < Math.min(estimatedHeight, 220) && rect.top > spaceBelow;
+    const top = openAbove
+      ? Math.max(8, rect.top - Math.min(estimatedHeight, rect.top - 8))
+      : rect.bottom + 8;
+    setPanelStyle({
+      top,
+      left: Math.max(8, rect.left),
+      width: Math.max(140, rect.width),
+    });
+  }, [rowCount]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    positionPanel();
+  }, [open, positionPanel]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleReposition = () => positionPanel();
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, positionPanel]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const targetNode = event.target as Node;
+      if (rootRef.current?.contains(targetNode)) return;
+      if (panelRef.current?.contains(targetNode)) return;
+      setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -210,7 +253,7 @@ export default function SelectDropdown({
   );
 
   const panelClass =
-    'absolute left-0 right-0 z-[100] mt-2 max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--surface)]/98 p-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.14)] backdrop-blur-md';
+    'max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--surface)] p-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.14)]';
 
   const rowClass = (active: boolean) =>
     cn(
@@ -223,7 +266,12 @@ export default function SelectDropdown({
   const core = (
     <div
       ref={rootRef}
-      className={cn('relative', fullWidth ? 'w-full' : 'inline-block min-w-[10rem]')}
+      className={cn(
+        'relative',
+        /** When open, stack above following siblings (e.g. filter bar Card vs pipeline grid below). */
+        open && 'z-50',
+        fullWidth ? 'w-full' : 'inline-block min-w-[10rem]',
+      )}
     >
       {name ? (
         <input
@@ -284,56 +332,72 @@ export default function SelectDropdown({
         />
       </button>
 
-      {open && !disabled && rowCount > 0 ? (
-        <div id={listboxId} role="listbox" className={panelClass}>
-          {showEmptyRow ? (
-            <button
-              key="__placeholder__"
-              type="button"
-              role="option"
-              aria-selected={stringValue === ''}
-              ref={(el) => {
-                rowRefs.current[0] = el;
+      {open && !disabled && rowCount > 0
+        ? createPortal(
+            <div
+              ref={panelRef}
+              id={listboxId}
+              role="listbox"
+              className={cn(panelClass, 'fixed z-[1400]')}
+              style={{
+                top: panelStyle.top,
+                left: panelStyle.left,
+                width: panelStyle.width,
+                maxWidth: 'calc(100vw - 16px)',
               }}
-              className={rowClass(highlight === 0)}
-              onMouseEnter={() => setHighlight(0)}
-              onClick={() => selectOptionAt(0)}
             >
-              <span className="min-w-0 flex-1 truncate text-secondary">
-                {placeholder ?? 'Select an option'}
-              </span>
-              {stringValue === '' ? (
-                <Check className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+              {showEmptyRow ? (
+                <button
+                  key="__placeholder__"
+                  type="button"
+                  role="option"
+                  aria-selected={stringValue === ''}
+                  ref={(el) => {
+                    rowRefs.current[0] = el;
+                  }}
+                  className={rowClass(highlight === 0)}
+                  onMouseEnter={() => setHighlight(0)}
+                  onClick={() => selectOptionAt(0)}
+                >
+                  <span className="min-w-0 flex-1 truncate text-secondary">
+                    {placeholder ?? 'Select an option'}
+                  </span>
+                  {stringValue === '' ? (
+                    <Check className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                  ) : null}
+                </button>
               ) : null}
-            </button>
-          ) : null}
-          {normalizedOptions.map((option, i) => {
-            const idx = (showEmptyRow ? 1 : 0) + i;
-            const selected = option.value === stringValue;
-            return (
-              <button
-                key={`${option.value}-${i}`}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                disabled={option.disabled}
-                ref={(el) => {
-                  rowRefs.current[idx] = el;
-                }}
-                className={cn(
-                  rowClass(highlight === idx),
-                  option.disabled ? 'cursor-not-allowed opacity-50 hover:bg-transparent' : '',
-                )}
-                onMouseEnter={() => setHighlight(idx)}
-                onClick={() => selectOptionAt(idx)}
-              >
-                <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                {selected ? <Check className="h-4 w-4 shrink-0 text-accent" aria-hidden /> : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+              {normalizedOptions.map((option, i) => {
+                const idx = (showEmptyRow ? 1 : 0) + i;
+                const selected = option.value === stringValue;
+                return (
+                  <button
+                    key={`${option.value}-${i}`}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    disabled={option.disabled}
+                    ref={(el) => {
+                      rowRefs.current[idx] = el;
+                    }}
+                    className={cn(
+                      rowClass(highlight === idx),
+                      option.disabled ? 'cursor-not-allowed opacity-50 hover:bg-transparent' : '',
+                    )}
+                    onMouseEnter={() => setHighlight(idx)}
+                    onClick={() => selectOptionAt(idx)}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                    {selected ? (
+                      <Check className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 

@@ -3,13 +3,20 @@
  *   List activity log entries with optional filters.
  *   Query params:
  *     client_id      — filter by client
+ *     module         — filter by module
+ *     status         — success|failed|pending
+ *     actor_id       — filter by user
  *     entity_type    — filter by entity type (task, asset, etc.)
  *     entity_id      — filter by specific entity UUID
  *     limit          — max number of results (default: 50, max: 200)
  *
  * POST /api/activities
  *   Create a new activity log entry.
- *   Body: { type, description, client_id?, entity_type?, entity_id?, metadata_json? }
+ *   Body: {
+ *     type, module?, title?, description, status?, user_role?, client_id?,
+ *     entity_type?, entity_id?, related_entity_type?, related_entity_id?,
+ *     metadata_json?
+ *   }
  *
  * Auth: admin | manager | team
  */
@@ -27,6 +34,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('client_id');
+  const moduleName = searchParams.get('module');
+  const status = searchParams.get('status');
+  const actorId = searchParams.get('actor_id');
   const entityType = searchParams.get('entity_type');
   const entityId = searchParams.get('entity_id');
   const rawLimit = parseInt(searchParams.get('limit') ?? '50', 10);
@@ -41,7 +51,15 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit);
 
+    const isAuditViewer = ['owner', 'admin', 'manager'].includes(auth.profile.role);
+    if (!isAuditViewer) {
+      query = query.or(`actor_id.eq.${auth.profile.id},user_uuid.eq.${auth.profile.id}`);
+    }
+
     if (clientId) query = query.eq('client_id', clientId);
+    if (moduleName) query = query.eq('module', moduleName);
+    if (status) query = query.eq('status', status);
+    if (actorId) query = query.eq('actor_id', actorId);
     if (entityType) query = query.eq('entity_type', entityType);
     if (entityId) query = query.eq('entity_id', entityId);
 
@@ -74,6 +92,12 @@ export async function POST(req: NextRequest) {
 
   const type = typeof body.type === 'string' ? body.type.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
+  const moduleNameRaw = typeof body.module === 'string' ? body.module.trim() : '';
+  const moduleName = moduleNameRaw || type.split('.')[0] || 'system';
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  const statusRaw = typeof body.status === 'string' ? body.status.trim().toLowerCase() : '';
+  const status = statusRaw === 'failed' || statusRaw === 'pending' ? statusRaw : 'success';
+  const userRole = typeof body.user_role === 'string' ? body.user_role.trim() : auth.profile.role;
 
   if (!type || !description) {
     return NextResponse.json(
@@ -85,6 +109,10 @@ export async function POST(req: NextRequest) {
   const clientId = typeof body.client_id === 'string' ? body.client_id.trim() : '';
   const entityType = typeof body.entity_type === 'string' ? body.entity_type.trim() : '';
   const entityId = typeof body.entity_id === 'string' ? body.entity_id.trim() : '';
+  const relatedEntityType =
+    typeof body.related_entity_type === 'string' ? body.related_entity_type.trim() : '';
+  const relatedEntityId =
+    typeof body.related_entity_id === 'string' ? body.related_entity_id.trim() : '';
   const metadataRaw = body.metadata_json;
   const metadata =
     metadataRaw !== null && typeof metadataRaw === 'object' && !Array.isArray(metadataRaw)
@@ -93,12 +121,19 @@ export async function POST(req: NextRequest) {
 
   const insertPayload: Record<string, unknown> = {
     type,
+    module: moduleName,
+    title: title || null,
     description,
+    status,
     user_id: auth.profile.id,
     user_uuid: auth.profile.id,
+    actor_id: auth.profile.id,
+    user_role: userRole || null,
     client_id: clientId || null,
     entity_type: entityType || null,
     entity_id: entityId || null,
+    related_entity_type: relatedEntityType || entityType || null,
+    related_entity_id: relatedEntityId || entityId || null,
     metadata_json: metadata,
   };
 

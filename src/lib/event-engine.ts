@@ -508,19 +508,29 @@ async function logActivity(
   rule: EventRule,
 ): Promise<void> {
   const payload = event.payload ?? {};
+  const moduleName = event.event_type.split('.')[0] || 'system';
+  const rawStatus = String((payload.status as string | undefined) ?? 'success').toLowerCase();
+  const status: 'success' | 'failed' | 'pending' =
+    rawStatus === 'failed' || rawStatus === 'pending' ? rawStatus : 'success';
   try {
     await db.from('activities').insert({
       type: event.event_type,
+      module: moduleName,
+      status,
       category: rule.category,
       title: rule.title(payload),
       description: rule.message(payload),
       entity_type: event.entity_type ?? null,
       entity_id: event.entity_id ?? null,
+      related_entity_type: event.entity_type ?? null,
+      related_entity_id: event.entity_id ?? null,
       actor_id: event.actor_id ?? null,
       user_uuid: event.actor_id ?? null,
       client_id: event.client_id ?? null,
       workspace_id: event.workspace_id ?? null,
+      user_role: (payload.userRole as string | undefined) ?? null,
       after_value: Object.keys(payload).length > 0 ? payload : null,
+      metadata_json: Object.keys(payload).length > 0 ? payload : null,
     });
   } catch (err) {
     console.warn(
@@ -539,6 +549,7 @@ async function createNotificationForUser(
   rule: EventRule,
 ): Promise<string | null> {
   const payload = event.payload ?? {};
+  const moduleName = event.event_type.split('.')[0] || 'system';
   const ikey = buildIdempotencyKey(event.event_type, event.entity_id, user_id);
 
   // Critical events use a longer dedup window (4 h) to ensure admins are not
@@ -552,6 +563,7 @@ async function createNotificationForUser(
   const row: Record<string, unknown> = {
     title: override.title ?? rule.title(payload),
     message: override.message ?? rule.message(payload),
+    module: moduleName,
     type:
       rule.priority === 'critical' || rule.priority === 'high'
         ? 'error'
@@ -566,6 +578,7 @@ async function createNotificationForUser(
     entity_type: event.entity_type ?? null,
     entity_id: event.entity_id ?? null,
     actor_id: event.actor_id ?? null,
+    created_by: event.actor_id ?? null,
     user_id: user_id,
     client_id: event.client_id ?? null,
     action_url: override.action_url ?? rule.action_url(payload),

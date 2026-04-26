@@ -63,6 +63,7 @@ export interface NotificationPayload {
   title: string;
   message: string;
   type: string;
+  module?: string | null;
   user_id: string | null;
   event_type: string | null;
   action_url: string | null;

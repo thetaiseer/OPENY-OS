@@ -19,12 +19,15 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
+import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { ActivityLogEntry, NotificationCategory } from '@/lib/types';
 import { useLang } from '@/context/lang-context';
+import supabase from '@/lib/supabase';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 type CategoryFilter = 'all' | NotificationCategory;
+type GroupMode = 'time' | 'module';
 
 interface CategoryTab {
   id: CategoryFilter;
@@ -127,6 +130,11 @@ export default function ActivityTimelinePage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
+  const [groupMode, setGroupMode] = useState<GroupMode>('time');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -140,6 +148,10 @@ export default function ActivityTimelinePage() {
         setLoadError(false);
         const params = new URLSearchParams({ limit: '30', page: String(nextPage) });
         if (activeTab !== 'all') params.set('category', activeTab);
+        if (moduleFilter !== 'all') params.set('module', moduleFilter);
+        if (typeFilter !== 'all') params.set('type', typeFilter);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (userFilter !== 'all') params.set('actor_id', userFilter);
         if (searchQuery) params.set('q', searchQuery);
         if (fromDate) params.set('from', fromDate);
         if (toDate) params.set('to', toDate + 'T23:59:59');
@@ -163,11 +175,28 @@ export default function ActivityTimelinePage() {
         setLoadingMore(false);
       }
     },
-    [activeTab, searchQuery, fromDate, toDate],
+    [activeTab, moduleFilter, typeFilter, statusFilter, userFilter, searchQuery, fromDate, toDate],
   );
 
   useEffect(() => {
     void load(1, false);
+  }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('activity-live')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activities' },
+        () => void load(1, false),
+      )
+      .subscribe();
+
+    const poll = window.setInterval(() => void load(1, false), 30_000);
+    return () => {
+      window.clearInterval(poll);
+      void supabase.removeChannel(channel);
+    };
   }, [load]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -180,9 +209,72 @@ export default function ActivityTimelinePage() {
     setToDate('');
     setSearchQuery('');
     setDraftSearch('');
+    setModuleFilter('all');
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setUserFilter('all');
   };
 
-  const hasActiveFilters = Boolean(searchQuery || fromDate || toDate);
+  const hasActiveFilters = Boolean(
+    searchQuery ||
+    fromDate ||
+    toDate ||
+    moduleFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    userFilter !== 'all',
+  );
+
+  const moduleOptions = [
+    { value: 'all', label: t('all') },
+    ...Array.from(new Set(entries.map((e) => e.module).filter(Boolean) as string[])).map((m) => ({
+      value: m,
+      label: m,
+    })),
+  ];
+  const typeOptions = [
+    { value: 'all', label: t('all') },
+    ...Array.from(new Set(entries.map((e) => e.type).filter(Boolean) as string[])).map((type) => ({
+      value: type,
+      label: type,
+    })),
+  ];
+  const statusOptions = [
+    { value: 'all', label: t('all') },
+    { value: 'success', label: 'Success' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'pending', label: 'Pending' },
+  ];
+  const userOptions = [
+    { value: 'all', label: t('all') },
+    ...Array.from(
+      new Map(
+        entries
+          .filter((e) => e.actor_id || e.user_uuid)
+          .map((e) => [(e.actor_id ?? e.user_uuid) as string, e.actor_name ?? 'Unknown user']),
+      ).entries(),
+    ).map(([id, name]) => ({ value: id, label: name })),
+  ];
+
+  const getTimeGroup = (createdAt: string): string => {
+    const now = new Date();
+    const date = new Date(createdAt);
+    const oneDay = 86_400_000;
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    const dayDiff = Math.floor((startToday - startTarget) / oneDay);
+    if (dayDiff === 0) return 'Today';
+    if (dayDiff === 1) return 'Yesterday';
+    if (dayDiff <= 7) return 'This week';
+    return 'Older';
+  };
+
+  const groupedEntries = entries.reduce<Record<string, ActivityLogEntry[]>>((acc, entry) => {
+    const key = groupMode === 'module' ? entry.module || 'system' : getTimeGroup(entry.created_at);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(entry);
+    return acc;
+  }, {});
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -287,6 +379,46 @@ export default function ActivityTimelinePage() {
 
           {/* Date range */}
           <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-[180px] flex-1">
+              <SelectDropdown
+                value={moduleFilter}
+                onChange={setModuleFilter}
+                options={moduleOptions}
+                placeholder="Module"
+                fullWidth
+                clearable
+              />
+            </div>
+            <div className="min-w-[180px] flex-1">
+              <SelectDropdown
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={typeOptions}
+                placeholder="Type"
+                fullWidth
+                clearable
+              />
+            </div>
+            <div className="min-w-[160px] flex-1">
+              <SelectDropdown
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={statusOptions}
+                placeholder="Status"
+                fullWidth
+                clearable
+              />
+            </div>
+            <div className="min-w-[180px] flex-1">
+              <SelectDropdown
+                value={userFilter}
+                onChange={setUserFilter}
+                options={userOptions}
+                placeholder="User"
+                fullWidth
+                clearable
+              />
+            </div>
             <div className="flex items-center gap-2">
               <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {t('activityDateFrom')}
@@ -328,6 +460,17 @@ export default function ActivityTimelinePage() {
                 {t('clearFilters')}
               </button>
             )}
+            <div className="ms-auto min-w-[180px]">
+              <SelectDropdown
+                value={groupMode}
+                onChange={(v) => setGroupMode(v as GroupMode)}
+                options={[
+                  { value: 'time', label: 'Group: Time' },
+                  { value: 'module', label: 'Group: Module' },
+                ]}
+                fullWidth
+              />
+            </div>
           </div>
         </div>
       )}
@@ -356,96 +499,155 @@ export default function ActivityTimelinePage() {
           description={t('activityNoActivityDesc')}
         />
       ) : (
-        <div className="space-y-0">
-          {entries.map((entry, idx) => {
-            const style = getEventStyle(entry.type);
-            const Icon = style.icon;
-            const isLast = idx === entries.length - 1;
+        <div className="space-y-4">
+          {Object.entries(groupedEntries).map(([groupLabel, groupEntries]) => (
+            <div key={groupLabel} className="space-y-0">
+              <div
+                className="sticky top-0 z-10 mb-1 rounded-lg px-2 py-1 text-xs font-semibold"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+              >
+                {groupLabel}
+              </div>
+              {groupEntries.map((entry, idx) => {
+                const style = getEventStyle(entry.type);
+                const Icon = style.icon;
+                const isLast = idx === groupEntries.length - 1;
 
-            return (
-              <div key={entry.id} className="flex gap-3">
-                {/* Timeline rail */}
-                <div className="flex shrink-0 flex-col items-center">
-                  <div
-                    className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: style.bg, border: `1.5px solid ${style.color}40` }}
-                  >
-                    <Icon size={15} style={{ color: style.color }} />
-                  </div>
-                  {!isLast && (
-                    <div
-                      className="mt-1 w-px flex-1"
-                      style={{ background: 'var(--border)', minHeight: '16px' }}
-                    />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1 pb-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className="text-sm font-medium leading-snug"
-                      style={{ color: 'var(--text)' }}
-                    >
-                      {entry.title ?? entry.description}
-                    </p>
-                    <span
-                      className="mt-0.5 shrink-0 text-[11px]"
-                      style={{ color: 'var(--text-secondary)' }}
-                      title={fmtFull(entry.created_at, lang)}
-                    >
-                      {fmtDate(entry.created_at, t, lang)}
-                    </span>
-                  </div>
-                  {entry.title && entry.description !== entry.title && (
-                    <p
-                      className="mt-0.5 line-clamp-2 text-xs"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {entry.description}
-                    </p>
-                  )}
-                  {/* Before / after change summary */}
-                  {(entry.before_value || entry.after_value) && (
-                    <div
-                      className="mt-1.5 flex gap-2 text-[11px]"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {entry.before_value && (
-                        <span
-                          className="rounded px-2 py-0.5"
-                          style={{ background: '#fef2f2', color: '#dc2626' }}
-                        >
-                          {String(
-                            entry.before_value.status ??
-                              entry.before_value.priority ??
-                              t('activityStateBefore'),
-                          )}
-                        </span>
-                      )}
-                      {entry.before_value && entry.after_value && (
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {t('activityArrowTo')}
-                        </span>
-                      )}
-                      {entry.after_value && (
-                        <span
-                          className="rounded px-2 py-0.5"
-                          style={{ background: '#f0fdf4', color: '#16a34a' }}
-                        >
-                          {String(
-                            entry.after_value.status ??
-                              entry.after_value.priority ??
-                              t('activityStateAfter'),
-                          )}
-                        </span>
+                return (
+                  <div key={entry.id} className="flex gap-3">
+                    {/* Timeline rail */}
+                    <div className="flex shrink-0 flex-col items-center">
+                      <div
+                        className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                        style={{ background: style.bg, border: `1.5px solid ${style.color}40` }}
+                      >
+                        <Icon size={15} style={{ color: style.color }} />
+                      </div>
+                      {!isLast && (
+                        <div
+                          className="mt-1 w-px flex-1"
+                          style={{ background: 'var(--border)', minHeight: '16px' }}
+                        />
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+
+                    {/* Content */}
+                    <div className="min-w-0 flex-1 pb-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <a
+                          href={
+                            (entry.metadata_json?.action_url as string | undefined) ??
+                            (entry.module ? `/${entry.module}` : '#')
+                          }
+                          className="text-sm font-medium leading-snug hover:underline"
+                          style={{ color: 'var(--text)' }}
+                        >
+                          {entry.title ?? entry.description}
+                        </a>
+                        <span
+                          className="mt-0.5 shrink-0 text-[11px]"
+                          style={{ color: 'var(--text-secondary)' }}
+                          title={fmtFull(entry.created_at, lang)}
+                        >
+                          {fmtDate(entry.created_at, t, lang)}
+                        </span>
+                      </div>
+                      {entry.title && entry.description !== entry.title && (
+                        <p
+                          className="mt-0.5 line-clamp-2 text-xs"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {entry.description}
+                        </p>
+                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                        {entry.actor_name ? (
+                          <span
+                            className="rounded-full px-2 py-0.5"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {entry.actor_name}
+                          </span>
+                        ) : null}
+                        {entry.status ? (
+                          <span
+                            className="rounded-full px-2 py-0.5"
+                            style={{
+                              background:
+                                entry.status === 'failed'
+                                  ? '#fef2f2'
+                                  : entry.status === 'pending'
+                                    ? '#fffbeb'
+                                    : '#f0fdf4',
+                              color:
+                                entry.status === 'failed'
+                                  ? '#dc2626'
+                                  : entry.status === 'pending'
+                                    ? '#d97706'
+                                    : '#16a34a',
+                            }}
+                          >
+                            {entry.status}
+                          </span>
+                        ) : null}
+                        {entry.module ? (
+                          <span
+                            className="rounded-full px-2 py-0.5"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {entry.module}
+                          </span>
+                        ) : null}
+                      </div>
+                      {/* Before / after change summary */}
+                      {(entry.before_value || entry.after_value) && (
+                        <div
+                          className="mt-1.5 flex gap-2 text-[11px]"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {entry.before_value && (
+                            <span
+                              className="rounded px-2 py-0.5"
+                              style={{ background: '#fef2f2', color: '#dc2626' }}
+                            >
+                              {String(
+                                entry.before_value.status ??
+                                  entry.before_value.priority ??
+                                  t('activityStateBefore'),
+                              )}
+                            </span>
+                          )}
+                          {entry.before_value && entry.after_value && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {t('activityArrowTo')}
+                            </span>
+                          )}
+                          {entry.after_value && (
+                            <span
+                              className="rounded px-2 py-0.5"
+                              style={{ background: '#f0fdf4', color: '#16a34a' }}
+                            >
+                              {String(
+                                entry.after_value.status ??
+                                  entry.after_value.priority ??
+                                  t('activityStateAfter'),
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
 
           {hasMore && (
             <button

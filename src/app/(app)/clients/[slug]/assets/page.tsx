@@ -303,6 +303,7 @@ export default function ClientAssetsPage() {
           onView={(asset) => setPreviewAsset(asset)}
           onDelete={(asset) => void handleDeleteAsset(asset)}
           onCopyLink={(asset) => void handleCopyAssetLink(asset)}
+          singleClientLogoUrl={client?.logo ?? null}
         />
       )}
 

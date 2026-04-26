@@ -180,7 +180,7 @@ export interface Task {
   content_item_id?: string | null;
   mentions?: string[];
   tags?: string[];
-  client?: { id: string; name: string };
+  client?: { id: string; name: string; logo?: string | null; slug?: string | null };
   created_at: string;
   updated_at: string;
   /** Publishing schedule integration */
@@ -291,16 +291,22 @@ export interface CalendarAsset {
 export interface Activity {
   id: string;
   type: string;
+  module?: string | null;
+  title?: string | null;
   description: string;
   /** @deprecated use user_uuid (UUID FK to profiles) */
   user_id?: string;
   /** UUID FK to profiles */
   user_uuid?: string | null;
+  user_role?: string | null;
   client_id?: string;
   /** The type of entity this activity relates to (task, asset, etc.) */
   entity_type?: string | null;
   /** The UUID of the related entity */
   entity_id?: string | null;
+  related_entity_type?: string | null;
+  related_entity_id?: string | null;
+  status?: 'success' | 'failed' | 'pending' | string | null;
   /** Arbitrary structured data for the activity */
   metadata_json?: Record<string, unknown> | null;
   created_at: string;
@@ -367,6 +373,7 @@ export interface Notification {
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
+  module?: string | null;
   read: boolean;
   /** Optional: set by read action */
   read_at?: string | null;
@@ -377,6 +384,7 @@ export interface Notification {
   /** Soft-delete — archived notifications are hidden from main view */
   is_archived?: boolean;
   actor_id?: string | null;
+  created_by?: string | null;
   metadata?: Record<string, unknown> | null;
   client_id?: string | null;
   user_id?: string | null;
@@ -433,15 +441,21 @@ export interface ActivityLogEntry {
   /** @deprecated use actor_id (UUID) */
   user_uuid?: string | null;
   type: string;
+  module?: string | null;
+  status?: 'success' | 'failed' | 'pending' | string | null;
+  user_role?: string | null;
   category?: NotificationCategory | null;
   title?: string | null;
   description: string;
   entity_type?: string | null;
   entity_id?: string | null;
+  related_entity_type?: string | null;
+  related_entity_id?: string | null;
   before_value?: Record<string, unknown> | null;
   after_value?: Record<string, unknown> | null;
   metadata_json?: Record<string, unknown> | null;
   client_id?: string | null;
+  actor_name?: string | null;
   created_at: string;
 }
 

@@ -88,23 +88,33 @@ export async function exportPreviewPdf(
   mount.appendChild(sourceClone);
   document.body.appendChild(mount);
 
-  const w = sourceClone.scrollWidth;
-  const h = sourceClone.scrollHeight;
+  // Let layout flush so scrollWidth/Height reflect tables (avoids wrong canvas size).
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+  const sw = Math.max(1, sourceClone.scrollWidth);
+  const sh = Math.max(1, sourceClone.scrollHeight);
+  // html2pdf runs one full-document html2canvas pass, then slices pages. A huge bitmap
+  // (especially scale:2 on tall accounting tables) freezes the tab — cap effective edge.
+  const longestEdge = Math.max(sw, sh);
+  const HARD_CAP_PX = 6144;
+  let scale = 2;
+  if (longestEdge * scale > HARD_CAP_PX) {
+    scale = HARD_CAP_PX / longestEdge;
+  }
+  scale = Math.min(2, Math.max(0.35, Math.round(scale * 1000) / 1000));
 
   const opt = {
     margin: 0,
     filename: `${safeCode}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
+    image: { type: 'jpeg', quality: scale >= 1.5 ? 0.95 : 0.88 },
     html2canvas: {
-      scale: 2,
+      scale,
       useCORS: true,
       logging: false,
       scrollY: 0,
       scrollX: 0,
-      width: w,
-      height: h,
-      windowWidth: w,
-      windowHeight: h,
+      // Do not pass width/height/windowWidth/windowHeight: they force a single giant
+      // canvas matching full scrollHeight and lock the browser on long docs.
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
@@ -112,8 +122,11 @@ export async function exportPreviewPdf(
 
   try {
     await html2pdf().set(opt).from(sourceClone).save();
+    return true;
+  } catch (err) {
+    console.error('[docs-print] exportPreviewPdf failed:', err);
+    return false;
   } finally {
     mount.remove();
   }
-  return true;
 }

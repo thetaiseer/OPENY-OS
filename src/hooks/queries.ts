@@ -87,7 +87,7 @@ export function useTasks(
       const sb = supabase();
       let q = sb
         .from('tasks')
-        .select(`${TASK_LIST_COLUMNS}, client:clients(id,name)`, { count: 'exact' })
+        .select(`${TASK_LIST_COLUMNS}, client:clients(id,name,logo,slug)`, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (search.trim()) {

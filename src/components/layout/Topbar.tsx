@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Languages, Moon, Search, Sun } from 'lucide-react';
+import { Languages, Moon, Search, Sun } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
 import { useAppPeriod } from '@/context/app-period-context';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 import UserAccountMenu from '@/components/layout/UserAccountMenu';
+import NotificationDropdown from '@/components/features/notifications/NotificationDropdown';
 
 type TopbarProps = {
   className?: string;
@@ -96,13 +97,7 @@ export default function Topbar({ className }: TopbarProps) {
           >
             {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
-            aria-label={t('notifications')}
-          >
-            <Bell className="h-4 w-4" />
-          </button>
+          <NotificationDropdown />
           <UserAccountMenu />
         </div>
       </div>

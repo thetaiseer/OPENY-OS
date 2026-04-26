@@ -33,6 +33,7 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
 import { useLang } from '@/context/lang-context';
 import { useAppPeriod } from '@/context/app-period-context';
+import { useToast } from '@/context/toast-context';
 
 const [PARTNER_A, PARTNER_B] = ACCOUNTING_COLLECTORS;
 
@@ -1073,6 +1074,7 @@ function SettlementPdfBlock({
 
 export default function AccountingPage() {
   const { t, lang } = useLang();
+  const { toast } = useToast();
   const { periodYm, setPeriodYm } = useAppPeriod();
   const month = periodYm;
   const setMonth = setPeriodYm;
@@ -1089,6 +1091,7 @@ export default function AccountingPage() {
   const [addTransfer, setAddTransfer] = useState(false);
   const [editTransfer, setEditTransfer] = useState<DocsAccountingTransfer | null>(null);
   const [search, setSearch] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const notesDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1228,7 +1231,19 @@ export default function AccountingPage() {
   }
 
   async function exportPdf() {
-    await exportPreviewPdf('accounting-settlement-pdf', `settlement-${mk}`, 'accounting');
+    setPdfBusy(true);
+    try {
+      const ok = await exportPreviewPdf(
+        'accounting-settlement-pdf',
+        `settlement-${mk}`,
+        'accounting',
+      );
+      if (!ok) toast(t('docQtPdfExportError'), 'error');
+    } catch {
+      toast(t('docQtPdfExportError'), 'error');
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   const inp =
@@ -1251,11 +1266,13 @@ export default function AccountingPage() {
                 />
                 <button
                   type="button"
+                  disabled={pdfBusy}
                   onClick={() => void exportPdf()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   style={{ background: '#0f172a' }}
                 >
-                  <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
+                  <Printer size={12} className="me-1 inline" />{' '}
+                  {pdfBusy ? t('docPdfGenerating') : t('docQtToolbarPdf')}
                 </button>
                 <a
                   href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
