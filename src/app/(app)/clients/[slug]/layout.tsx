@@ -342,7 +342,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
               <Button type="button" variant="secondary" onClick={handleEdit}>
                 <Pencil size={14} /> Edit
               </Button>
-              {role === 'owner' ? (
+              {role === 'owner' || role === 'admin' ? (
                 <Button type="button" variant="danger" onClick={() => void handleDelete()}>
                   <Trash2 size={14} /> {t('deleteAction')}
                 </Button>

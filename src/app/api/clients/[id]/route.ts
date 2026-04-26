@@ -2,7 +2,7 @@
  * DELETE /api/clients/[id]
  *
  * Permanently removes a client in the current workspace.
- * Auth: workspace owner only (not admin/manager).
+ * Auth: workspace owner/admin.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +13,7 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const auth = await requireRole(request, ['owner']);
+  const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { id: clientId } = await ctx.params;
@@ -46,6 +46,33 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
   }
   if (!existing) {
     return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+  }
+
+  // Defensive cleanup: if some environments still have strict FK constraints
+  // (instead of ON DELETE SET NULL), detach child rows before deleting the client.
+  const nullableClientRefs = [
+    'tasks',
+    'assets',
+    'content_items',
+    'projects',
+    'publishing_schedules',
+    'calendar_events',
+    'time_entries',
+    'activities',
+    'notifications',
+  ] as const;
+  for (const table of nullableClientRefs) {
+    const { error } = await db.from(table).update({ client_id: null }).eq('client_id', clientId);
+    if (error) {
+      // Ignore missing-table/column schema drift; hard errors still surface on final delete.
+      const msg = error.message?.toLowerCase?.() ?? '';
+      if (!msg.includes('does not exist')) {
+        console.warn(
+          `[DELETE /api/clients/${clientId}] pre-clean failed on ${table}:`,
+          error.message,
+        );
+      }
+    }
   }
 
   const { error: delErr } = await db

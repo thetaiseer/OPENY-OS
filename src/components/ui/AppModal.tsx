@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
 
 type AppModalProps = {
@@ -48,6 +49,12 @@ export default function AppModal({
   closeOnEscape = true,
   className,
 }: AppModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open || !closeOnEscape) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -66,9 +73,9 @@ export default function AppModal({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className={cn('fixed inset-0', zIndexClassName)}>
       <button
         type="button"
@@ -143,6 +150,7 @@ export default function AppModal({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

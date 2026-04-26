@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
   Check,
@@ -278,6 +280,8 @@ function toForm(invoice: DocsInvoice): FormState {
 export default function InvoicePage() {
   const { t, lang } = useLang();
   const { periodYm } = useAppPeriod();
+  const searchParams = useSearchParams();
+  const requestedInvoiceId = searchParams.get('invoiceId') ?? '';
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [form, setForm] = useState<FormState>(() => blank([], calendarMonthNow()));
@@ -360,13 +364,17 @@ export default function InvoicePage() {
       const loadedInvoices = invJson.invoices ?? [];
       setInvoices(loadedInvoices);
       setProfiles(docsProfiles);
-      loadFromInvoice(loadedInvoices[0] ?? null, loadedInvoices);
+      const requested =
+        requestedInvoiceId.length > 0
+          ? (loadedInvoices.find((invoice) => invoice.id === requestedInvoiceId) ?? null)
+          : null;
+      loadFromInvoice(requested ?? loadedInvoices[0] ?? null, loadedInvoices);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('docInvLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [loadFromInvoice, t]);
+  }, [loadFromInvoice, requestedInvoiceId, t]);
 
   useEffect(() => {
     void load();
@@ -971,22 +979,18 @@ export default function InvoicePage() {
               </p>
               <div>
                 <label>{t('docInvHistory')}</label>
-                <SelectDropdown
-                  fullWidth
-                  className={inputClass}
-                  value={form.id ?? ''}
-                  onChange={(selectedId) => {
-                    const selected = invoices.find((invoice) => invoice.id === selectedId) ?? null;
-                    loadFromInvoice(selected, invoices);
-                  }}
-                  options={[
-                    { value: '', label: t('docCommonUnsavedNew') },
-                    ...invoices.map((invoice) => ({
-                      value: invoice.id,
-                      label: `${invoice.invoice_number} · ${invoice.client_name}`,
-                    })),
-                  ]}
-                />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Link
+                    href="/docs/invoice/history"
+                    className="inline-flex items-center rounded-lg border px-3 py-2 text-sm font-semibold transition-opacity hover:opacity-80"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                  >
+                    {t('docInvOpenHistoryPage')}
+                  </Link>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {t('docInvSavedCount', { count: invoices.length })}
+                  </span>
+                </div>
               </div>
             </div>
           </>

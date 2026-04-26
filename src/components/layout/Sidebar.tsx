@@ -45,10 +45,10 @@ export default function Sidebar() {
 
   return (
     <aside className="openy-glass fixed inset-y-0 start-0 z-40 hidden w-[240px] overflow-y-auto border-e md:block">
-      <div className="flex h-16 min-w-0 shrink-0 items-center border-b border-border px-3">
+      <div className="flex h-16 min-w-0 shrink-0 items-center justify-center border-b border-border px-3">
         <Link
           href="/dashboard"
-          className="flex min-w-0 max-w-full items-center py-1"
+          className="flex w-full min-w-0 max-w-full items-center justify-center py-1"
           aria-label={t('dashboard')}
         >
           <OpenyLogo {...openyAppChromeLogoDimensions(38)} className="min-w-0" />
