@@ -7,23 +7,29 @@ const DOC_BLACK = OPENY_DOC_BLACK;
 const labelCell: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   borderRight: '1px solid #fff',
-  padding: '8px 12px',
+  padding: '10px 12px',
   fontWeight: 700,
   fontSize: 11,
   textAlign: 'right',
   background: '#fff',
   width: '60%',
+  verticalAlign: 'middle',
+  lineHeight: 1.35,
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
 };
 
 const valueCell: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: '8px 12px',
+  padding: '10px 12px',
   fontWeight: 700,
   fontSize: 11,
   textAlign: 'center',
   background: '#fff',
   overflowWrap: 'anywhere',
   width: '40%',
+  verticalAlign: 'middle',
+  lineHeight: 1.35,
 };
 
 function fmt(v: number, cur: string) {
@@ -78,6 +84,7 @@ export default function TotalsSection({
                 fontSize: 12,
                 letterSpacing: 1.2,
                 textTransform: 'uppercase',
+                verticalAlign: 'middle',
               }}
             >
               Grand Total
@@ -89,6 +96,7 @@ export default function TotalsSection({
                 background: DOC_BLACK,
                 color: '#fff',
                 fontSize: 12,
+                verticalAlign: 'middle',
               }}
             >
               {fmt(totals.grandTotal, currency)}

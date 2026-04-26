@@ -7,20 +7,27 @@ const DOC_BLACK = OPENY_DOC_BLACK;
 const th: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   borderRight: '1px solid #fff',
-  padding: '10px 12px',
+  padding: '10px 10px',
   fontSize: 10,
   fontWeight: 800,
-  letterSpacing: 1.2,
+  letterSpacing: 0.6,
   textTransform: 'uppercase',
   textAlign: 'left',
+  verticalAlign: 'middle',
+  lineHeight: 1.25,
+  wordBreak: 'normal',
+  overflowWrap: 'break-word',
 };
 
 const td: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: '6px 8px',
+  padding: '8px 10px',
   fontSize: 11,
   verticalAlign: 'middle',
   background: '#fff',
+  lineHeight: 1.35,
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
 };
 
 function fmt(v: number, cur: string) {
@@ -52,9 +59,9 @@ export default function BranchTable({
     <div style={{ marginBottom: 16 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
-          <col style={{ width: '12%' }} />
-          <col style={{ width: '13%' }} />
-          <col style={{ width: '33%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '17%' }} />
+          <col style={{ width: '30%' }} />
           <col style={{ width: '12%' }} />
           <col style={{ width: '14%' }} />
           <col style={{ width: '16%' }} />
@@ -73,6 +80,8 @@ export default function BranchTable({
                 letterSpacing: 1.2,
                 textTransform: 'uppercase',
                 textAlign: 'center',
+                verticalAlign: 'middle',
+                lineHeight: 1.35,
               }}
             >
               {branchTable.branchName}
@@ -101,7 +110,10 @@ export default function BranchTable({
         <tbody>
           {totalRows === 0 ? (
             <tr>
-              <td colSpan={6} style={{ ...td, textAlign: 'center', color: '#666' }}>
+              <td
+                colSpan={6}
+                style={{ ...td, textAlign: 'center', color: '#666', verticalAlign: 'middle' }}
+              >
                 No campaign data.
               </td>
             </tr>
@@ -110,27 +122,36 @@ export default function BranchTable({
               <tr key={`${branchTable.id}-r${rowIndex}`} style={{ pageBreakInside: 'avoid' }}>
                 {/* Branch cell — rowSpan covers all rows in this branch */}
                 {rowIndex === 0 && (
-                  <td rowSpan={totalRows} style={{ ...td, textAlign: 'center', fontWeight: 600 }}>
+                  <td
+                    rowSpan={totalRows}
+                    style={{ ...td, textAlign: 'center', fontWeight: 600, verticalAlign: 'middle' }}
+                  >
                     {row.branch || branchTable.branchName}
                   </td>
                 )}
 
                 {/* Platform cell — rowSpan covers all rows for this platform */}
                 {row.showPlatform && (
-                  <td rowSpan={row.platformSpan} style={{ ...td, textAlign: 'center' }}>
+                  <td
+                    rowSpan={row.platformSpan}
+                    style={{ ...td, textAlign: 'center', verticalAlign: 'middle' }}
+                  >
                     {row.platform || '—'}
                   </td>
                 )}
 
-                <td style={td}>{row.ad_name || '—'}</td>
-                <td style={{ ...td, overflowWrap: 'anywhere' }}>{row.date || '—'}</td>
-                <td style={td}>{row.results || '—'}</td>
+                <td style={{ ...td, verticalAlign: 'middle' }}>{row.ad_name || '—'}</td>
+                <td style={{ ...td, overflowWrap: 'anywhere', verticalAlign: 'middle' }}>
+                  {row.date || '—'}
+                </td>
+                <td style={{ ...td, verticalAlign: 'middle' }}>{row.results || '—'}</td>
                 <td
                   style={{
                     ...td,
                     textAlign: 'right',
                     fontWeight: 600,
                     overflowWrap: 'anywhere',
+                    verticalAlign: 'middle',
                   }}
                 >
                   {fmt(row.cost, currency)}
@@ -148,6 +169,7 @@ export default function BranchTable({
                 background: '#E5E7EB',
                 fontWeight: 700,
                 textAlign: 'right',
+                verticalAlign: 'middle',
               }}
             >
               {branchTable.branchName} Total
@@ -159,6 +181,7 @@ export default function BranchTable({
                 fontWeight: 700,
                 textAlign: 'right',
                 overflowWrap: 'anywhere',
+                verticalAlign: 'middle',
               }}
             >
               {fmt(branchTable.subtotal, currency)}
