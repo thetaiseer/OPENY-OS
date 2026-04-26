@@ -71,13 +71,14 @@ interface FolderPath {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FilterBadge({ label, onRemove }: { label: string; onRemove: () => void }) {
+  const { t } = useLang();
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs font-medium text-[var(--accent)]">
       {label}
       <button
         onClick={onRemove}
         className="leading-none transition-opacity hover:opacity-70"
-        title="Remove filter"
+        title={t('assetsRemoveFilter')}
       >
         <X size={11} />
       </button>
@@ -106,25 +107,10 @@ function getFileBaseName(name: string): string {
   return ext ? name.slice(0, name.length - ext.length) : name;
 }
 
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-function monthLabel(mm: string): string {
+function monthLabel(mm: string, tf: (key: string) => string): string {
   const idx = parseInt(mm, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx > 11) return mm;
-  return MONTH_NAMES[idx] ?? mm;
+  return tf(`calMonth${idx}`);
 }
 
 function getAssetYear(asset: Asset): string {
@@ -154,6 +140,7 @@ function FolderCard({
   onDownload,
   isDownloading,
 }: FolderCardProps) {
+  const { t } = useLang();
   const hasActions = onView || onDownload;
   return (
     <div
@@ -185,7 +172,7 @@ function FolderCard({
             {label}
           </p>
           <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {count} {count === 1 ? 'file' : 'files'}
+            {count === 1 ? t('assetsFileCount', { count }) : t('assetsFileCountPlural', { count })}
           </p>
         </div>
       </div>
@@ -205,7 +192,7 @@ function FolderCard({
                 border: '1px solid var(--border)',
               }}
             >
-              <FolderOpen size={11} /> View
+              <FolderOpen size={11} /> {t('assetsView')}
             </button>
           )}
           {onDownload && (
@@ -224,7 +211,7 @@ function FolderCard({
               }}
             >
               <Download size={11} />
-              {isDownloading ? 'Zipping…' : 'Download'}
+              {isDownloading ? t('assetsZipping') : t('assetsDownload')}
             </button>
           )}
         </div>
@@ -250,6 +237,7 @@ function ClientFolderCard({
   onDownload: () => void;
   isDownloading: boolean;
 }) {
+  const { t } = useLang();
   return (
     <div
       role="button"
@@ -276,7 +264,7 @@ function ClientFolderCard({
             {label}
           </p>
           <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {count} {count === 1 ? 'file' : 'files'}
+            {count === 1 ? t('assetsFileCount', { count }) : t('assetsFileCountPlural', { count })}
           </p>
         </div>
       </div>
@@ -287,7 +275,7 @@ function ClientFolderCard({
           className="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
         >
-          <FolderOpen size={12} /> View
+          <FolderOpen size={12} /> {t('assetsView')}
         </button>
         {slug ? (
           <a
@@ -300,7 +288,7 @@ function ClientFolderCard({
               textDecoration: 'none',
             }}
           >
-            <Users2 size={12} /> Workspace
+            <Users2 size={12} /> {t('assetsWorkspace')}
           </a>
         ) : (
           <button
@@ -315,7 +303,7 @@ function ClientFolderCard({
             }}
           >
             <Download size={12} />
-            {isDownloading ? '…' : 'Download'}
+            {isDownloading ? '…' : t('assetsDownload')}
           </button>
         )}
       </div>
@@ -337,14 +325,15 @@ function Breadcrumb({
   items: BreadcrumbItem[];
   onNavigate: (path: FolderPath) => void;
 }) {
+  const { t } = useLang();
   return (
-    <nav className="flex flex-wrap items-center gap-1" aria-label="Folder navigation">
+    <nav className="flex flex-wrap items-center gap-1" aria-label={t('assetsFolderNav')}>
       <button
         type="button"
         onClick={() => onNavigate({})}
         className="flex h-7 w-7 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
         style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}
-        title="All clients"
+        title={t('assetsAllClients')}
       >
         <Home size={13} />
       </button>
@@ -381,15 +370,15 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: '#6b7280',
 };
 
-const FILE_TYPE_LABELS: Record<string, string> = {
-  image: 'Images',
-  video: 'Videos',
-  audio: 'Audio',
-  'application/pdf': 'PDFs',
-};
-
-function fileTypeFilterLabel(value: string): string {
-  return FILE_TYPE_LABELS[value] ?? value.charAt(0).toUpperCase() + value.slice(1);
+function fileTypeFilterLabel(value: string, tf: (key: string) => string): string {
+  const keys: Record<string, string> = {
+    image: 'assetsTypeImages',
+    video: 'assetsTypeVideos',
+    audio: 'assetsTypeAudio',
+    'application/pdf': 'assetsTypePdfs',
+  };
+  const k = keys[value];
+  return k ? tf(k) : value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -505,7 +494,7 @@ function AssetsPage() {
       } catch (err: unknown) {
         const isAbort = err instanceof Error && err.name === 'AbortError';
         const msg = isAbort
-          ? 'Assets took too long to load. Please try again.'
+          ? t('assetsLoadTimeout')
           : err instanceof Error
             ? err.message
             : String(err);
@@ -516,7 +505,7 @@ function AssetsPage() {
         setLoading(false);
       }
     },
-    [workspaceQs],
+    [workspaceQs, t],
   );
 
   const loadMore = useCallback(() => {
@@ -685,7 +674,7 @@ function AssetsPage() {
     }
     if (folderPath.month) {
       const mk = folderPath.month;
-      const label = mk.length >= 7 ? `${monthLabel(mk.slice(5, 7))} ${mk.slice(0, 4)}` : mk;
+      const label = mk.length >= 7 ? `${monthLabel(mk.slice(5, 7), t)} ${mk.slice(0, 4)}` : mk;
       items.push({
         label,
         path: {
@@ -703,7 +692,7 @@ function AssetsPage() {
       });
     }
     return items;
-  }, [folderPath]);
+  }, [folderPath, t]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -752,8 +741,8 @@ function AssetsPage() {
     if (pathDepth === 1) return mainCategoryLabel(key);
     if (pathDepth === 2) return key;
     if (pathDepth === 3) {
-      if (key.length >= 7) return `${monthLabel(key.slice(5, 7))} ${key.slice(0, 4)}`;
-      return key || 'Unknown';
+      if (key.length >= 7) return `${monthLabel(key.slice(5, 7), t)} ${key.slice(0, 4)}`;
+      return key || t('assetsUnknownType');
     }
     if (pathDepth === 4) return subCategoryLabel(folderPath.mainCategory ?? '', key);
     return key;
@@ -1094,7 +1083,7 @@ function AssetsPage() {
       >
         <PageHeader
           title={t('assets')}
-          subtitle="Manage uploaded files · Drag & drop or click Upload"
+          subtitle={t('assetsSubtitle')}
           actions={
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               {canUpload && !selectionMode && (
@@ -1105,20 +1094,20 @@ function AssetsPage() {
                   onClick={() => !isUploading && fileRef.current?.click()}
                 >
                   <Upload size={16} />
-                  {isUploading ? 'Uploading…' : t('uploadFile')}
+                  {isUploading ? t('assetsUploading') : t('uploadFile')}
                 </Button>
               )}
               {!selectionMode ? (
                 <Button type="button" variant="secondary" onClick={enterSelectionMode}>
-                  <Square size={14} /> Select
+                  <Square size={14} /> {t('assetsSelect')}
                 </Button>
               ) : (
                 <>
                   <Button type="button" variant="secondary" onClick={handleToggleSelectAll}>
                     <CheckSquare size={14} />
                     {filteredAssets.length > 0 && filteredAssets.every((a) => selectedIds.has(a.id))
-                      ? 'Deselect All'
-                      : 'Select All'}
+                      ? t('assetsDeselectAll')
+                      : t('assetsSelectAll')}
                   </Button>
                   <Button
                     type="button"
@@ -1129,13 +1118,13 @@ function AssetsPage() {
                   >
                     <Download size={14} />
                     {downloadingZip
-                      ? 'Preparing…'
+                      ? t('assetsPreparing')
                       : selectedIds.size > 0
-                        ? `Download (${selectedIds.size})`
-                        : 'Download Selected'}
+                        ? t('assetsDownloadCount', { n: selectedIds.size })
+                        : t('assetsDownloadSelected')}
                   </Button>
                   <Button type="button" variant="danger" onClick={exitSelectionMode}>
-                    <X size={14} /> Cancel
+                    <X size={14} /> {t('cancel')}
                   </Button>
                 </>
               )}
@@ -1158,10 +1147,10 @@ function AssetsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="ml-auto gap-1.5 text-sm"
+                className="ms-auto gap-1.5 text-sm"
                 onClick={goUp}
               >
-                <ChevronLeft size={12} /> Up
+                <ChevronLeft size={12} /> {t('assetsUp')}
               </Button>
             </CardContent>
           </Card>
@@ -1174,26 +1163,26 @@ function AssetsPage() {
               <div className="relative min-w-48 flex-1">
                 <Search
                   size={14}
-                  className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
+                  className="pointer-events-none absolute start-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
                 />
                 <Input
                   type="text"
-                  placeholder="Search files…"
+                  placeholder={t('assetsSearchFilesPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8"
+                  className="ps-8"
                 />
               </div>
               <SelectDropdown
                 value={filterFileType}
                 onChange={setFilterFileType}
-                placeholder="All file types"
+                placeholder={t('assetsAllFileTypes')}
                 options={[
-                  { value: '', label: 'All file types' },
-                  { value: 'image', label: 'Images' },
-                  { value: 'video', label: 'Videos' },
-                  { value: 'audio', label: 'Audio' },
-                  { value: 'application/pdf', label: 'PDFs' },
+                  { value: '', label: t('assetsAllFileTypes') },
+                  { value: 'image', label: t('assetsTypeImages') },
+                  { value: 'video', label: t('assetsTypeVideos') },
+                  { value: 'audio', label: t('assetsTypeAudio') },
+                  { value: 'application/pdf', label: t('assetsTypePdfs') },
                   ...availableFileTypes
                     .filter((tp) => !['image', 'video', 'audio'].includes(tp))
                     .map((tp) => ({ value: tp, label: tp.charAt(0).toUpperCase() + tp.slice(1) })),
@@ -1203,14 +1192,14 @@ function AssetsPage() {
                 value={sortBy}
                 onChange={(v) => setSortBy(v as 'newest' | 'oldest' | 'largest')}
                 options={[
-                  { value: 'newest', label: 'Newest First' },
-                  { value: 'oldest', label: 'Oldest First' },
-                  { value: 'largest', label: 'Largest First' },
+                  { value: 'newest', label: t('assetsSortNewest') },
+                  { value: 'oldest', label: t('assetsSortOldest') },
+                  { value: 'largest', label: t('assetsSortLargest') },
                 ]}
               />
               {hasActiveFilters && (
                 <Button type="button" variant="danger" onClick={clearFilters}>
-                  <X size={13} /> Clear
+                  <X size={13} /> {t('clear')}
                 </Button>
               )}
             </div>
@@ -1218,7 +1207,7 @@ function AssetsPage() {
               <div className="flex flex-wrap gap-1.5">
                 {filterFileType && (
                   <FilterBadge
-                    label={fileTypeFilterLabel(filterFileType)}
+                    label={fileTypeFilterLabel(filterFileType, t)}
                     onRemove={() => setFilterFileType('')}
                   />
                 )}
@@ -1239,7 +1228,7 @@ function AssetsPage() {
             <div className="space-y-2 text-center">
               <Upload size={48} style={{ color: 'var(--accent)', margin: '0 auto' }} />
               <p className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>
-                Drop files to upload
+                {t('assetsDropToUpload')}
               </p>
             </div>
           </div>
@@ -1251,7 +1240,7 @@ function AssetsPage() {
             <CardContent className="flex items-start gap-3 !p-4 py-3 text-sm text-[var(--color-danger)]">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">Failed to load assets</p>
+                <p className="font-medium">{t('assetsFailedLoadTitle')}</p>
                 <p className="break-all opacity-80">{fetchError}</p>
               </div>
               <Button
@@ -1260,7 +1249,7 @@ function AssetsPage() {
                 className="h-auto shrink-0 p-0 underline"
                 onClick={() => fetchAssets(0)}
               >
-                Retry
+                {t('assetsRetry')}
               </Button>
             </CardContent>
           </Card>
@@ -1284,12 +1273,12 @@ function AssetsPage() {
             icon={FolderOpen}
             title={
               hasActiveFilters || breadcrumbItems.length > 0
-                ? 'No matching files'
+                ? t('assetsNoMatchingFiles')
                 : t('noAssetsYet')
             }
             description={
               hasActiveFilters || breadcrumbItems.length > 0
-                ? 'Try adjusting your search or navigate to a different folder.'
+                ? t('assetsNoMatchingDesc')
                 : t('noAssetsDesc')
             }
             action={

@@ -24,23 +24,60 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { useLang } from '@/context/lang-context';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
-const STATUS_PIPELINE: { status: ContentItemStatus; label: string; color: string; bg: string }[] = [
-  { status: 'draft', label: 'Draft', color: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
-  { status: 'pending_review', label: 'In Review', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
-  { status: 'approved', label: 'Approved', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
-  { status: 'scheduled', label: 'Scheduled', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
-  { status: 'published', label: 'Published', color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
-  { status: 'rejected', label: 'Rejected', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+const STATUS_DEF: readonly {
+  status: ContentItemStatus;
+  labelKey: string;
+  color: string;
+  bg: string;
+}[] = [
+  {
+    status: 'draft',
+    labelKey: 'contentStatusDraft',
+    color: '#9ca3af',
+    bg: 'rgba(156,163,175,0.1)',
+  },
+  {
+    status: 'pending_review',
+    labelKey: 'contentStatusInReview',
+    color: '#d97706',
+    bg: 'rgba(217,119,6,0.1)',
+  },
+  {
+    status: 'approved',
+    labelKey: 'contentStatusApproved',
+    color: '#16a34a',
+    bg: 'rgba(22,163,74,0.1)',
+  },
+  {
+    status: 'scheduled',
+    labelKey: 'contentStatusScheduled',
+    color: '#7c3aed',
+    bg: 'rgba(124,58,237,0.1)',
+  },
+  {
+    status: 'published',
+    labelKey: 'contentStatusPublished',
+    color: '#0891b2',
+    bg: 'rgba(8,145,178,0.1)',
+  },
+  {
+    status: 'rejected',
+    labelKey: 'contentStatusRejected',
+    color: '#ef4444',
+    bg: 'rgba(239,68,68,0.1)',
+  },
 ];
 
 function getStatusCfg(status: ContentItemStatus) {
-  return STATUS_PIPELINE.find((s) => s.status === status) ?? STATUS_PIPELINE[0];
+  return STATUS_DEF.find((s) => s.status === status) ?? STATUS_DEF[0];
 }
 
 function StatusBadge({ status }: { status: ContentItemStatus }) {
+  const { t } = useLang();
   const cfg = getStatusCfg(status);
   const variant =
     status === 'published' || status === 'approved'
@@ -54,7 +91,7 @@ function StatusBadge({ status }: { status: ContentItemStatus }) {
             : 'default';
   return (
     <Badge variant={variant} className="text-xs">
-      {cfg.label}
+      {t(cfg.labelKey)}
     </Badge>
   );
 }
@@ -74,6 +111,7 @@ interface ContentCardProps {
 }
 
 function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
+  const { t } = useLang();
   const nextStatuses: Partial<Record<ContentItemStatus, ContentItemStatus>> = {
     draft: 'pending_review',
     pending_review: 'approved',
@@ -131,7 +169,8 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
               className="h-7 min-h-0 gap-1 px-2 py-1 text-xs"
               onClick={() => onStatusChange(item.id, nextStatus)}
             >
-              <ChevronRight size={12} /> {getStatusCfg(nextStatus).label}
+              <ChevronRight size={12} className="rtl:rotate-180" />{' '}
+              {t(getStatusCfg(nextStatus).labelKey)}
             </Button>
           )}
           {item.status !== 'rejected' && (
@@ -141,7 +180,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
               className="h-7 min-h-0 px-2 py-1 text-xs"
               onClick={() => onStatusChange(item.id, 'rejected')}
             >
-              Reject
+              {t('reject')}
             </Button>
           )}
           {onDelete && (
@@ -150,7 +189,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
               variant="ghost"
               className="h-7 min-h-0 w-7 p-0"
               onClick={() => onDelete(item.id)}
-              aria-label="Delete"
+              aria-label={t('deleteAction')}
             >
               <Trash2 size={13} />
             </Button>
@@ -165,6 +204,7 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 
 function ContentPage() {
   const { role } = useAuth();
+  const { t } = useLang();
   const canDeleteContent = role === 'admin' || role === 'owner';
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -236,14 +276,14 @@ function ContentPage() {
       void queryClient.invalidateQueries({
         queryKey: ['content-items', clientFilter, statusFilter],
       });
-      toast(`Status updated to ${status}`, 'success');
+      toast(t('statusUpdatedToast'), 'success');
     } catch {
-      toast('Failed to update status', 'error');
+      toast(t('failedUpdateStatusToast'), 'error');
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this content item?')) return;
+    if (!confirm(t('confirmDeleteContentItem'))) return;
     try {
       const res = await fetch(`/api/content-items/${id}`, { method: 'DELETE' });
       const json = (await res.json()) as { success: boolean };
@@ -255,14 +295,14 @@ function ContentPage() {
       void queryClient.invalidateQueries({
         queryKey: ['content-items', clientFilter, statusFilter],
       });
-      toast('Content item deleted', 'success');
+      toast(t('contentItemDeletedToast'), 'success');
     } catch {
-      toast('Failed to delete', 'error');
+      toast(t('failedDeleteToast'), 'error');
     }
   }
 
   // Group by status for pipeline view
-  const grouped = STATUS_PIPELINE.reduce<Record<string, ContentItem[]>>((acc, s) => {
+  const grouped = STATUS_DEF.reduce<Record<string, ContentItem[]>>((acc, s) => {
     acc[s.status] = filtered.filter((item) => item.status === s.status);
     return acc;
   }, {});
@@ -270,12 +310,12 @@ function ContentPage() {
   return (
     <PageShell className="mx-auto max-w-7xl space-y-6">
       <PageHeader
-        title="Content Items"
-        subtitle="Manage your content pipeline from draft to published"
+        title={t('contentItemsTitle')}
+        subtitle={t('contentItemsSubtitle')}
         actions={
           role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member' ? (
             <Button type="button" variant="primary" onClick={() => setNewOpen(true)}>
-              <Plus size={16} /> New Content
+              <Plus size={16} /> {t('newContent')}
             </Button>
           ) : undefined
         }
@@ -286,29 +326,29 @@ function ContentPage() {
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
             <Search
               size={14}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
+              className="pointer-events-none absolute start-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--text-secondary)]"
             />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search content..."
-              className="min-w-0 pl-9"
-              aria-label="Search content"
+              placeholder={t('searchContentPlaceholder')}
+              className="min-w-0 ps-9"
+              aria-label={t('searchContentAria')}
             />
           </div>
           <SelectDropdown
             value={statusFilter}
             onChange={setStatusFilter}
             options={[
-              { value: '', label: 'All Statuses' },
-              ...STATUS_PIPELINE.map((s) => ({ value: s.status, label: s.label })),
+              { value: '', label: t('allStatuses') },
+              ...STATUS_DEF.map((s) => ({ value: s.status, label: t(s.labelKey) })),
             ]}
           />
           <SelectDropdown
             value={clientFilter}
             onChange={setClientFilter}
             options={[
-              { value: '', label: 'All Clients' },
+              { value: '', label: t('allClients') },
               ...clients.map((c) => ({ value: c.id, label: c.name })),
             ]}
           />
@@ -326,26 +366,31 @@ function ContentPage() {
         <Card padding="md" className="p-16 text-center">
           <FileText size={36} className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30" />
           <p className="text-base font-medium text-[color:var(--text-primary)]">
-            No content items yet
+            {t('noContentItemsYet')}
           </p>
           <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
-            Click &ldquo;New Content&rdquo; to start your pipeline
+            {t('noContentItemsDesc')}
           </p>
         </Card>
       ) : (
         <div
           className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
           role="region"
-          aria-label="Content status pipeline"
+          aria-label={t('contentPipelineAria')}
         >
-          {STATUS_PIPELINE.filter((s) => grouped[s.status]?.length > 0).map((s) => (
-            <div key={s.status} className="space-y-3" role="list" aria-label={`${s.label} items`}>
+          {STATUS_DEF.filter((s) => grouped[s.status]?.length > 0).map((s) => (
+            <div
+              key={s.status}
+              className="space-y-3"
+              role="list"
+              aria-label={`${t(s.labelKey)} items`}
+            >
               <div className="flex items-center justify-between" role="heading" aria-level={2}>
                 <span
                   className="text-xs font-semibold uppercase tracking-wider"
                   style={{ color: s.color }}
                 >
-                  {s.label}
+                  {t(s.labelKey)}
                 </span>
                 <span
                   className="rounded-full px-2 py-0.5 text-xs"

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ActivityLogEntry, NotificationCategory } from '@/lib/types';
+import { useLang } from '@/context/lang-context';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -27,17 +28,17 @@ type CategoryFilter = 'all' | NotificationCategory;
 
 interface CategoryTab {
   id: CategoryFilter;
-  label: string;
+  labelKey: string;
   icon: React.ElementType;
 }
 
 const CATEGORY_TABS: CategoryTab[] = [
-  { id: 'all', label: 'All', icon: Activity },
-  { id: 'tasks', label: 'Tasks', icon: BriefcaseBusiness },
-  { id: 'content', label: 'Content', icon: FileText },
-  { id: 'assets', label: 'Assets', icon: FolderOpen },
-  { id: 'team', label: 'Team', icon: Users },
-  { id: 'system', label: 'System', icon: Shield },
+  { id: 'all', labelKey: 'all', icon: Activity },
+  { id: 'tasks', labelKey: 'tasks', icon: BriefcaseBusiness },
+  { id: 'content', labelKey: 'content', icon: FileText },
+  { id: 'assets', labelKey: 'assets', icon: FolderOpen },
+  { id: 'team', labelKey: 'team', icon: Users },
+  { id: 'system', labelKey: 'activityCategorySystem', icon: Shield },
 ];
 
 // ── Event type → icon + color ─────────────────────────────────────────────────
@@ -84,19 +85,19 @@ function getEventStyle(type: string): EventStyle {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtDate(d: string) {
+function fmtDate(d: string, t: (key: string, vars?: Record<string, string | number>) => string) {
   const date = new Date(d);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+  if (diff < 60_000) return t('relativeJustNow');
+  if (diff < 3_600_000) return t('relativeMinutesAgo', { n: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t('relativeHoursAgo', { n: Math.floor(diff / 3_600_000) });
+  if (diff < 7 * 86_400_000) return t('relativeDaysAgo', { n: Math.floor(diff / 86_400_000) });
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function fmtFull(d: string) {
-  return new Date(d).toLocaleString(undefined, {
+function fmtFull(d: string, locale: string) {
+  return new Date(d).toLocaleString(locale === 'ar' ? 'ar' : undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -108,6 +109,7 @@ function fmtFull(d: string) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ActivityTimelinePage() {
+  const { t, lang } = useLang();
   const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -120,12 +122,14 @@ export default function ActivityTimelinePage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(
     async (nextPage = 1, append = false) => {
       if (append) setLoadingMore(true);
       else setLoading(true);
       try {
+        setLoadError(false);
         const params = new URLSearchParams({ limit: '30', page: String(nextPage) });
         if (activeTab !== 'all') params.set('category', activeTab);
         if (searchQuery) params.set('q', searchQuery);
@@ -145,6 +149,7 @@ export default function ActivityTimelinePage() {
         setPage(nextPage);
       } catch (err) {
         console.error('[activity-timeline] load error:', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -181,10 +186,14 @@ export default function ActivityTimelinePage() {
             style={{ color: 'var(--text)' }}
           >
             <Activity size={22} style={{ color: 'var(--accent)' }} />
-            Activity Timeline
+            {t('activityPageTitle')}
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            {total > 0 ? `${total.toLocaleString()} events` : 'Permanent workspace history'}
+            {total > 0
+              ? t('activityEventsCount', {
+                  count: total.toLocaleString(lang === 'ar' ? 'ar' : 'en'),
+                })
+              : t('activityHistoryPermanent')}
           </p>
         </div>
         <button
@@ -197,7 +206,7 @@ export default function ActivityTimelinePage() {
           }}
         >
           <Filter size={14} />
-          Filters
+          {t('activityFilters')}
           {hasActiveFilters && (
             <span
               className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold"
@@ -226,7 +235,7 @@ export default function ActivityTimelinePage() {
               }}
             >
               <Icon size={13} />
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           );
         })}
@@ -243,15 +252,15 @@ export default function ActivityTimelinePage() {
             <div className="relative flex-1">
               <Search
                 size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2"
                 style={{ color: 'var(--text-secondary)' }}
               />
               <input
                 type="text"
                 value={draftSearch}
                 onChange={(e) => setDraftSearch(e.target.value)}
-                placeholder="Search activity…"
-                className="h-9 w-full rounded-lg pl-9 pr-3 text-sm outline-none"
+                placeholder={t('activitySearchPlaceholder')}
+                className="h-9 w-full rounded-lg pe-3 ps-9 text-sm outline-none"
                 style={{
                   background: 'var(--surface-2)',
                   color: 'var(--text)',
@@ -264,7 +273,7 @@ export default function ActivityTimelinePage() {
               className="h-9 rounded-lg px-4 text-sm font-medium"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >
-              Search
+              {t('activitySearch')}
             </button>
           </form>
 
@@ -272,7 +281,7 @@ export default function ActivityTimelinePage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                From
+                {t('activityDateFrom')}
               </label>
               <input
                 type="date"
@@ -288,7 +297,7 @@ export default function ActivityTimelinePage() {
             </div>
             <div className="flex items-center gap-2">
               <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                To
+                {t('activityDateTo')}
               </label>
               <input
                 type="date"
@@ -308,11 +317,17 @@ export default function ActivityTimelinePage() {
                 className="text-xs underline"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                Clear filters
+                {t('clearFilters')}
               </button>
             )}
           </div>
         </div>
+      )}
+
+      {loadError && !loading && (
+        <p className="rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] px-4 py-3 text-sm text-[var(--color-danger)]">
+          {t('activityLoadError')}
+        </p>
       )}
 
       {/* ── Timeline list ─────────────────────────────────────────────────── */}
@@ -329,8 +344,8 @@ export default function ActivityTimelinePage() {
       ) : entries.length === 0 ? (
         <EmptyState
           icon={Activity}
-          title="No activity yet"
-          description="Activity will appear here as the team works across tasks, content, assets, and more."
+          title={t('activityNoActivityTitle')}
+          description={t('activityNoActivityDesc')}
         />
       ) : (
         <div className="space-y-0">
@@ -369,9 +384,9 @@ export default function ActivityTimelinePage() {
                     <span
                       className="mt-0.5 shrink-0 text-[11px]"
                       style={{ color: 'var(--text-secondary)' }}
-                      title={fmtFull(entry.created_at)}
+                      title={fmtFull(entry.created_at, lang)}
                     >
-                      {fmtDate(entry.created_at)}
+                      {fmtDate(entry.created_at, t)}
                     </span>
                   </div>
                   {entry.title && entry.description !== entry.title && (
@@ -394,7 +409,9 @@ export default function ActivityTimelinePage() {
                           style={{ background: '#fef2f2', color: '#dc2626' }}
                         >
                           {String(
-                            entry.before_value.status ?? entry.before_value.priority ?? 'before',
+                            entry.before_value.status ??
+                              entry.before_value.priority ??
+                              t('activityStateBefore'),
                           )}
                         </span>
                       )}
@@ -407,7 +424,9 @@ export default function ActivityTimelinePage() {
                           style={{ background: '#f0fdf4', color: '#16a34a' }}
                         >
                           {String(
-                            entry.after_value.status ?? entry.after_value.priority ?? 'after',
+                            entry.after_value.status ??
+                              entry.after_value.priority ??
+                              t('activityStateAfter'),
                           )}
                         </span>
                       )}
@@ -429,7 +448,7 @@ export default function ActivityTimelinePage() {
                 border: '1px solid var(--border)',
               }}
             >
-              {loadingMore ? 'Loading…' : 'Load more events'}
+              {loadingMore ? t('loading') : t('activityLoadMore')}
             </button>
           )}
         </div>

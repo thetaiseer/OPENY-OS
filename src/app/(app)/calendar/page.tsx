@@ -24,6 +24,7 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { useLang } from '@/context/lang-context';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -34,23 +35,6 @@ function getDaysInMonth(year: number, month: number) {
 function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
-
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function priorityColor(p: string): string {
   if (p === 'high') return '#dc2626';
@@ -94,6 +78,9 @@ function addDays(date: Date, amount: number): Date {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { t } = useLang();
+  const monthShort = (m: number) => t(`calMonth${m}`);
+  const dayShort = (d: number) => t(`calDay${d}`);
   const today = new Date();
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
@@ -209,7 +196,7 @@ export default function CalendarPage() {
   const schedules = calendarData?.schedules ?? [];
   const content = calendarData?.content ?? [];
 
-  const error = calendarError ? (calendarError as Error).message : null;
+  const error = calendarError ? t('calendarLoadError') : null;
 
   const prevMonth = () => {
     setSelectedDay(null);
@@ -291,8 +278,8 @@ export default function CalendarPage() {
     () => [...Array(7)].map((_, idx) => addDays(weekAnchor, idx)),
     [weekAnchor],
   );
-  const weekLabel = `${MONTH_NAMES[weekAnchor.getMonth()]} ${weekAnchor.getDate()} - ${MONTH_NAMES[weekDays[6].getMonth()]} ${weekDays[6].getDate()}, ${weekDays[6].getFullYear()}`;
-  const currentPeriodLabel = viewMode === 'week' ? weekLabel : `${MONTH_NAMES[month]} ${year}`;
+  const weekLabel = `${monthShort(weekAnchor.getMonth())} ${weekAnchor.getDate()} - ${monthShort(weekDays[6].getMonth())} ${weekDays[6].getDate()}, ${weekDays[6].getFullYear()}`;
+  const currentPeriodLabel = viewMode === 'week' ? weekLabel : `${monthShort(month)} ${year}`;
 
   // ── Mark as published ───────────────────────────────────────────────────────
   const handleMarkPublished = async (schedule: PublishingSchedule) => {
@@ -330,8 +317,8 @@ export default function CalendarPage() {
   return (
     <PageShell className="max-w-6xl space-y-6">
       <PageHeader
-        title="Calendar"
-        subtitle="View tasks, content, assets, and publishing schedules by date"
+        title={t('calendar')}
+        subtitle={t('calendarSubtitle')}
         actions={
           <div className="flex items-center gap-2">
             <Button type="button" variant="secondary" size="icon" onClick={prevMonth}>
@@ -351,31 +338,31 @@ export default function CalendarPage() {
       <div className="flex flex-wrap items-center gap-4 rounded-xl border px-3 py-2 text-xs text-[var(--text-secondary)]">
         <Tabs>
           <TabButton active={viewMode === 'month'} onClick={() => setViewMode('month')}>
-            Month
+            {t('calendarMonthView')}
           </TabButton>
           <TabButton active={viewMode === 'week'} onClick={() => setViewMode('week')}>
-            Week
+            {t('calendarWeekView')}
           </TabButton>
         </Tabs>
         <span className="flex items-center gap-1.5">
           <ListTodo size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
-          Tasks
+          {t('calendarLegendTasks')}
         </span>
         <span className="flex items-center gap-1.5">
           <Send size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#7c3aed' }} />
-          Publishing schedules
+          {t('calendarPublishingSchedules')}
         </span>
         <span className="flex items-center gap-1.5">
           <FileText size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#0891b2' }} />
-          Content
+          {t('calendarLegendContent')}
         </span>
         <span className="flex items-center gap-1.5">
           <Layers3 size={12} />
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#6b7280' }} />
-          Assets
+          {t('calendarLegendAssets')}
         </span>
       </div>
 
@@ -395,13 +382,13 @@ export default function CalendarPage() {
           <Card padding="none" className="overflow-hidden">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
-              {DAY_NAMES.map((d) => (
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                 <div
-                  key={d}
+                  key={i}
                   className="py-3 text-center text-xs font-semibold"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  {d}
+                  {dayShort(i)}
                 </div>
               ))}
             </div>
@@ -477,7 +464,7 @@ export default function CalendarPage() {
                                 (s as unknown as { content_item?: { title: string } }).content_item
                                   ?.title ??
                                 s.asset?.name ??
-                                'Schedule'}
+                                t('calScheduleFallback')}
                             </span>
                           </div>
                         ))}
@@ -493,16 +480,16 @@ export default function CalendarPage() {
                         ))}
                         {dayTasks
                           .slice(0, Math.max(0, 2 - daySchedules.length - dayContent.length))
-                          .map((t) => (
+                          .map((task) => (
                             <div
-                              key={t.id}
+                              key={task.id}
                               className="truncate rounded px-1 py-0.5 text-xs"
                               style={{
-                                background: `${priorityColor(t.priority)}20`,
-                                color: priorityColor(t.priority),
+                                background: `${priorityColor(task.priority)}20`,
+                                color: priorityColor(task.priority),
                               }}
                             >
-                              {t.title}
+                              {task.title}
                             </div>
                           ))}
                         {dayAssets
@@ -527,7 +514,7 @@ export default function CalendarPage() {
                           ))}
                         {totalVisible > 2 && (
                           <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            +{totalVisible - 2} more
+                            {t('calendarMoreCount', { n: totalVisible - 2 })}
                           </div>
                         )}
                       </div>
@@ -564,7 +551,7 @@ export default function CalendarPage() {
                           className="text-xs font-semibold"
                           style={{ color: 'var(--text-secondary)' }}
                         >
-                          {DAY_NAMES[date.getDay()]}
+                          {dayShort(date.getDay())}
                         </span>
                         <span
                           className="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold"
@@ -587,7 +574,9 @@ export default function CalendarPage() {
                             }}
                           >
                             <Send size={9} className="shrink-0" />
-                            <span className="truncate">{s.asset?.name ?? 'Schedule'}</span>
+                            <span className="truncate">
+                              {s.asset?.name ?? t('calScheduleFallback')}
+                            </span>
                           </div>
                         ))}
                         {dayContent.slice(0, Math.max(0, 3 - daySchedules.length)).map((c) => (
@@ -602,16 +591,16 @@ export default function CalendarPage() {
                         ))}
                         {dayTasks
                           .slice(0, Math.max(0, 3 - daySchedules.length - dayContent.length))
-                          .map((t) => (
+                          .map((task) => (
                             <div
-                              key={t.id}
+                              key={task.id}
                               className="truncate rounded px-1.5 py-1 text-xs"
                               style={{
-                                background: `${priorityColor(t.priority)}20`,
-                                color: priorityColor(t.priority),
+                                background: `${priorityColor(task.priority)}20`,
+                                color: priorityColor(task.priority),
                               }}
                             >
-                              {t.title}
+                              {task.title}
                             </div>
                           ))}
                         {dayAssets
@@ -636,7 +625,7 @@ export default function CalendarPage() {
                           ))}
                         {totalVisible > 3 && (
                           <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            +{totalVisible - 3} more
+                            {t('calendarMoreCount', { n: totalVisible - 3 })}
                           </div>
                         )}
                       </div>
@@ -655,7 +644,7 @@ export default function CalendarPage() {
               {selectedDay ? (
                 <>
                   <h3 className="text-sm font-semibold text-[var(--text)]">
-                    {MONTH_NAMES[month]} {selectedDay}, {year}
+                    {monthShort(month)} {selectedDay}, {year}
                   </h3>
 
                   {selectedTasks.length === 0 &&
@@ -663,7 +652,7 @@ export default function CalendarPage() {
                   selectedSchedules.length === 0 &&
                   selectedContent.length === 0 ? (
                     <p className="py-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      Nothing scheduled for this day
+                      {t('calendarNothingDay')}
                     </p>
                   ) : (
                     <>
@@ -676,7 +665,7 @@ export default function CalendarPage() {
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              PUBLISHING ({selectedSchedules.length})
+                              {t('calendarPublishingSection', { count: selectedSchedules.length })}
                             </span>
                           </div>
                           <div className="space-y-2">
@@ -684,7 +673,7 @@ export default function CalendarPage() {
                               <button
                                 key={s.id}
                                 onClick={() => setSelectedSchedule(s)}
-                                className="w-full rounded-lg p-2.5 text-left transition-opacity hover:opacity-80"
+                                className="w-full rounded-lg p-2.5 text-start transition-opacity hover:opacity-80"
                                 style={{
                                   background: 'var(--surface-2)',
                                   border:
@@ -697,7 +686,7 @@ export default function CalendarPage() {
                                   className="truncate text-sm font-medium"
                                   style={{ color: 'var(--text)' }}
                                 >
-                                  {s.asset?.name ?? 'Asset'}
+                                  {s.asset?.name ?? t('calendarDefaultAssetLabel')}
                                 </p>
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   <span
@@ -757,20 +746,20 @@ export default function CalendarPage() {
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              TASKS
+                              {t('calTasksSection')}
                             </span>
                           </div>
                           <div className="space-y-2">
-                            {selectedTasks.map((t) => {
+                            {selectedTasks.map((task) => {
                               const taskClient = (
-                                t as unknown as { client?: { slug?: string; name?: string } }
+                                task as unknown as { client?: { slug?: string; name?: string } }
                               ).client;
                               const taskLink = taskClient?.slug
                                 ? `/clients/${taskClient.slug}/tasks`
                                 : '/tasks/all';
                               return (
                                 <Link
-                                  key={t.id}
+                                  key={task.id}
                                   href={taskLink}
                                   className="block rounded-lg p-2.5 transition-opacity hover:opacity-80"
                                   style={{ background: 'var(--surface-2)' }}
@@ -780,7 +769,7 @@ export default function CalendarPage() {
                                       className="text-sm font-medium"
                                       style={{ color: 'var(--text)' }}
                                     >
-                                      {t.title}
+                                      {task.title}
                                     </p>
                                     <ExternalLink
                                       size={11}
@@ -800,17 +789,17 @@ export default function CalendarPage() {
                                     <span
                                       className="rounded px-1.5 py-0.5 text-xs"
                                       style={{
-                                        background: `${priorityColor(t.priority)}20`,
-                                        color: priorityColor(t.priority),
+                                        background: `${priorityColor(task.priority)}20`,
+                                        color: priorityColor(task.priority),
                                       }}
                                     >
-                                      {t.priority}
+                                      {task.priority}
                                     </span>
                                     <span
                                       className="text-xs"
                                       style={{ color: 'var(--text-secondary)' }}
                                     >
-                                      {t.status.replace(/_/g, ' ')}
+                                      {task.status.replace(/_/g, ' ')}
                                     </span>
                                   </div>
                                 </Link>
@@ -828,7 +817,7 @@ export default function CalendarPage() {
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              ASSETS
+                              {t('calAssetsSection')}
                             </span>
                           </div>
                           <div className="space-y-2">
@@ -871,7 +860,7 @@ export default function CalendarPage() {
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              CONTENT ({selectedContent.length})
+                              {t('calContentSection', { count: selectedContent.length })}
                             </span>
                           </div>
                           <div className="space-y-2">
@@ -933,7 +922,7 @@ export default function CalendarPage() {
                     style={{ color: 'var(--text-secondary)' }}
                   />
                   <p className="text-sm text-[var(--text-secondary)]">
-                    Click a day to see scheduled items
+                    {t('calendarClickDayHint')}
                   </p>
                 </div>
               )}
@@ -947,8 +936,8 @@ export default function CalendarPage() {
         <AppModal
           open
           onClose={() => setSelectedSchedule(null)}
-          title="Publishing Schedule"
-          subtitle={selectedSchedule.asset?.name ?? 'Unknown asset'}
+          title={t('calendarModalTitle')}
+          subtitle={selectedSchedule.asset?.name ?? t('calendarUnknownAsset')}
           icon={<Send size={15} />}
           size="sm"
           bodyClassName="space-y-4"
@@ -961,7 +950,7 @@ export default function CalendarPage() {
                 onClick={() => void handleMarkPublished(selectedSchedule)}
                 disabled={markingPublished}
               >
-                {markingPublished ? 'Marking…' : '✓ Mark as Published'}
+                {markingPublished ? t('calendarMarking') : t('calendarMarkPublishedBtn')}
               </Button>
             ) : undefined
           }
@@ -969,17 +958,17 @@ export default function CalendarPage() {
           {/* Asset name */}
           <div>
             <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              ASSET
+              {t('calendarAssetLabel')}
             </p>
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              {selectedSchedule.asset?.name ?? 'Unknown asset'}
+              {selectedSchedule.asset?.name ?? t('calendarUnknownAsset')}
             </p>
           </div>
           {/* Client */}
           {selectedSchedule.client_name && (
             <div>
               <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                CLIENT
+                {t('calendarClientLabel')}
               </p>
               <p className="text-sm" style={{ color: 'var(--text)' }}>
                 {selectedSchedule.client_name}
@@ -990,7 +979,7 @@ export default function CalendarPage() {
           <div className="flex gap-4">
             <div>
               <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                DATE
+                {t('calendarDateLabel')}
               </p>
               <p className="text-sm" style={{ color: 'var(--text)' }}>
                 {selectedSchedule.scheduled_date}
@@ -998,7 +987,7 @@ export default function CalendarPage() {
             </div>
             <div>
               <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                TIME
+                {t('calendarTimeLabel')}
               </p>
               <p className="text-sm" style={{ color: 'var(--text)' }}>
                 {selectedSchedule.scheduled_time?.slice(0, 5)}{' '}
@@ -1009,7 +998,7 @@ export default function CalendarPage() {
           {/* Status */}
           <div>
             <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              STATUS
+              {t('calendarStatusLabel')}
             </p>
             <span
               className="rounded px-2 py-0.5 text-xs font-medium capitalize"
@@ -1028,7 +1017,7 @@ export default function CalendarPage() {
                 className="mb-1.5 text-xs font-semibold"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                PLATFORMS
+                {t('calendarPlatformsLabel')}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {selectedSchedule.platforms.map((p) => (
@@ -1050,7 +1039,7 @@ export default function CalendarPage() {
                 className="mb-1.5 text-xs font-semibold"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                POST TYPES
+                {t('calendarPostTypesLabel')}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {selectedSchedule.post_types.map((pt) => (
@@ -1069,7 +1058,7 @@ export default function CalendarPage() {
           {selectedSchedule.caption && (
             <div>
               <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                CAPTION
+                {t('calendarCaptionLabel')}
               </p>
               <p className="whitespace-pre-line text-sm" style={{ color: 'var(--text)' }}>
                 {selectedSchedule.caption}
@@ -1080,7 +1069,7 @@ export default function CalendarPage() {
           {selectedSchedule.notes && (
             <div>
               <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                NOTES
+                {t('calendarNotesLabel')}
               </p>
               <p className="whitespace-pre-line text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {selectedSchedule.notes}

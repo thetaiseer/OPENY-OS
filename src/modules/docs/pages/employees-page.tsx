@@ -22,6 +22,35 @@ import {
   DocsEditorCard,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
+import { useLang } from '@/context/lang-context';
+
+type DocsT = (key: string, vars?: Record<string, string | number>) => string;
+
+function employmentTypeLabel(value: string, t: DocsT) {
+  const m: Record<string, string> = {
+    full_time: t('docEmpTypeFullTime'),
+    part_time: t('docEmpTypePartTime'),
+    contract: t('docEmpTypeContract'),
+    freelance: t('docEmpTypeFreelance'),
+  };
+  return m[value] ?? value;
+}
+
+function employeeStatusLabel(s: string, t: DocsT) {
+  const m: Record<string, string> = {
+    active: t('active'),
+    inactive: t('inactive'),
+    terminated: t('docEmpTerminated'),
+  };
+  return m[s] ?? s;
+}
+
+function salaryChangeLabel(type: string, t: DocsT) {
+  const k = type.toLowerCase();
+  if (k === 'increase') return t('docEmpChangeIncrease');
+  if (k === 'decrease') return t('docEmpChangeDecrease');
+  return t('docEmpChangeAdjustment');
+}
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -83,6 +112,7 @@ function SalaryModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useLang();
   const [newSalary, setNewSalary] = useState(employee.salary);
   const [note, setNote] = useState('');
   const [effDate, setEffDate] = useState(today());
@@ -91,7 +121,7 @@ function SalaryModal({
 
   async function submit() {
     if (newSalary < 0) {
-      setError('Salary cannot be negative');
+      setError(t('docEmpSalaryNegative'));
       return;
     }
     setSaving(true);
@@ -103,7 +133,7 @@ function SalaryModal({
         body: JSON.stringify({ new_salary: newSalary, effective_date: effDate, notes: note }),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Failed');
+        setError((await res.json()).error ?? t('docEmpFailed'));
         return;
       }
       onDone();
@@ -117,16 +147,16 @@ function SalaryModal({
     <AppModal
       open
       onClose={onClose}
-      title={`Update Salary — ${employee.full_name}`}
+      title={t('docEmpSalaryModalTitle', { name: employee.full_name })}
       size="sm"
       bodyClassName="space-y-3"
       footer={
         <>
           <button onClick={onClose} className="openy-modal-btn-secondary flex-1">
-            Cancel
+            {t('cancel')}
           </button>
           <button onClick={submit} disabled={saving} className="openy-modal-btn-primary flex-1">
-            {saving ? 'Saving…' : 'Update Salary'}
+            {saving ? t('docCommonSaving') : t('docEmpUpdateSalary')}
           </button>
         </>
       }
@@ -144,7 +174,7 @@ function SalaryModal({
           className="mb-1 block text-xs font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Current Salary
+          {t('docEmpCurrentSalary')}
         </label>
         <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>
           SAR {fmt(employee.salary)}
@@ -155,7 +185,7 @@ function SalaryModal({
           className="mb-1 block text-xs font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          New Salary
+          {t('docEmpNewSalary')}
         </label>
         <input
           type="number"
@@ -175,7 +205,7 @@ function SalaryModal({
           className="mb-1 block text-xs font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Effective Date
+          {t('docEmpEffectiveDate')}
         </label>
         <input
           type="date"
@@ -194,7 +224,7 @@ function SalaryModal({
           className="mb-1 block text-xs font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Notes
+          {t('notes')}
         </label>
         <textarea
           className="w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
@@ -225,6 +255,7 @@ function EmployeeModal({
   onDone: () => void;
   employees: DocsEmployee[];
 }) {
+  const { t } = useLang();
   const [form, setForm] = useState<EmpForm>(() =>
     initial
       ? {
@@ -252,7 +283,7 @@ function EmployeeModal({
 
   async function submit() {
     if (!form.full_name.trim()) {
-      setError('Full name is required');
+      setError(t('docEmpFullNameRequired'));
       return;
     }
     setSaving(true);
@@ -265,7 +296,7 @@ function EmployeeModal({
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       onDone();
@@ -287,20 +318,20 @@ function EmployeeModal({
     <AppModal
       open
       onClose={onClose}
-      title={initial ? 'Edit Employee' : 'Add Employee'}
+      title={initial ? t('docEmpEditEmployee') : t('docEmpAddEmployee')}
       size="lg"
       bodyClassName="space-y-4"
       footer={
         <>
           <button onClick={onClose} className="openy-modal-btn-secondary flex-1">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={submit}
             disabled={saving}
             className="openy-modal-btn-primary flex-1 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : initial ? 'Update' : 'Add Employee'}
+            {saving ? t('docCommonSaving') : initial ? t('docQtUpdate') : t('docEmpAddEmployeeBtn')}
           </button>
         </>
       }
@@ -315,7 +346,7 @@ function EmployeeModal({
       )}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          {lbl('Employee ID')}
+          {lbl(t('docEmpEmployeeId'))}
           <input
             className={inp}
             value={form.employee_id}
@@ -323,7 +354,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Full Name *')}
+          {lbl(t('docEmpFullNameReq'))}
           <input
             className={inp}
             value={form.full_name}
@@ -331,7 +362,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Job Title')}
+          {lbl(t('docEmpColJobTitle'))}
           <input
             className={inp}
             value={form.job_title}
@@ -339,17 +370,20 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Employment Type')}
+          {lbl(t('docEmpEmploymentType'))}
           <SelectDropdown
             fullWidth
             className={inp}
             value={form.employment_type}
             onChange={(v) => setF('employment_type', v)}
-            options={DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            options={DOCS_EMPLOYMENT_TYPES.map((et) => ({
+              value: et.value,
+              label: employmentTypeLabel(et.value, t),
+            }))}
           />
         </div>
         <div>
-          {lbl('Hire Date')}
+          {lbl(t('docEmpHireDate'))}
           <input
             type="date"
             className={inp}
@@ -358,21 +392,21 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Status')}
+          {lbl(t('status'))}
           <SelectDropdown
             fullWidth
             className={inp}
             value={form.status}
             onChange={(v) => setF('status', v)}
             options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-              { value: 'terminated', label: 'Terminated' },
+              { value: 'active', label: t('active') },
+              { value: 'inactive', label: t('inactive') },
+              { value: 'terminated', label: t('docEmpTerminated') },
             ]}
           />
         </div>
         <div>
-          {lbl('Phone')}
+          {lbl(t('phone'))}
           <input
             className={inp}
             value={form.phone}
@@ -380,7 +414,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Date of Birth')}
+          {lbl(t('docEmpDob'))}
           <input
             type="date"
             className={inp}
@@ -389,7 +423,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Salary (SAR/month)')}
+          {lbl(t('docEmpSalarySarMonth'))}
           <input
             type="number"
             min={0}
@@ -399,7 +433,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Daily Hours')}
+          {lbl(t('docHrLblDailyHours'))}
           <input
             type="number"
             min={1}
@@ -410,7 +444,7 @@ function EmployeeModal({
           />
         </div>
         <div>
-          {lbl('Contract Duration')}
+          {lbl(t('docHrLblContractDuration'))}
           <input
             className={inp}
             value={form.contract_duration}
@@ -418,7 +452,7 @@ function EmployeeModal({
           />
         </div>
         <div className="col-span-2">
-          {lbl('Address')}
+          {lbl(t('docCcLblAddress'))}
           <input
             className={inp}
             value={form.address}
@@ -433,6 +467,7 @@ function EmployeeModal({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
+  const { t } = useLang();
   const [employees, setEmployees] = useState<DocsEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
@@ -472,7 +507,7 @@ export default function EmployeesPage() {
   const selectedProfile = profiles.find((p) => p.client_id === selectedClientId) ?? null;
 
   async function deleteEmp(id: string) {
-    if (!confirm('Delete this employee? All salary history will also be deleted.')) return;
+    if (!confirm(t('docEmpDeleteConfirm'))) return;
     await fetch(`/api/docs/employees/${id}`, { method: 'DELETE' });
     await load();
   }
@@ -529,57 +564,60 @@ export default function EmployeesPage() {
                   value={payrollMonth}
                   onChange={setPayrollMonth}
                   mode="month"
-                  placeholder="Payroll month"
+                  placeholder={t('docEmpPayrollMonth')}
                 />
                 <button
                   onClick={exportPayrollCSV}
                   className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ background: '#0f172a' }}
                 >
-                  <Download size={13} /> Export CSV
+                  <Download size={13} /> {t('docEmpExportCsv')}
                 </button>
               </div>
             </div>
             <div className="docs-workspace-quickbar-grid">
               <div>
-                <label>Search</label>
+                <label>{t('docEmpSearchLabel')}</label>
                 <input
                   className="docs-input"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Employee, ID, title…"
+                  placeholder={t('docEmpSearchPh')}
                 />
               </div>
               <div>
-                <label>Status</label>
+                <label>{t('status')}</label>
                 <SelectDropdown
                   fullWidth
                   className="docs-input"
                   value={statusF}
                   onChange={(v) => setStatusF(v as StatusF)}
                   options={[
-                    { value: 'all', label: 'All Statuses' },
-                    { value: 'active', label: 'Active' },
-                    { value: 'inactive', label: 'Inactive' },
-                    { value: 'terminated', label: 'Terminated' },
+                    { value: 'all', label: t('docEmpAllStatuses') },
+                    { value: 'active', label: t('active') },
+                    { value: 'inactive', label: t('inactive') },
+                    { value: 'terminated', label: t('docEmpTerminated') },
                   ]}
                 />
               </div>
               <div>
-                <label>Employment Type</label>
+                <label>{t('docEmpEmploymentType')}</label>
                 <SelectDropdown
                   fullWidth
                   className="docs-input"
                   value={typeF}
                   onChange={(v) => setTypeF(v as TypeF)}
                   options={[
-                    { value: 'all', label: 'All Types' },
-                    ...DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+                    { value: 'all', label: t('docEmpAllTypes') },
+                    ...DOCS_EMPLOYMENT_TYPES.map((et) => ({
+                      value: et.value,
+                      label: employmentTypeLabel(et.value, t),
+                    })),
                   ]}
                 />
               </div>
               <div>
-                <label>Client Context</label>
+                <label>{t('docEmpClientContext')}</label>
                 <ClientProfileSelector
                   profiles={profiles}
                   selectedClientId={selectedClientId}
@@ -587,22 +625,22 @@ export default function EmployeesPage() {
                 />
               </div>
               <div>
-                <label>Workspace</label>
+                <label>{t('docEmpWorkspace')}</label>
                 <div className="flex gap-1.5">
                   {(
                     [
-                      ['overview', 'Overview'],
-                      ['employees', 'Employees'],
-                      ['payroll', 'Payroll'],
+                      ['overview', t('docEmpTabOverview')],
+                      ['employees', t('docEmpTabEmployees')],
+                      ['payroll', t('docEmpTabPayroll')],
                     ] as [Tab, string][]
-                  ).map(([t, l]) => (
+                  ).map(([tabId, tabLabel]) => (
                     <button
-                      key={t}
+                      key={tabId}
                       type="button"
-                      onClick={() => setTab(t)}
-                      className={clsx('docs-tab', tab === t && 'docs-tab-active')}
+                      onClick={() => setTab(tabId)}
+                      className={clsx('docs-tab', tab === tabId && 'docs-tab-active')}
                     >
-                      {l}
+                      {tabLabel}
                     </button>
                   ))}
                 </div>
@@ -611,17 +649,17 @@ export default function EmployeesPage() {
           </div>
         }
         editor={
-          <div className="overflow-y-auto pr-1">
+          <div className="overflow-y-auto pe-1">
             <div className="space-y-5">
               {/* ── Overview ─────────────────────────────────────────────────────── */}
               {tab === 'overview' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                     {[
-                      ['Total Employees', String(employees.length), '#d97706'],
-                      ['Active', String(activeCount), '#059669'],
-                      ['Full-Time', String(fullTimeCount), '#2563eb'],
-                      ['Monthly Payroll', `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
+                      [t('docEmpTotalEmployees'), String(employees.length), '#d97706'],
+                      [t('docEmpPreviewActive'), String(activeCount), '#059669'],
+                      [t('docEmpFullTime'), String(fullTimeCount), '#2563eb'],
+                      [t('docEmpMonthlyPayroll'), `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
                     ].map(([l, v, c]) => (
                       <div
                         key={l}
@@ -646,17 +684,17 @@ export default function EmployeesPage() {
                       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                     >
                       <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                        By Employment Type
+                        {t('docEmpByType')}
                       </h3>
-                      {DOCS_EMPLOYMENT_TYPES.map((t) => {
-                        const cnt = employees.filter((e) => e.employment_type === t.value).length;
+                      {DOCS_EMPLOYMENT_TYPES.map((et) => {
+                        const cnt = employees.filter((e) => e.employment_type === et.value).length;
                         const pct = employees.length
                           ? Math.round((cnt / employees.length) * 100)
                           : 0;
                         return (
-                          <div key={t.value} className="mb-2 flex items-center gap-3">
+                          <div key={et.value} className="mb-2 flex items-center gap-3">
                             <span className="w-24 text-sm" style={{ color: 'var(--text)' }}>
-                              {t.label}
+                              {employmentTypeLabel(et.value, t)}
                             </span>
                             <div
                               className="h-2 flex-1 rounded-full"
@@ -668,7 +706,7 @@ export default function EmployeesPage() {
                               />
                             </div>
                             <span
-                              className="w-8 text-right text-sm font-semibold"
+                              className="w-8 text-end text-sm font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
                               {cnt}
@@ -682,7 +720,7 @@ export default function EmployeesPage() {
                       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                     >
                       <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                        Recent Hires
+                        {t('docEmpRecentHires')}
                       </h3>
                       {employees
                         .sort((a, b) => (b.hire_date ?? '').localeCompare(a.hire_date ?? ''))
@@ -701,7 +739,7 @@ export default function EmployeesPage() {
                               className="rounded-full px-2 py-0.5 text-xs font-bold"
                               style={{ ...statusColor(e.status) }}
                             >
-                              {e.status}
+                              {employeeStatusLabel(e.status, t)}
                             </span>
                           </div>
                         ))}
@@ -712,24 +750,24 @@ export default function EmployeesPage() {
 
               {/* ── Employees list ────────────────────────────────────────────────── */}
               {tab === 'employees' && (
-                <DocsEditorCard title="Employee Registry">
+                <DocsEditorCard title={t('docEmpRegistry')}>
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="relative">
                         <Search
                           size={14}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2"
+                          className="absolute start-2.5 top-1/2 -translate-y-1/2"
                           style={{ color: 'var(--text-secondary)' }}
                         />
                         <input
-                          className="rounded-lg border py-1.5 pl-8 pr-3 text-sm outline-none"
+                          className="rounded-lg border py-1.5 pe-3 ps-8 text-sm outline-none"
                           style={{
                             background: 'var(--surface-2)',
                             borderColor: 'var(--border)',
                             color: 'var(--text)',
                             width: 220,
                           }}
-                          placeholder="Search employees…"
+                          placeholder={t('docEmpSearchPh')}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                         />
@@ -744,10 +782,10 @@ export default function EmployeesPage() {
                         value={statusF}
                         onChange={(v) => setStatusF(v as StatusF)}
                         options={[
-                          { value: 'all', label: 'All Statuses' },
-                          { value: 'active', label: 'Active' },
-                          { value: 'inactive', label: 'Inactive' },
-                          { value: 'terminated', label: 'Terminated' },
+                          { value: 'all', label: t('docEmpAllStatuses') },
+                          { value: 'active', label: t('active') },
+                          { value: 'inactive', label: t('inactive') },
+                          { value: 'terminated', label: t('docEmpTerminated') },
                         ]}
                       />
                       <SelectDropdown
@@ -760,8 +798,11 @@ export default function EmployeesPage() {
                         value={typeF}
                         onChange={(v) => setTypeF(v as TypeF)}
                         options={[
-                          { value: 'all', label: 'All Types' },
-                          ...DOCS_EMPLOYMENT_TYPES.map((t) => ({ value: t.value, label: t.label })),
+                          { value: 'all', label: t('docEmpAllTypes') },
+                          ...DOCS_EMPLOYMENT_TYPES.map((et) => ({
+                            value: et.value,
+                            label: employmentTypeLabel(et.value, t),
+                          })),
                         ]}
                       />
                     </div>
@@ -770,7 +811,7 @@ export default function EmployeesPage() {
                       className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"
                       style={{ background: 'var(--accent)' }}
                     >
-                      <Plus size={16} /> Add Employee
+                      <Plus size={16} /> {t('docEmpAddEmployeeBtn')}
                     </button>
                   </div>
 
@@ -787,40 +828,40 @@ export default function EmployeesPage() {
                           }}
                         >
                           <th
-                            className="px-4 py-3 text-left text-xs font-semibold"
+                            className="px-4 py-3 text-start text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Employee
+                            {t('docEmpColEmployee')}
                           </th>
                           <th
-                            className="px-4 py-3 text-left text-xs font-semibold"
+                            className="px-4 py-3 text-start text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Job Title
+                            {t('docEmpColJobTitle')}
                           </th>
                           <th
-                            className="px-4 py-3 text-left text-xs font-semibold"
+                            className="px-4 py-3 text-start text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Type
+                            {t('docEmpColType')}
                           </th>
                           <th
-                            className="px-4 py-3 text-left text-xs font-semibold"
+                            className="px-4 py-3 text-start text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Status
+                            {t('docEmpColStatus')}
                           </th>
                           <th
-                            className="px-4 py-3 text-right text-xs font-semibold"
+                            className="px-4 py-3 text-end text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Salary
+                            {t('docEmpColSalary')}
                           </th>
                           <th
-                            className="px-4 py-3 text-right text-xs font-semibold"
+                            className="px-4 py-3 text-end text-xs font-semibold"
                             style={{ color: 'var(--text-secondary)' }}
                           >
-                            Actions
+                            {t('docEmpColActions')}
                           </th>
                         </tr>
                       </thead>
@@ -832,7 +873,7 @@ export default function EmployeesPage() {
                               className="py-8 text-center text-sm"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Loading…
+                              {t('docLoading')}
                             </td>
                           </tr>
                         )}
@@ -843,7 +884,7 @@ export default function EmployeesPage() {
                               className="py-8 text-center text-sm"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              No employees found
+                              {t('docEmpNoEmployees')}
                             </td>
                           </tr>
                         )}
@@ -865,19 +906,18 @@ export default function EmployeesPage() {
                               {e.job_title ?? '—'}
                             </td>
                             <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                              {DOCS_EMPLOYMENT_TYPES.find((t) => t.value === e.employment_type)
-                                ?.label ?? e.employment_type}
+                              {employmentTypeLabel(e.employment_type, t)}
                             </td>
                             <td className="px-4 py-3">
                               <span
                                 className="rounded-full px-2 py-0.5 text-xs font-bold"
                                 style={{ ...statusColor(e.status) }}
                               >
-                                {e.status}
+                                {employeeStatusLabel(e.status, t)}
                               </span>
                             </td>
                             <td
-                              className="px-4 py-3 text-right font-semibold"
+                              className="px-4 py-3 text-end font-semibold"
                               style={{ color: 'var(--text)' }}
                             >
                               SAR {fmt(e.salary)}
@@ -887,7 +927,7 @@ export default function EmployeesPage() {
                                 <button
                                   onClick={() => setSalaryModal(e)}
                                   className="rounded-lg p-1.5 hover:bg-[var(--accent-soft)]"
-                                  title="Update salary"
+                                  title={t('docEmpUpdateSalary')}
                                 >
                                   <ChevronUp size={14} style={{ color: 'var(--accent)' }} />
                                 </button>
@@ -915,18 +955,18 @@ export default function EmployeesPage() {
 
               {/* ── Payroll ───────────────────────────────────────────────────────── */}
               {tab === 'payroll' && (
-                <DocsEditorCard title="Payroll Sheet">
+                <DocsEditorCard title={t('docEmpPayrollSheet')}>
                   <div className="space-y-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-                          Payroll Sheet
+                          {t('docEmpPayrollSheet')}
                         </h2>
                         <DocsDateField
                           value={payrollMonth}
                           onChange={setPayrollMonth}
                           mode="month"
-                          placeholder="Payroll month"
+                          placeholder={t('docEmpPayrollMonth')}
                         />
                       </div>
                       <button
@@ -934,22 +974,22 @@ export default function EmployeesPage() {
                         className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"
                         style={{ background: '#0f172a' }}
                       >
-                        <Download size={15} /> Export CSV
+                        <Download size={15} /> {t('docEmpExportCsv')}
                       </button>
                     </div>
                     <ClientProfileSelector
                       profiles={profiles}
                       selectedClientId={selectedClientId}
                       onSelectClientId={setSelectedClientId}
-                      label="Client context"
+                      label={t('docEmpClientContextPayroll')}
                     />
 
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                       {[
-                        ['Active Employees', String(activeCount), '#059669'],
-                        ['Total Payroll', `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
+                        [t('docEmpActiveEmployees'), String(activeCount), '#059669'],
+                        [t('docEmpTotalPayroll'), `SAR ${fmt(totalPayroll)}`, '#7c3aed'],
                         [
-                          'Avg. Salary',
+                          t('docEmpAvgSalary'),
                           `SAR ${fmt(activeCount > 0 ? totalPayroll / activeCount : 0)}`,
                           '#d97706',
                         ],
@@ -985,34 +1025,34 @@ export default function EmployeesPage() {
                             }}
                           >
                             <th
-                              className="px-4 py-3 text-left text-xs font-semibold"
+                              className="px-4 py-3 text-start text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Employee
+                              {t('docEmpColEmployee')}
                             </th>
                             <th
-                              className="px-4 py-3 text-left text-xs font-semibold"
+                              className="px-4 py-3 text-start text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Job Title
+                              {t('docEmpColJobTitle')}
                             </th>
                             <th
-                              className="px-4 py-3 text-right text-xs font-semibold"
+                              className="px-4 py-3 text-end text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Daily Hours
+                              {t('docEmpColDailyHours')}
                             </th>
                             <th
-                              className="px-4 py-3 text-right text-xs font-semibold"
+                              className="px-4 py-3 text-end text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Monthly Salary
+                              {t('docEmpColMonthlySalary')}
                             </th>
                             <th
-                              className="px-4 py-3 text-left text-xs font-semibold"
+                              className="px-4 py-3 text-start text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
                             >
-                              Salary History
+                              {t('docEmpColSalaryHistory')}
                             </th>
                           </tr>
                         </thead>
@@ -1047,13 +1087,13 @@ export default function EmployeesPage() {
                                     {e.job_title ?? '—'}
                                   </td>
                                   <td
-                                    className="px-4 py-3 text-right"
+                                    className="px-4 py-3 text-end"
                                     style={{ color: 'var(--text)' }}
                                   >
                                     {e.daily_hours}h
                                   </td>
                                   <td
-                                    className="px-4 py-3 text-right font-bold"
+                                    className="px-4 py-3 text-end font-bold"
                                     style={{ color: '#7c3aed' }}
                                   >
                                     SAR {fmt(e.salary)}
@@ -1076,10 +1116,10 @@ export default function EmployeesPage() {
                                             : latest.change_type === 'decrease'
                                               ? '↓'
                                               : '●'}{' '}
-                                          {latest.change_type}
+                                          {salaryChangeLabel(latest.change_type, t)}
                                         </span>
                                         <span
-                                          className="ml-1"
+                                          className="ms-1"
                                           style={{ color: 'var(--text-secondary)' }}
                                         >
                                           {latest.effective_date ?? '—'}
@@ -1103,10 +1143,10 @@ export default function EmployeesPage() {
                               className="px-4 py-3 text-sm font-bold"
                               style={{ color: 'var(--text)' }}
                             >
-                              Total Payroll
+                              {t('docEmpTotalPayrollFooter')}
                             </td>
                             <td
-                              className="px-4 py-3 text-right text-sm font-bold"
+                              className="px-4 py-3 text-end text-sm font-bold"
                               style={{ color: '#7c3aed' }}
                             >
                               SAR {fmt(totalPayroll)}
@@ -1131,9 +1171,9 @@ export default function EmployeesPage() {
               >
                 <div>
                   <p className="text-xs font-semibold tracking-[0.16em] text-slate-500">
-                    LIVE PREVIEW
+                    {t('docEmpLivePreview')}
                   </p>
-                  <h2 className="text-xl font-bold text-slate-900">Employees Studio Snapshot</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{t('docEmpStudioSnapshot')}</h2>
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                   {payrollMonth}
@@ -1141,28 +1181,34 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Total</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                    {t('docEmpPreviewTotal')}
+                  </p>
                   <p className="text-lg font-bold text-slate-900">{employees.length}</p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Active</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                    {t('docEmpPreviewActive')}
+                  </p>
                   <p className="text-lg font-bold text-emerald-600">{activeCount}</p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
-                    Monthly Payroll
+                    {t('docEmpPreviewMonthlyPayroll')}
                   </p>
                   <p className="text-lg font-bold text-violet-700">SAR {fmt(totalPayroll)}</p>
                 </div>
                 <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">
-                    Contracts
+                    {t('docEmpPreviewContracts')}
                   </p>
                   <p className="text-lg font-bold text-amber-600">{contractCount}</p>
                 </div>
               </div>
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-700">Top Payroll Employees</h3>
+                <h3 className="mb-2 text-sm font-semibold text-slate-700">
+                  {t('docEmpTopPayroll')}
+                </h3>
                 <div className="space-y-2">
                   {employees
                     .filter((e) => e.status === 'active')
@@ -1188,7 +1234,7 @@ export default function EmployeesPage() {
                       </div>
                     ))}
                   {employees.length === 0 ? (
-                    <p className="text-sm text-slate-500">No employees yet.</p>
+                    <p className="text-sm text-slate-500">{t('docEmpNoEmployeesYet')}</p>
                   ) : null}
                 </div>
               </div>

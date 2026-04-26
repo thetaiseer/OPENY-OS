@@ -32,6 +32,7 @@ import StatCard from '@/components/ui/StatCard';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLayout';
+import { useLang } from '@/context/lang-context';
 
 interface ClientStat {
   id: string;
@@ -99,7 +100,15 @@ function downloadCSV(csv: string, filename: string): void {
 
 type ReportTab = 'overview' | 'clients' | 'team' | 'content';
 
+const REPORT_TABS: { id: ReportTab; labelKey: string }[] = [
+  { id: 'overview', labelKey: 'overview' },
+  { id: 'clients', labelKey: 'reportsTabClients' },
+  { id: 'team', labelKey: 'reportsTabTeam' },
+  { id: 'content', labelKey: 'reportsTabContent' },
+];
+
 export default function ReportsPage() {
+  const { t } = useLang();
   const [tab, setTab] = useState<ReportTab>('overview');
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<{
@@ -148,8 +157,8 @@ export default function ReportsPage() {
   return (
     <PageShell className="mx-auto max-w-6xl space-y-6">
       <PageHeader
-        title="Reports & Analytics"
-        subtitle="Live data across clients, team, and publishing performance"
+        title={t('reportsPageTitle')}
+        subtitle={t('reportsPageSubtitle')}
         actions={
           <Button
             type="button"
@@ -158,7 +167,7 @@ export default function ReportsPage() {
             disabled={isFetching}
           >
             <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-            {isFetching ? 'Refreshing\u2026' : 'Refresh'}
+            {isFetching ? t('reportsRefreshing') : t('refresh')}
           </Button>
         }
       />
@@ -170,21 +179,21 @@ export default function ReportsPage() {
         >
           <div className="flex items-center gap-3 text-[var(--color-danger)]">
             <AlertCircle size={16} className="shrink-0" />
-            <p className="text-sm">Failed to load report data. Please try again.</p>
+            <p className="text-sm">{t('reportsFailedLoad')}</p>
           </div>
         </Card>
       )}
 
       <div className="flex flex-wrap gap-2">
-        {(['overview', 'clients', 'team', 'content'] as const).map((t) => (
+        {REPORT_TABS.map(({ id, labelKey }) => (
           <Button
-            key={t}
+            key={id}
             type="button"
-            variant={tab === t ? 'primary' : 'secondary'}
+            variant={tab === id ? 'primary' : 'secondary'}
             className="h-9 rounded-full px-4"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(id)}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t(labelKey)}
           </Button>
         ))}
       </div>
@@ -201,31 +210,31 @@ export default function ReportsPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                 <StatCard
-                  label="Total Clients"
+                  label={t('totalClients')}
                   value={report.summary.totalClients}
                   icon={<Users2 size={18} />}
                   color="blue"
                 />
                 <StatCard
-                  label="Total Tasks"
+                  label={t('reportsStatTotalTasks')}
                   value={report.summary.totalTasks}
                   icon={<CheckSquare size={18} />}
                   color="green"
                 />
                 <StatCard
-                  label="Total Assets"
+                  label={t('reportsStatTotalAssets')}
                   value={report.summary.totalAssets}
                   icon={<FolderOpen size={18} />}
                   color="amber"
                 />
                 <StatCard
-                  label="Posts Published"
+                  label={t('reportsStatPostsPublished')}
                   value={report.summary.totalPublished}
                   icon={<Send size={18} />}
                   color="violet"
                 />
                 <StatCard
-                  label="Task Completion Rate"
+                  label={t('reportsStatTaskCompletionRate')}
                   value={`${report.summary.completionRate}%`}
                   icon={<TrendingUp size={18} />}
                   color="cyan"
@@ -240,20 +249,20 @@ export default function ReportsPage() {
                       }
                     >
                       {report.summary.completionRate >= 80
-                        ? 'On track'
+                        ? t('onTrackTitle')
                         : report.summary.completionRate >= 50
-                          ? 'Needs attention'
-                          : 'At risk'}
+                          ? t('reportsCompletionNeedsAttention')
+                          : t('reportsCompletionAtRisk')}
                     </span>
                   }
                 />
               </div>
 
               <Card padding="md">
-                <SectionTitle className="mb-5">6-Month Performance Trend</SectionTitle>
+                <SectionTitle className="mb-5">{t('reportsChart6MonthTrend')}</SectionTitle>
                 {report.monthlyTrends.length === 0 ? (
                   <p className="py-10 text-center text-sm text-[var(--text-secondary)]">
-                    No trend data yet
+                    {t('reportsNoTrendData')}
                   </p>
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
@@ -287,7 +296,7 @@ export default function ReportsPage() {
                       <Area
                         type="monotone"
                         dataKey="completedTasks"
-                        name="Completed Tasks"
+                        name={t('chartCompletedTasks')}
                         stroke="#6366f1"
                         fill="url(#gcT)"
                         strokeWidth={2}
@@ -296,7 +305,7 @@ export default function ReportsPage() {
                       <Area
                         type="monotone"
                         dataKey="publishedPosts"
-                        name="Published Posts"
+                        name={t('chartPublishedPosts')}
                         stroke="#8b5cf6"
                         fill="url(#gcP)"
                         strokeWidth={2}
@@ -305,7 +314,7 @@ export default function ReportsPage() {
                       <Area
                         type="monotone"
                         dataKey="newAssets"
-                        name="New Assets"
+                        name={t('chartNewAssets')}
                         stroke="#10b981"
                         fill="url(#gcA)"
                         strokeWidth={2}
@@ -319,7 +328,7 @@ export default function ReportsPage() {
 
               {report.platformStats.length > 0 && (
                 <Card padding="md">
-                  <SectionTitle className="mb-5">Publishing by Platform</SectionTitle>
+                  <SectionTitle className="mb-5">{t('reportsPublishingByPlatform')}</SectionTitle>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart
                       data={report.platformStats}
@@ -337,17 +346,22 @@ export default function ReportsPage() {
                       />
                       <Bar
                         dataKey="published"
-                        name="Published"
+                        name={t('chartPublished')}
                         fill="#6366f1"
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="scheduled"
-                        name="Scheduled"
+                        name={t('chartScheduled')}
                         fill="#8b5cf6"
                         radius={[4, 4, 0, 0]}
                       />
-                      <Bar dataKey="missed" name="Missed" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="missed"
+                        name={t('chartMissed')}
+                        fill="#ef4444"
+                        radius={[4, 4, 0, 0]}
+                      />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -360,7 +374,7 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <div className="flex justify-end">
                 <Button type="button" variant="secondary" onClick={exportClients}>
-                  <Download size={14} /> Export CSV
+                  <Download size={14} /> {t('exportCsv')}
                 </Button>
               </div>
               {report.clientStats.length === 0 ? (
@@ -369,20 +383,25 @@ export default function ReportsPage() {
                     size={32}
                     className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
-                  <p className="text-sm text-[var(--text-secondary)]">No client data yet</p>
+                  <p className="text-sm text-[var(--text-secondary)]">{t('reportsNoClientData')}</p>
                 </Card>
               ) : (
                 <Card padding="none" className="overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)]">
-                        {['Client', 'Total Tasks', 'Completed', 'Pending', 'Overdue', 'Assets'].map(
-                          (h) => (
-                            <th key={h} className="px-4 py-3 text-left font-medium">
-                              {h}
-                            </th>
-                          ),
-                        )}
+                        {[
+                          t('reportsColClient'),
+                          t('reportsColTotalTasks'),
+                          t('reportsColCompleted'),
+                          t('reportsColPending'),
+                          t('reportsColOverdue'),
+                          t('reportsColAssets'),
+                        ].map((h) => (
+                          <th key={h} className="px-4 py-3 text-start font-medium">
+                            {h}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -417,7 +436,7 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <div className="flex justify-end">
                 <Button type="button" variant="secondary" onClick={exportTeam}>
-                  <Download size={14} /> Export CSV
+                  <Download size={14} /> {t('exportCsv')}
                 </Button>
               </div>
               {report.teamStats.length === 0 ? (
@@ -426,15 +445,13 @@ export default function ReportsPage() {
                     size={32}
                     className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    No team task data yet. Assign tasks to team members to see performance.
-                  </p>
+                  <p className="text-sm text-[var(--text-secondary)]">{t('reportsNoTeamData')}</p>
                 </Card>
               ) : (
                 <>
                   <Card padding="md">
                     <SectionTitle as="h3" className="mb-4 text-sm">
-                      Completed Tasks by Member
+                      {t('reportsCompletedTasksByMember')}
                     </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
@@ -454,7 +471,7 @@ export default function ReportsPage() {
                         />
                         <Bar
                           dataKey="completedTasks"
-                          name="Completed"
+                          name={t('chartCompleted')}
                           fill="#6366f1"
                           radius={[0, 4, 4, 0]}
                         />
@@ -466,13 +483,13 @@ export default function ReportsPage() {
                       <thead>
                         <tr className="border-b border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)]">
                           {[
-                            'Team Member',
-                            'Assigned',
-                            'Completed',
-                            'Completion Rate',
-                            'Overdue',
+                            t('reportsColTeamMember'),
+                            t('reportsColAssigned'),
+                            t('reportsColCompleted'),
+                            t('reportsColCompletionRate'),
+                            t('reportsColOverdue'),
                           ].map((h) => (
-                            <th key={h} className="px-4 py-3 text-left font-medium">
+                            <th key={h} className="px-4 py-3 text-start font-medium">
                               {h}
                             </th>
                           ))}
@@ -507,7 +524,7 @@ export default function ReportsPage() {
                                     }}
                                   />
                                 </div>
-                                <span className="w-8 text-right text-xs text-[var(--text-secondary)]">
+                                <span className="w-8 text-end text-xs text-[var(--text-secondary)]">
                                   {m.completionRate}%
                                 </span>
                               </div>
@@ -533,7 +550,7 @@ export default function ReportsPage() {
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <Card padding="md">
                     <SectionTitle as="h3" className="mb-4 text-sm">
-                      Platform Distribution
+                      {t('reportsPlatformDistribution')}
                     </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
@@ -566,7 +583,7 @@ export default function ReportsPage() {
                   </Card>
                   <Card padding="md">
                     <SectionTitle as="h3" className="mb-4 text-sm">
-                      Published vs Scheduled vs Missed
+                      {t('reportsPubVsSchedVsMissed')}
                     </SectionTitle>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
@@ -585,15 +602,20 @@ export default function ReportsPage() {
                         />
                         <Bar
                           dataKey="published"
-                          name="Published"
+                          name={t('chartPublished')}
                           fill="#6366f1"
                           radius={[4, 4, 0, 0]}
                           stackId="a"
                         />
-                        <Bar dataKey="scheduled" name="Scheduled" fill="#8b5cf6" stackId="a" />
+                        <Bar
+                          dataKey="scheduled"
+                          name={t('chartScheduled')}
+                          fill="#8b5cf6"
+                          stackId="a"
+                        />
                         <Bar
                           dataKey="missed"
-                          name="Missed"
+                          name={t('chartMissed')}
                           fill="#ef4444"
                           radius={[4, 4, 0, 0]}
                           stackId="a"
@@ -610,13 +632,13 @@ export default function ReportsPage() {
                     className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30"
                   />
                   <p className="text-sm text-[var(--text-secondary)]">
-                    No publishing data yet. Start scheduling posts to see analytics.
+                    {t('reportsNoPublishingData')}
                   </p>
                 </Card>
               )}
               <Card padding="md">
                 <SectionTitle as="h3" className="mb-4 text-sm">
-                  Monthly Publishing Velocity
+                  {t('reportsMonthlyPublishingVelocity')}
                 </SectionTitle>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart
@@ -635,13 +657,13 @@ export default function ReportsPage() {
                     />
                     <Bar
                       dataKey="publishedPosts"
-                      name="Published Posts"
+                      name={t('chartPublishedPosts')}
                       fill="#8b5cf6"
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
                       dataKey="newAssets"
-                      name="New Assets"
+                      name={t('chartNewAssets')}
                       fill="#10b981"
                       radius={[4, 4, 0, 0]}
                     />

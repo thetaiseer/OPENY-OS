@@ -29,7 +29,7 @@ export const PageShell = forwardRef<HTMLDivElement, DivProps>(function PageShell
         ref={ref}
         {...props}
         className={cn(
-          'mx-auto w-full max-w-shell space-y-4 py-3 pl-[max(0.875rem,env(safe-area-inset-left,0px))] pr-[max(0.875rem,env(safe-area-inset-right,0px))] sm:space-y-6 sm:py-4 sm:pl-[max(1.25rem,env(safe-area-inset-left,0px))] sm:pr-[max(1.25rem,env(safe-area-inset-right,0px))] md:py-5 md:pl-[max(1.5rem,env(safe-area-inset-left,0px))] md:pr-[max(1.5rem,env(safe-area-inset-right,0px))]',
+          'mx-auto w-full max-w-shell space-y-4 py-3 pe-[max(0.875rem,env(safe-area-inset-right,0px))] ps-[max(0.875rem,env(safe-area-inset-left,0px))] sm:space-y-6 sm:py-4 sm:pe-[max(1.25rem,env(safe-area-inset-right,0px))] sm:ps-[max(1.25rem,env(safe-area-inset-left,0px))] md:py-5 md:pe-[max(1.5rem,env(safe-area-inset-right,0px))] md:ps-[max(1.5rem,env(safe-area-inset-left,0px))]',
           className,
         )}
       >

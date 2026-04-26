@@ -20,15 +20,15 @@ export default function Topbar({ className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'openy-glass fixed right-0 top-0 z-30 w-full border-b pt-[env(safe-area-inset-top,0px)] md:left-[240px] md:w-[calc(100%-240px)]',
+        'openy-glass fixed end-0 start-0 top-0 z-30 border-b pt-[env(safe-area-inset-top,0px)] md:end-0 md:start-[240px]',
         className,
       )}
       style={{ borderColor: 'var(--border)' }}
     >
-      <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-2 px-[max(0.75rem,env(safe-area-inset-left,0px))] sm:gap-3 sm:px-4 md:px-6 md:pr-[max(1rem,env(safe-area-inset-right,0px))]">
+      <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-2 pe-[max(0.75rem,env(safe-area-inset-right,0px))] ps-[max(0.75rem,env(safe-area-inset-left,0px))] sm:gap-3 sm:pe-4 sm:ps-4 md:pe-6 md:ps-6">
         <Link
           href="/dashboard"
-          className="mr-1 flex min-w-0 shrink-0 items-center md:hidden"
+          className="me-1 flex min-w-0 shrink-0 items-center md:hidden"
           aria-label={t('dashboard')}
         >
           <OpenyLogo
@@ -37,14 +37,14 @@ export default function Topbar({ className }: TopbarProps) {
           />
         </Link>
         <label className="relative flex min-w-0 max-w-md flex-1 items-center">
-          <Search className="pointer-events-none absolute left-3 h-4 w-4 text-secondary" />
+          <Search className="pointer-events-none absolute start-3 h-4 w-4 text-secondary" />
           <input
             type="search"
             placeholder={t('search')}
-            className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pl-9 pr-3 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
+            className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
-        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+        <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-3 py-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:min-w-[4.5rem]"

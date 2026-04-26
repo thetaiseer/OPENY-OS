@@ -41,6 +41,32 @@ import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
+import { useLang } from '@/context/lang-context';
+
+type DocsT = (key: string, vars?: Record<string, string | number>) => string;
+
+function docsPaymentMethodLabel(method: string, t: DocsT) {
+  const map: Record<string, string> = {
+    'Bank Transfer': t('docPayBankTransfer'),
+    Cash: t('docPayCash'),
+    Cheque: t('docPayCheque'),
+    'Online Payment': t('docPayOnline'),
+    'Credit Card': t('docPayCreditCard'),
+    Custom: t('docPayCustom'),
+  };
+  return map[method] ?? method;
+}
+
+function contractStatusLabel(status: string, t: DocsT) {
+  const m: Record<string, string> = {
+    draft: t('docContractStatusDraft'),
+    active: t('docContractStatusActive'),
+    signed: t('docContractStatusSigned'),
+    expired: t('docContractStatusExpired'),
+    terminated: t('docContractStatusTerminated'),
+  };
+  return m[status] ?? status;
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -135,19 +161,19 @@ function nextCNum(list: DocsClientContract[]) {
 }
 
 function ContractPreview({ form }: { form: FormState }) {
-  const isAr = form.language === 'ar';
-  const dir = isAr ? 'rtl' : 'ltr';
+  const { t } = useLang();
+  const dir = form.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
     <OpenyDocumentPage id="client-contract-preview" dir={dir} fontSize={12}>
       <OpenyDocumentHeader
-        title={isAr ? 'عقد خدمات' : 'SERVICE CONTRACT'}
+        title={t('docCcPreviewTitle')}
         number={form.contract_number}
         date={form.contract_date}
         centerTitle
       />
       <OpenyClientBlock
-        label={isAr ? 'مُعَد لـ' : 'PREPARED FOR'}
+        label={t('docQtPreparedFor')}
         name={form.party2_client_name || '—'}
         subtext={form.party2_contact_person || form.party2_email || undefined}
       />
@@ -156,20 +182,18 @@ function ContractPreview({ form }: { form: FormState }) {
           <tbody>
             <tr>
               <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 140 }}>
-                {isAr ? 'تاريخ العقد' : 'Contract Date'}:
+                {t('docCcContractDate')}
               </td>
               <td style={{ fontWeight: 600 }}>{form.contract_date}</td>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 140 }}>
-                {isAr ? 'مدة العقد' : 'Duration'}:
-              </td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 140 }}>{t('docCcDuration')}</td>
               <td style={{ fontWeight: 600 }}>
-                {form.duration_months} {isAr ? 'شهر' : 'months'}
+                {t('docCcMonthsCount', { n: form.duration_months })}
               </td>
             </tr>
             <tr>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{isAr ? 'الحالة' : 'Status'}:</td>
-              <td style={{ fontWeight: 600 }}>{form.status}</td>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{isAr ? 'العملة' : 'Currency'}:</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docQtLabelStatusShort')}</td>
+              <td style={{ fontWeight: 600 }}>{contractStatusLabel(form.status, t)}</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docQtLabelCurrency')}</td>
               <td style={{ fontWeight: 600 }}>{form.currency}</td>
             </tr>
           </tbody>
@@ -185,19 +209,21 @@ function ContractPreview({ form }: { form: FormState }) {
               background: OPENY_DOC_STYLE.surface,
             }}
           >
-            <OpenySectionTitle>{isAr ? 'الطرف الأول' : 'Party 1 (Company)'}</OpenySectionTitle>
-            {[
-              ['Company', form.party1_company_name],
-              ['Representative', form.party1_representative],
-              ['Address', form.party1_address],
-              ['Email', form.party1_email],
-              ['Phone', form.party1_phone],
-              ['Website', form.party1_website],
-              ['Tax Reg.', form.party1_tax_reg],
-            ].map(([l, v]) =>
+            <OpenySectionTitle>{t('docCcParty1Title')}</OpenySectionTitle>
+            {(
+              [
+                ['docCcLblCompany', form.party1_company_name],
+                ['docCcLblRepresentative', form.party1_representative],
+                ['docCcLblAddress', form.party1_address],
+                ['docCcLblEmail', form.party1_email],
+                ['docCcLblPhone', form.party1_phone],
+                ['docCcLblWebsite', form.party1_website],
+                ['docCcLblTaxReg', form.party1_tax_reg],
+              ] as const
+            ).map(([key, v]) =>
               v ? (
-                <div key={l} style={{ fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
+                <div key={key} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t(key)}: </span>
                   {v}
                 </div>
               ) : null,
@@ -212,19 +238,21 @@ function ContractPreview({ form }: { form: FormState }) {
               background: OPENY_DOC_STYLE.surface,
             }}
           >
-            <OpenySectionTitle>{isAr ? 'الطرف الثاني' : 'Party 2 (Client)'}</OpenySectionTitle>
-            {[
-              ['Client', form.party2_client_name],
-              ['Contact', form.party2_contact_person],
-              ['Address', form.party2_address],
-              ['Email', form.party2_email],
-              ['Phone', form.party2_phone],
-              ['Website', form.party2_website],
-              ['Tax Reg.', form.party2_tax_reg],
-            ].map(([l, v]) =>
+            <OpenySectionTitle>{t('docCcParty2Title')}</OpenySectionTitle>
+            {(
+              [
+                ['docCcLblClient', form.party2_client_name],
+                ['docCcLblContact', form.party2_contact_person],
+                ['docCcLblAddress', form.party2_address],
+                ['docCcLblEmail', form.party2_email],
+                ['docCcLblPhone', form.party2_phone],
+                ['docCcLblWebsite', form.party2_website],
+                ['docCcLblTaxReg', form.party2_tax_reg],
+              ] as const
+            ).map(([key, v]) =>
               v ? (
-                <div key={l} style={{ fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
+                <div key={key} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t(key)}: </span>
                   {v}
                 </div>
               ) : null,
@@ -234,8 +262,8 @@ function ContractPreview({ form }: { form: FormState }) {
 
         {form.services.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <OpenySectionTitle>{isAr ? 'الخدمات المتضمنة' : 'Included Services'}</OpenySectionTitle>
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <OpenySectionTitle>{t('docCcIncludedServices')}</OpenySectionTitle>
+            <ul style={{ margin: 0, paddingInlineStart: 20 }}>
               {form.services.map((s, i) => (
                 <li key={i} style={{ fontSize: 12, marginBottom: 2 }}>
                   {s}
@@ -254,17 +282,21 @@ function ContractPreview({ form }: { form: FormState }) {
             background: OPENY_DOC_STYLE.surface,
           }}
         >
-          <OpenySectionTitle>{isAr ? 'التفاصيل المالية' : 'Financial Details'}</OpenySectionTitle>
+          <OpenySectionTitle>{t('docCcFinancialDetails')}</OpenySectionTitle>
           <div style={{ display: 'flex', gap: 32 }}>
             <div>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted, fontSize: 11 }}>Total Value: </span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted, fontSize: 11 }}>
+                {t('docCcTotalValue')}{' '}
+              </span>
               <span style={{ fontWeight: 700, fontSize: 14, color: OPENY_DOC_STYLE.title }}>
                 {fmt(form.total_value, form.currency)}
               </span>
             </div>
             <div>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted, fontSize: 11 }}>Payment: </span>
-              <span style={{ fontSize: 12 }}>{form.payment_method}</span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted, fontSize: 11 }}>
+                {t('docCcPaymentPrefix')}{' '}
+              </span>
+              <span style={{ fontSize: 12 }}>{docsPaymentMethodLabel(form.payment_method, t)}</span>
             </div>
           </div>
           {form.payment_terms && (
@@ -276,7 +308,7 @@ function ContractPreview({ form }: { form: FormState }) {
 
         {form.legal_clauses.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <OpenySectionTitle>{isAr ? 'البنود القانونية' : 'Legal Clauses'}</OpenySectionTitle>
+            <OpenySectionTitle>{t('docCcLegalClauses')}</OpenySectionTitle>
             {form.legal_clauses.map((c, i) => (
               <div key={c.id} style={{ marginBottom: 10 }}>
                 <div style={{ fontWeight: 600, fontSize: 12 }}>
@@ -287,7 +319,7 @@ function ContractPreview({ form }: { form: FormState }) {
                     fontSize: 11,
                     color: OPENY_DOC_STYLE.textMuted,
                     marginTop: 2,
-                    paddingLeft: 14,
+                    paddingInlineStart: 14,
                   }}
                 >
                   {c.content}
@@ -309,7 +341,7 @@ function ContractPreview({ form }: { form: FormState }) {
               {form.sig_party1}
             </div>
             <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>
-              {isAr ? 'الطرف الأول — التوقيع والختم' : 'Party 1 — Signature & Stamp'}
+              {t('docCcSigParty1')}
             </div>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
@@ -323,7 +355,7 @@ function ContractPreview({ form }: { form: FormState }) {
               {form.sig_party2}
             </div>
             <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>
-              {isAr ? 'الطرف الثاني — التوقيع والختم' : 'Party 2 — Signature & Stamp'}
+              {t('docCcSigParty2')}
             </div>
           </div>
         </div>
@@ -352,6 +384,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -378,23 +411,23 @@ function BackupModal({
     <AppModal
       open
       onClose={onClose}
-      title="Restore Backup"
+      title={t('docBackupRestoreTitle')}
       size="sm"
       bodyClassName="space-y-2"
       footer={
         <button onClick={onClose} className="openy-modal-btn-secondary w-full">
-          Close
+          {t('docBackupClose')}
         </button>
       }
     >
       {loading && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Loading backups…
+          {t('docBackupLoadingList')}
         </p>
       )}
       {!loading && backups.length === 0 && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          No backups found
+          {t('docBackupNone')}
         </p>
       )}
       <div className="max-h-80 space-y-2 overflow-y-auto">
@@ -406,7 +439,7 @@ function BackupModal({
           >
             <div>
               <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {b.label ?? 'Backup'}
+                {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {new Date(b.created_at).toLocaleString()}
@@ -418,7 +451,7 @@ function BackupModal({
                 className="rounded-lg px-2.5 py-1 text-xs font-medium text-white"
                 style={{ background: 'var(--accent)' }}
               >
-                Restore
+                {t('docBackupRestoreBtn')}
               </button>
               <button
                 onClick={() => deleteBackup(b.id)}
@@ -455,6 +488,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -479,17 +513,17 @@ function HistoryPanel({
           <div className="relative flex-1">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
+              className="absolute start-2.5 top-1/2 -translate-y-1/2"
               style={{ color: 'var(--text-secondary)' }}
             />
             <input
-              className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-sm outline-none"
+              className="w-full rounded-lg border py-1.5 pe-3 ps-8 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)',
               }}
-              placeholder="Search contracts…"
+              placeholder={t('docCcSearchContracts')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -508,7 +542,7 @@ function HistoryPanel({
             }}
             disabled={backing}
             className="rounded-lg p-1.5 hover:bg-[var(--accent-soft)]"
-            title="Backup all contracts"
+            title={t('docCcBackupAll')}
           >
             <Archive
               size={14}
@@ -518,13 +552,13 @@ function HistoryPanel({
           <button
             onClick={() => setShowRestore(true)}
             className="rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
-            title="Restore from backup"
+            title={t('docBackupTooltipRestore')}
           >
             <RotateCcw size={14} style={{ color: '#f59e0b' }} />
           </button>
           <button
             onClick={async () => {
-              if (!confirm('Clear ALL contracts? This cannot be undone.')) return;
+              if (!confirm(t('docCcClearAllConfirm'))) return;
               setClearing(true);
               try {
                 await onClearAll();
@@ -534,13 +568,22 @@ function HistoryPanel({
             }}
             disabled={clearing}
             className="rounded-lg p-1.5 hover:bg-red-50"
-            title="Clear all contracts"
+            title={t('docCcClearAllTitle')}
           >
             <Trash2 size={14} style={{ color: '#ef4444' }} />
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {['all', 'draft', 'active', 'signed', 'expired', 'terminated'].map((s) => (
+          {(
+            [
+              ['all', 'all'] as const,
+              ['draft', 'docContractStatusDraft'] as const,
+              ['active', 'docContractStatusActive'] as const,
+              ['signed', 'docContractStatusSigned'] as const,
+              ['expired', 'docContractStatusExpired'] as const,
+              ['terminated', 'docContractStatusTerminated'] as const,
+            ] as const
+          ).map(([s, labelKey]) => (
             <button
               key={s}
               onClick={() => setStatusF(s)}
@@ -551,7 +594,7 @@ function HistoryPanel({
                   : 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
               )}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {labelKey === 'all' ? t('all') : t(labelKey)}
             </button>
           ))}
         </div>
@@ -559,12 +602,12 @@ function HistoryPanel({
       <div className="flex-1 divide-y overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
         {loading && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Loading…
+            {t('docLoading')}
           </div>
         )}
         {!loading && visible.length === 0 && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No contracts found
+            {t('docCcEmptyList')}
           </div>
         )}
         {visible.map((c) => (
@@ -579,7 +622,7 @@ function HistoryPanel({
                     className="rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] font-bold"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    {c.status}
+                    {contractStatusLabel(c.status, t)}
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -595,7 +638,7 @@ function HistoryPanel({
                   className="mt-1 flex items-center gap-1 text-[10px] font-medium hover:underline"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  <ExternalLink size={9} /> HTML Doc
+                  <ExternalLink size={9} /> {t('docCcExportHtml')}
                 </a>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -631,6 +674,7 @@ function HistoryPanel({
 }
 
 export default function ClientContractPage() {
+  const { t } = useLang();
   const [contracts, setContracts] = useState<DocsClientContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -745,11 +789,7 @@ export default function ClientContractPage() {
       form.services.length > 0 ||
       form.notes.trim()
     );
-    if (
-      hasManualEdits &&
-      !confirm('Replace current contract defaults with selected client template?')
-    )
-      return;
+    if (hasManualEdits && !confirm(t('docCcReplaceTemplate'))) return;
     const cfg = profile.contract_template_config ?? {};
     setForm((prev) => ({
       ...prev,
@@ -766,7 +806,7 @@ export default function ClientContractPage() {
 
   async function save() {
     if (!form.contract_number.trim()) {
-      setError('Contract number is required');
+      setError(t('docCcNumberRequired'));
       return;
     }
     setSaving(true);
@@ -781,7 +821,7 @@ export default function ClientContractPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       setSaved(true);
@@ -794,14 +834,17 @@ export default function ClientContractPage() {
   }
 
   async function deleteC(id: string) {
-    if (!confirm('Delete this contract?')) return;
+    if (!confirm(t('docCcDeleteConfirm'))) return;
     await fetch(`/api/docs/client-contracts/${id}`, { method: 'DELETE' });
     await load();
     if (editingId === id) resetForm();
   }
 
   async function handleBackup() {
-    const label = `Backup ${new Date().toLocaleDateString()} (${contracts.length} contracts)`;
+    const label = t('docCcBackupLabel', {
+      date: new Date().toLocaleDateString(),
+      count: contracts.length,
+    });
     await fetch('/api/docs/backups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -819,15 +862,10 @@ export default function ClientContractPage() {
 
   async function handleRestoreData(data: unknown) {
     if (!Array.isArray(data) || data.length === 0) {
-      alert('Invalid or empty backup data.');
+      alert(t('docCcBackupInvalid'));
       return;
     }
-    if (
-      !confirm(
-        `Restore ${data.length} contract(s) from backup? They will be created as new records.`,
-      )
-    )
-      return;
+    if (!confirm(t('docCcRestoreConfirm', { n: data.length }))) return;
     let count = 0;
     for (const item of data as DocsClientContract[]) {
       const {
@@ -849,7 +887,7 @@ export default function ClientContractPage() {
       if (res.ok) count++;
     }
     await load();
-    alert(`Restored ${count} of ${data.length} contract(s).`);
+    alert(t('docCcRestoredCount', { ok: count, total: data.length }));
   }
 
   async function exportPdf() {
@@ -857,7 +895,7 @@ export default function ClientContractPage() {
       await exportPreviewPdf('client-contract-preview', form.contract_number, 'client-contract');
     } catch (err) {
       console.error('[ClientContractPage] PDF export failed:', err);
-      setError('Could not export PDF. Please try again.');
+      setError(t('docQtPdfExportError'));
     }
   }
 
@@ -896,20 +934,20 @@ export default function ClientContractPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                 style={{ background: 'var(--accent)' }}
               >
-                <Save size={12} className="mr-1 inline" />{' '}
-                {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
+                <Save size={12} className="me-1 inline" />{' '}
+                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
               </button>
               <button
                 onClick={exportPdf}
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#0f172a' }}
               >
-                <Printer size={12} className="mr-1 inline" /> PDF
+                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
               </button>
               <button
                 onClick={() => {
                   if (!editingId) {
-                    alert('Please save the contract first to export it.');
+                    alert(t('docCcSaveFirstWord'));
                     return;
                   }
                   window.open(
@@ -921,13 +959,13 @@ export default function ClientContractPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#475569' }}
               >
-                <Download size={12} className="mr-1 inline" /> Word
+                <Download size={12} className="me-1 inline" /> {t('docCcWord')}
               </button>
             </div>
           </div>
           <div className="docs-workspace-quickbar-grid">
             <div>
-              <label>Contract Number</label>
+              <label>{t('docCcContractNumber')}</label>
               <input
                 className={inputCls}
                 value={form.contract_number}
@@ -935,7 +973,7 @@ export default function ClientContractPage() {
               />
             </div>
             <div>
-              <label>Date</label>
+              <label>{t('date')}</label>
               <input
                 type="date"
                 className={inputCls}
@@ -944,7 +982,7 @@ export default function ClientContractPage() {
               />
             </div>
             <div>
-              <label>Client</label>
+              <label>{t('docInvClientField')}</label>
               <input
                 className={inputCls}
                 value={form.party2_client_name}
@@ -952,7 +990,7 @@ export default function ClientContractPage() {
               />
             </div>
             <div>
-              <label>History</label>
+              <label>{t('docInvHistory')}</label>
               <SelectDropdown
                 fullWidth
                 className={inputCls}
@@ -963,7 +1001,7 @@ export default function ClientContractPage() {
                   else resetForm();
                 }}
                 options={[
-                  { value: '', label: 'New contract' },
+                  { value: '', label: t('docCcNewContract') },
                   ...contracts.map((c) => ({
                     value: c.id,
                     label: `${c.contract_number} · ${c.party2_client_name}`,
@@ -991,7 +1029,7 @@ export default function ClientContractPage() {
                     : 'border-transparent text-[var(--text-secondary)]',
                 )}
               >
-                {tab}
+                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
               </button>
             ))}
           </div>
@@ -1003,9 +1041,9 @@ export default function ClientContractPage() {
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
                   style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
                 >
-                  <Edit2 size={14} /> Editing ·{' '}
+                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
                   <button onClick={resetForm} className="underline">
-                    Cancel
+                    {t('docQtCancelEdit')}
                   </button>
                 </div>
               )}
@@ -1018,10 +1056,10 @@ export default function ClientContractPage() {
                 </div>
               )}
 
-              <Section title="Contract Info">
+              <Section title={t('docCcSectionContractInfo')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Contract Number')}
+                    {lbl(t('docCcContractNumber'))}
                     <input
                       className={inputCls}
                       value={form.contract_number}
@@ -1029,7 +1067,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Date')}
+                    {lbl(t('date'))}
                     <input
                       type="date"
                       className={inputCls}
@@ -1038,7 +1076,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Duration (months)')}
+                    {lbl(t('docCcDurationMonths'))}
                     <input
                       type="number"
                       min={1}
@@ -1048,7 +1086,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Status')}
+                    {lbl(t('status'))}
                     <SelectDropdown
                       fullWidth
                       className={inputCls}
@@ -1056,12 +1094,12 @@ export default function ClientContractPage() {
                       onChange={(v) => setField('status', v)}
                       options={['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => ({
                         value: s,
-                        label: s,
+                        label: contractStatusLabel(s, t),
                       }))}
                     />
                   </div>
                   <div>
-                    {lbl('Currency')}
+                    {lbl(t('docInvCurrency'))}
                     <SelectDropdown
                       fullWidth
                       className={inputCls}
@@ -1071,30 +1109,30 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Language')}
+                    {lbl(t('docCcDocumentLanguage'))}
                     <SelectDropdown
                       fullWidth
                       className={inputCls}
                       value={form.language}
                       onChange={(v) => setField('language', v as 'ar' | 'en')}
                       options={[
-                        { value: 'en', label: 'English' },
-                        { value: 'ar', label: 'Arabic' },
+                        { value: 'en', label: t('docCcLangEn') },
+                        { value: 'ar', label: t('docCcLangAr') },
                       ]}
                     />
                   </div>
                 </div>
               </Section>
 
-              <Section title="Party 1 — Company">
+              <Section title={t('docCcParty1Section')}>
                 {[
-                  ['Company Name', 'party1_company_name'],
-                  ['Representative', 'party1_representative'],
-                  ['Address', 'party1_address'],
-                  ['Email', 'party1_email'],
-                  ['Phone', 'party1_phone'],
-                  ['Website', 'party1_website'],
-                  ['Tax Registration', 'party1_tax_reg'],
+                  [t('companyName'), 'party1_company_name'],
+                  [t('docCcLblRepresentative'), 'party1_representative'],
+                  [t('docCcLblAddress'), 'party1_address'],
+                  [t('email'), 'party1_email'],
+                  [t('phone'), 'party1_phone'],
+                  [t('website'), 'party1_website'],
+                  [t('docCcTaxRegistration'), 'party1_tax_reg'],
                 ].map(([label, field]) => (
                   <div key={field}>
                     {lbl(label)}
@@ -1107,23 +1145,23 @@ export default function ClientContractPage() {
                 ))}
               </Section>
 
-              <Section title="Party 2 — Client">
+              <Section title={t('docCcParty2Section')}>
                 <ClientProfileSelector
                   profiles={profiles}
                   selectedClientId={
                     profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
                   }
                   onSelectClientId={applyClientProfile}
-                  label="Client"
+                  label={t('docInvClientField')}
                 />
                 {[
-                  ['Client / Company Name', 'party2_client_name'],
-                  ['Contact Person', 'party2_contact_person'],
-                  ['Address', 'party2_address'],
-                  ['Email', 'party2_email'],
-                  ['Phone', 'party2_phone'],
-                  ['Website', 'party2_website'],
-                  ['Tax Registration', 'party2_tax_reg'],
+                  [t('docCcClientCompanyName'), 'party2_client_name'],
+                  [t('docCcContactPerson'), 'party2_contact_person'],
+                  [t('docCcLblAddress'), 'party2_address'],
+                  [t('email'), 'party2_email'],
+                  [t('phone'), 'party2_phone'],
+                  [t('website'), 'party2_website'],
+                  [t('docCcTaxRegistration'), 'party2_tax_reg'],
                 ].map(([label, field]) => (
                   <div key={field}>
                     {lbl(label)}
@@ -1142,13 +1180,13 @@ export default function ClientContractPage() {
                     className="text-xs font-bold uppercase tracking-wider"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    Included Services
+                    {t('docCcIncludedServices')}
                   </h3>
                 </div>
                 <div className="mb-2 flex gap-2">
                   <input
                     className={inputCls}
-                    placeholder="Add a service…"
+                    placeholder={t('docCcAddServicePh')}
                     value={newService}
                     onChange={(e) => setNewService(e.target.value)}
                     onKeyDown={(e) => {
@@ -1190,10 +1228,10 @@ export default function ClientContractPage() {
                 ))}
               </section>
 
-              <Section title="Financial Details">
+              <Section title={t('docCcFinancialDetails')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Total Contract Value')}
+                    {lbl(t('docCcTotalContractValue'))}
                     <input
                       type="number"
                       min={0}
@@ -1203,18 +1241,21 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Payment Method')}
+                    {lbl(t('docQtPaymentMethod'))}
                     <SelectDropdown
                       fullWidth
                       className={inputCls}
                       value={form.payment_method}
                       onChange={(v) => setField('payment_method', v)}
-                      options={DOCS_PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                      options={DOCS_PAYMENT_METHODS.map((m) => ({
+                        value: m,
+                        label: docsPaymentMethodLabel(m, t),
+                      }))}
                     />
                   </div>
                 </div>
                 <div>
-                  {lbl('Payment Terms')}
+                  {lbl(t('docQtPaymentTerms'))}
                   <textarea
                     className={inputCls}
                     rows={2}
@@ -1223,7 +1264,7 @@ export default function ClientContractPage() {
                   />
                 </div>
                 <div>
-                  {lbl('Notes')}
+                  {lbl(t('notes'))}
                   <textarea
                     className={inputCls}
                     rows={2}
@@ -1239,14 +1280,14 @@ export default function ClientContractPage() {
                     className="text-xs font-bold uppercase tracking-wider"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    Legal Clauses
+                    {t('docCcLegalClauses')}
                   </h3>
                   <button
                     onClick={addClause}
                     className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
                     style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
-                    <Plus size={12} /> Add
+                    <Plus size={12} /> {t('docQtAddLine')}
                   </button>
                 </div>
                 {form.legal_clauses.map((cl, i) => (
@@ -1257,13 +1298,13 @@ export default function ClientContractPage() {
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <input
-                        className="mr-2 flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
+                        className="me-2 flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
                         style={{
                           background: 'var(--surface-2)',
                           borderColor: 'var(--border)',
                           color: 'var(--text)',
                         }}
-                        placeholder={`Clause ${i + 1} title`}
+                        placeholder={t('docCcClauseTitlePh', { n: i + 1 })}
                         value={cl.title}
                         onChange={(e) => updateClause(i, { ...cl, title: e.target.value })}
                       />
@@ -1279,7 +1320,7 @@ export default function ClientContractPage() {
                         borderColor: 'var(--border)',
                         color: 'var(--text)',
                       }}
-                      placeholder="Clause content…"
+                      placeholder={t('docCcClauseContentPh')}
                       value={cl.content}
                       onChange={(e) => updateClause(i, { ...cl, content: e.target.value })}
                     />
@@ -1287,10 +1328,10 @@ export default function ClientContractPage() {
                 ))}
               </section>
 
-              <Section title="Signatures">
+              <Section title={t('docCcSignatures')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Party 1 Representative')}
+                    {lbl(t('docCcParty1Representative'))}
                     <input
                       className={inputCls}
                       value={form.sig_party1}
@@ -1298,7 +1339,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Party 2 Representative')}
+                    {lbl(t('docCcParty2Representative'))}
                     <input
                       className={inputCls}
                       value={form.sig_party2}
@@ -1306,7 +1347,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Signature Date')}
+                    {lbl(t('docCcSignatureDate'))}
                     <input
                       type="date"
                       className={inputCls}
@@ -1315,7 +1356,7 @@ export default function ClientContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Place')}
+                    {lbl(t('docCcPlace'))}
                     <input
                       className={inputCls}
                       value={form.sig_place}
@@ -1334,13 +1375,14 @@ export default function ClientContractPage() {
                 >
                   {saved ? (
                     <>
-                      <Check size={16} /> Saved!
+                      <Check size={16} /> {t('docCcSaved')}
                     </>
                   ) : saving ? (
-                    'Saving…'
+                    t('docCommonSaving')
                   ) : (
                     <>
-                      <Save size={16} /> {editingId ? 'Update Contract' : 'Save Contract'}
+                      <Save size={16} />{' '}
+                      {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
                     </>
                   )}
                 </button>

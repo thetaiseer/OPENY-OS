@@ -46,6 +46,21 @@ import {
   openyThStyle,
 } from '@/components/docs/DocumentDesign';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import { useLang } from '@/context/lang-context';
+
+type DocsT = (key: string, vars?: Record<string, string | number>) => string;
+
+function docsPaymentMethodLabel(method: string, t: DocsT) {
+  const map: Record<string, string> = {
+    'Bank Transfer': t('docPayBankTransfer'),
+    Cash: t('docPayCash'),
+    Cheque: t('docPayCheque'),
+    'Online Payment': t('docPayOnline'),
+    'Credit Card': t('docPayCreditCard'),
+    Custom: t('docPayCustom'),
+  };
+  return map[method] ?? method;
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -105,6 +120,7 @@ function blank(num: string): FormState {
 }
 
 function QuotationPreview({ form }: { form: FormState }) {
+  const { t } = useLang();
   const delivTotal = form.deliverables.reduce((s, d) => s + d.total, 0);
   const total = form.total_value || delivTotal;
   const finalBudget = delivTotal > 0 ? delivTotal : total;
@@ -112,9 +128,13 @@ function QuotationPreview({ form }: { form: FormState }) {
 
   return (
     <OpenyDocumentPage id="quotation-preview" fontSize={13}>
-      <OpenyDocumentHeader title="QUOTATION" number={form.quote_number} date={form.quote_date} />
+      <OpenyDocumentHeader
+        title={t('docQtStamp')}
+        number={form.quote_number}
+        date={form.quote_date}
+      />
       <OpenyClientBlock
-        label="PREPARED FOR"
+        label={t('docQtPreparedFor')}
         name={form.client_name || '—'}
         subtext={form.project_title || form.company_brand || form.project_description || undefined}
       />
@@ -139,22 +159,24 @@ function QuotationPreview({ form }: { form: FormState }) {
             <table style={{ fontSize: 12 }}>
               <tbody>
                 <tr>
-                  <td style={openyMetaKeyStyle()}>Date:</td>
+                  <td style={openyMetaKeyStyle()}>{t('docQtLabelDate')}</td>
                   <td style={{ fontWeight: 600 }}>{form.quote_date || '—'}</td>
                 </tr>
                 <tr>
-                  <td style={openyMetaKeyStyle()}>Currency:</td>
+                  <td style={openyMetaKeyStyle()}>{t('docQtLabelCurrency')}</td>
                   <td style={{ fontWeight: 600 }}>{form.currency}</td>
                 </tr>
                 <tr>
-                  <td style={openyMetaKeyStyle()}>Due in:</td>
-                  <td style={{ fontWeight: 600 }}>{form.payment_due_days} days</td>
+                  <td style={openyMetaKeyStyle()}>{t('docQtLabelDueInShort')}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    {t('docQtDaysCount', { n: form.payment_due_days })}
+                  </td>
                 </tr>
                 <tr>
-                  <td style={openyMetaKeyStyle()}>Status:</td>
+                  <td style={openyMetaKeyStyle()}>{t('docQtLabelStatusShort')}</td>
                   <td>
                     <span style={openyStatusPillStyle(form.status)}>
-                      {form.status.toUpperCase()}
+                      {form.status === 'paid' ? t('docStatusPaid') : t('docStatusUnpaid')}
                     </span>
                   </td>
                 </tr>
@@ -165,14 +187,14 @@ function QuotationPreview({ form }: { form: FormState }) {
 
         {form.deliverables.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <OpenySectionTitle>Scope of Work</OpenySectionTitle>
+            <OpenySectionTitle>{t('docQtScopeOfWork')}</OpenySectionTitle>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={openyTableHeaderStyle()}>
-                  <th style={openyThStyle('left')}>Description</th>
-                  <th style={openyThStyle('center', { width: 60 })}>Qty</th>
-                  <th style={openyThStyle('right', { width: 110 })}>Unit Price</th>
-                  <th style={openyThStyle('right', { width: 110 })}>Total</th>
+                  <th style={openyThStyle('left')}>{t('docQtColDescription')}</th>
+                  <th style={openyThStyle('center', { width: 60 })}>{t('docQtColQty')}</th>
+                  <th style={openyThStyle('right', { width: 110 })}>{t('docQtColUnitPrice')}</th>
+                  <th style={openyThStyle('right', { width: 110 })}>{t('docQtColTotal')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,7 +239,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                       fontWeight: 700,
                     }}
                   >
-                    Subtotal
+                    {t('docQtSubtotal')}
                   </td>
                   <td
                     style={{
@@ -234,7 +256,7 @@ function QuotationPreview({ form }: { form: FormState }) {
               )}
               <tr>
                 <td style={{ border: '1px solid #111', padding: '8px 10px', fontWeight: 700 }}>
-                  Final Budget
+                  {t('docQtFinalBudgetLabel')}
                 </td>
                 <td
                   style={{
@@ -250,7 +272,7 @@ function QuotationPreview({ form }: { form: FormState }) {
               </tr>
               <tr>
                 <td style={{ border: '1px solid #111', padding: '8px 10px', fontWeight: 700 }}>
-                  Our Fees
+                  {t('docOurFees')}
                 </td>
                 <td
                   style={{
@@ -276,7 +298,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                     textAlign: 'center',
                   }}
                 >
-                  GRAND TOTAL
+                  {t('docGrandTotal')}
                 </td>
                 <td
                   style={{
@@ -298,14 +320,16 @@ function QuotationPreview({ form }: { form: FormState }) {
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <OpenySectionTitle>Payment Terms</OpenySectionTitle>
+          <OpenySectionTitle>{t('docQtPaymentTerms')}</OpenySectionTitle>
           <div style={{ fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Method: </span>
-            {form.payment_method === 'Custom' ? form.custom_payment_method : form.payment_method}
+            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docQtMethodPrefix')} </span>
+            {form.payment_method === 'Custom'
+              ? form.custom_payment_method
+              : docsPaymentMethodLabel(form.payment_method, t)}
           </div>
           <div style={{ fontSize: 12 }}>
-            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Due in: </span>
-            {form.payment_due_days} days from invoice date
+            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docQtDuePrefix')} </span>
+            {t('docQtDueFromInvoice', { n: form.payment_due_days })}
           </div>
         </div>
 
@@ -319,7 +343,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                 marginBottom: 4,
               }}
             >
-              NOTES
+              {t('docQtNotesHeading')}
             </div>
             <div style={{ fontSize: 12 }}>{form.additional_notes}</div>
           </div>
@@ -335,7 +359,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                 color: OPENY_DOC_STYLE.textMuted,
               }}
             >
-              Prepared by / Signature
+              {t('docQtSigPreparer')}
             </div>
           </div>
           <div style={{ textAlign: 'center', width: 200 }}>
@@ -347,7 +371,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                 color: OPENY_DOC_STYLE.textMuted,
               }}
             >
-              Client Acceptance / Date
+              {t('docQtSigClient')}
             </div>
           </div>
         </div>
@@ -365,6 +389,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -391,23 +416,23 @@ function BackupModal({
     <AppModal
       open
       onClose={onClose}
-      title="Restore Backup"
+      title={t('docBackupRestoreTitle')}
       size="sm"
       bodyClassName="space-y-2"
       footer={
         <button onClick={onClose} className="openy-modal-btn-secondary w-full">
-          Close
+          {t('docBackupClose')}
         </button>
       }
     >
       {loading && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Loading backups…
+          {t('docBackupLoadingList')}
         </p>
       )}
       {!loading && backups.length === 0 && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          No backups found
+          {t('docBackupNone')}
         </p>
       )}
       <div className="max-h-80 space-y-2 overflow-y-auto">
@@ -419,7 +444,7 @@ function BackupModal({
           >
             <div>
               <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {b.label ?? 'Backup'}
+                {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {new Date(b.created_at).toLocaleString()}
@@ -431,7 +456,7 @@ function BackupModal({
                 className="rounded-lg px-2.5 py-1 text-xs font-medium text-white"
                 style={{ background: 'var(--accent)' }}
               >
-                Restore
+                {t('docBackupRestoreBtn')}
               </button>
               <button
                 onClick={() => deleteBackup(b.id)}
@@ -468,6 +493,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -492,17 +518,17 @@ function HistoryPanel({
           <div className="relative flex-1">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
+              className="absolute start-2.5 top-1/2 -translate-y-1/2"
               style={{ color: 'var(--text-secondary)' }}
             />
             <input
-              className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-sm outline-none"
+              className="w-full rounded-lg border py-1.5 pe-3 ps-8 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)',
               }}
-              placeholder="Search quotations…"
+              placeholder={t('docQtSearchQuotes')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -521,7 +547,7 @@ function HistoryPanel({
             }}
             disabled={backing}
             className="rounded-lg p-1.5 hover:bg-[var(--accent-soft)]"
-            title="Backup all quotations"
+            title={t('docBackupTooltipAll')}
           >
             <Archive
               size={14}
@@ -531,13 +557,13 @@ function HistoryPanel({
           <button
             onClick={() => setShowRestore(true)}
             className="rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
-            title="Restore from backup"
+            title={t('docBackupTooltipRestore')}
           >
             <RotateCcw size={14} style={{ color: '#f59e0b' }} />
           </button>
           <button
             onClick={async () => {
-              if (!confirm('Clear ALL quotations? This cannot be undone.')) return;
+              if (!confirm(t('docQtConfirmClearAllQuotes'))) return;
               setClearing(true);
               try {
                 await onClearAll();
@@ -547,13 +573,19 @@ function HistoryPanel({
             }}
             disabled={clearing}
             className="rounded-lg p-1.5 hover:bg-red-50"
-            title="Clear all quotations"
+            title={t('docBackupTooltipClearAll')}
           >
             <Trash2 size={14} style={{ color: '#ef4444' }} />
           </button>
         </div>
         <div className="flex gap-2">
-          {(['all', 'paid', 'unpaid'] as const).map((s) => (
+          {(
+            [
+              ['all', 'all'] as const,
+              ['paid', 'docStatusPaid'] as const,
+              ['unpaid', 'docStatusUnpaid'] as const,
+            ] as const
+          ).map(([s, labelKey]) => (
             <button
               key={s}
               onClick={() => setStatusF(s)}
@@ -564,7 +596,7 @@ function HistoryPanel({
                   : 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
               )}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {labelKey === 'all' ? t('all') : t(labelKey)}
             </button>
           ))}
         </div>
@@ -572,12 +604,12 @@ function HistoryPanel({
       <div className="flex-1 divide-y overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
         {loading && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Loading…
+            {t('docLoading')}
           </div>
         )}
         {!loading && visible.length === 0 && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No quotations found
+            {t('docQtEmptyQuotes')}
           </div>
         )}
         {visible.map((q) => (
@@ -596,7 +628,7 @@ function HistoryPanel({
                       color: q.status === 'paid' ? '#16a34a' : '#ca8a04',
                     }}
                   >
-                    {q.status.toUpperCase()}
+                    {q.status === 'paid' ? t('docStatusPaid') : t('docStatusUnpaid')}
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -612,7 +644,7 @@ function HistoryPanel({
                   className="mt-1 flex items-center gap-1 text-[10px] font-medium hover:underline"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  <ExternalLink size={9} /> CSV
+                  <ExternalLink size={9} /> {t('docQtExportCsv')}
                 </a>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -648,6 +680,7 @@ function HistoryPanel({
 }
 
 export default function QuotationPage() {
+  const { t } = useLang();
   const [quotations, setQuotations] = useState<DocsQuotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -755,11 +788,7 @@ export default function QuotationPage() {
       form.deliverables.length > 0 ||
       form.additional_notes.trim()
     );
-    if (
-      hasManualEdits &&
-      !confirm('Replace current quotation defaults with selected client template?')
-    )
-      return;
+    if (hasManualEdits && !confirm(t('docQtReplaceTemplateConfirm'))) return;
     const quotationConfig = profile.quotation_template_config ?? {};
     setForm((prev) => ({
       ...prev,
@@ -775,7 +804,7 @@ export default function QuotationPage() {
 
   async function save() {
     if (!form.client_name.trim()) {
-      setError('Client name is required');
+      setError(t('docQtClientRequired'));
       return;
     }
     setSaving(true);
@@ -788,7 +817,7 @@ export default function QuotationPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       setSaved(true);
@@ -801,14 +830,17 @@ export default function QuotationPage() {
   }
 
   async function deleteQ(id: string) {
-    if (!confirm('Delete this quotation?')) return;
+    if (!confirm(t('docQtDeleteConfirm'))) return;
     await fetch(`/api/docs/quotations/${id}`, { method: 'DELETE' });
     await load();
     if (editingId === id) resetForm();
   }
 
   async function handleBackup() {
-    const label = `Backup ${new Date().toLocaleDateString()} (${quotations.length} quotations)`;
+    const label = t('docBackupLabelSession', {
+      date: new Date().toLocaleDateString(),
+      count: quotations.length,
+    });
     await fetch('/api/docs/backups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -826,15 +858,10 @@ export default function QuotationPage() {
 
   async function handleRestoreData(data: unknown) {
     if (!Array.isArray(data) || data.length === 0) {
-      alert('Invalid or empty backup data.');
+      alert(t('docQtBackupInvalid'));
       return;
     }
-    if (
-      !confirm(
-        `Restore ${data.length} quotation(s) from backup? They will be created as new records.`,
-      )
-    )
-      return;
+    if (!confirm(t('docQtRestoreConfirm', { n: data.length }))) return;
     let count = 0;
     for (const item of data as DocsQuotation[]) {
       const {
@@ -856,7 +883,7 @@ export default function QuotationPage() {
       if (res.ok) count++;
     }
     await load();
-    alert(`Restored ${count} of ${data.length} quotation(s).`);
+    alert(t('docQtRestoredCount', { ok: count, total: data.length }));
   }
 
   async function exportPdf() {
@@ -864,7 +891,7 @@ export default function QuotationPage() {
       await exportPreviewPdf('quotation-preview', form.quote_number, 'quotation');
     } catch (err) {
       console.error('[QuotationPage] PDF export failed:', err);
-      setError('Could not export PDF. Please try again.');
+      setError(t('docQtPdfExportError'));
     }
   }
 
@@ -884,20 +911,27 @@ export default function QuotationPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                 style={{ background: 'var(--accent)' }}
               >
-                <Save size={12} className="mr-1 inline" />{' '}
-                {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
+                <Save size={12} className="me-1 inline" />{' '}
+                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
               </button>
               <button
                 onClick={exportPdf}
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#0f172a' }}
               >
-                <Printer size={12} className="mr-1 inline" /> PDF
+                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
               </button>
               <button
                 onClick={() => {
                   const rows = [
-                    ['Quote No', 'Client', 'Date', 'Currency', 'Value', 'Status'],
+                    [
+                      t('docQtCsvQuoteNo'),
+                      t('docQtCsvClient'),
+                      t('docQtCsvDate'),
+                      t('docQtCsvCurrency'),
+                      t('docQtCsvValue'),
+                      t('docQtCsvStatus'),
+                    ],
                     [
                       form.quote_number,
                       form.client_name,
@@ -916,13 +950,13 @@ export default function QuotationPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#475569' }}
               >
-                <Download size={12} className="mr-1 inline" /> Excel
+                <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
               </button>
             </div>
           </div>
           <div className="docs-workspace-quickbar-grid">
             <div>
-              <label>Quote Number</label>
+              <label>{t('docQtQuoteNumber')}</label>
               <input
                 className={inputCls}
                 value={form.quote_number}
@@ -930,7 +964,7 @@ export default function QuotationPage() {
               />
             </div>
             <div>
-              <label>Date</label>
+              <label>{t('date')}</label>
               <input
                 type="date"
                 className={inputCls}
@@ -939,7 +973,7 @@ export default function QuotationPage() {
               />
             </div>
             <div>
-              <label>Client</label>
+              <label>{t('docInvClientField')}</label>
               <input
                 className={inputCls}
                 value={form.client_name}
@@ -947,7 +981,7 @@ export default function QuotationPage() {
               />
             </div>
             <div>
-              <label>History</label>
+              <label>{t('docInvHistory')}</label>
               <SelectDropdown
                 fullWidth
                 className={inputCls}
@@ -958,7 +992,7 @@ export default function QuotationPage() {
                   else resetForm();
                 }}
                 options={[
-                  { value: '', label: 'New quotation' },
+                  { value: '', label: t('docQtNewQuote') },
                   ...quotations.map((q) => ({
                     value: q.id,
                     label: `${q.quote_number} · ${q.client_name}`,
@@ -986,7 +1020,7 @@ export default function QuotationPage() {
                     : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]',
                 )}
               >
-                {tab}
+                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
               </button>
             ))}
           </div>
@@ -998,9 +1032,9 @@ export default function QuotationPage() {
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
                   style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
                 >
-                  <Edit2 size={14} /> Editing ·{' '}
+                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
                   <button onClick={resetForm} className="underline">
-                    Cancel
+                    {t('docQtCancelEdit')}
                   </button>
                 </div>
               )}
@@ -1018,7 +1052,7 @@ export default function QuotationPage() {
                   className="mb-3 text-xs font-bold uppercase tracking-wider"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  Document Setup
+                  {t('docCardDocumentSetup')}
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1026,7 +1060,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Quote Number
+                      {t('docQtQuoteNumber')}
                     </label>
                     <input
                       className={inputCls}
@@ -1039,7 +1073,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Date
+                      {t('date')}
                     </label>
                     <input
                       type="date"
@@ -1053,7 +1087,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Currency
+                      {t('docInvCurrency')}
                     </label>
                     <SelectDropdown
                       fullWidth
@@ -1068,7 +1102,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Status
+                      {t('docInvStatus')}
                     </label>
                     <SelectDropdown
                       fullWidth
@@ -1076,8 +1110,8 @@ export default function QuotationPage() {
                       value={form.status}
                       onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
                       options={[
-                        { value: 'unpaid', label: 'Unpaid' },
-                        { value: 'paid', label: 'Paid' },
+                        { value: 'unpaid', label: t('docStatusUnpaid') },
+                        { value: 'paid', label: t('docStatusPaid') },
                       ]}
                     />
                   </div>
@@ -1089,7 +1123,7 @@ export default function QuotationPage() {
                   className="mb-3 text-xs font-bold uppercase tracking-wider"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  Client Identity
+                  {t('docQtSectionClientId')}
                 </h3>
                 <div className="space-y-3">
                   <ClientProfileSelector
@@ -1098,14 +1132,14 @@ export default function QuotationPage() {
                       profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
                     }
                     onSelectClientId={applyClientProfile}
-                    label="Client"
+                    label={t('docInvClientField')}
                   />
                   <div>
                     <label
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Client Name *
+                      {t('docQtClientNameStar')}
                     </label>
                     <input
                       className={inputCls}
@@ -1118,7 +1152,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Company / Brand
+                      {t('docQtCompanyBrand')}
                     </label>
                     <input
                       className={inputCls}
@@ -1131,7 +1165,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Project Title
+                      {t('docQtProjectTitle')}
                     </label>
                     <input
                       className={inputCls}
@@ -1144,7 +1178,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Project Description
+                      {t('docQtProjectDescription')}
                     </label>
                     <textarea
                       className={inputCls}
@@ -1162,14 +1196,14 @@ export default function QuotationPage() {
                     className="text-xs font-bold uppercase tracking-wider"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    Deliverables
+                    {t('docQtDeliverables')}
                   </h3>
                   <button
                     onClick={addDeliverable}
                     className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
                     style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
-                    <Plus size={12} /> Add
+                    <Plus size={12} /> {t('docQtAddLine')}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -1182,7 +1216,7 @@ export default function QuotationPage() {
                           borderColor: 'var(--border)',
                           color: 'var(--text)',
                         }}
-                        placeholder="Description"
+                        placeholder={t('docQtDelivPlaceholder')}
                         value={d.description}
                         onChange={(e) => {
                           const nd = [...form.deliverables];
@@ -1210,7 +1244,7 @@ export default function QuotationPage() {
                       <input
                         type="number"
                         min={0}
-                        className="w-24 rounded-lg border px-2 py-1.5 text-right text-sm outline-none"
+                        className="w-24 rounded-lg border px-2 py-1.5 text-end text-sm outline-none"
                         style={{
                           background: 'var(--surface-2)',
                           borderColor: 'var(--border)',
@@ -1242,7 +1276,7 @@ export default function QuotationPage() {
                       className="py-3 text-center text-xs"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      No deliverables
+                      {t('docQtNoDeliverables')}
                     </p>
                   )}
                 </div>
@@ -1253,7 +1287,7 @@ export default function QuotationPage() {
                   className="mb-3 text-xs font-bold uppercase tracking-wider"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  Pricing & Terms
+                  {t('docQtPricingTerms')}
                 </h3>
                 <div className="space-y-3">
                   <div>
@@ -1261,7 +1295,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Total Quote Value
+                      {t('docQtTotalQuoteValue')}
                     </label>
                     <input
                       type="number"
@@ -1277,7 +1311,7 @@ export default function QuotationPage() {
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        Payment Due (days)
+                        {t('docQtPaymentDueDays')}
                       </label>
                       <input
                         type="number"
@@ -1292,14 +1326,17 @@ export default function QuotationPage() {
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        Payment Method
+                        {t('docQtPaymentMethod')}
                       </label>
                       <SelectDropdown
                         fullWidth
                         className={inputCls}
                         value={form.payment_method}
                         onChange={(v) => setField('payment_method', v)}
-                        options={DOCS_PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                        options={DOCS_PAYMENT_METHODS.map((m) => ({
+                          value: m,
+                          label: docsPaymentMethodLabel(m, t),
+                        }))}
                       />
                     </div>
                   </div>
@@ -1309,7 +1346,7 @@ export default function QuotationPage() {
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        Custom Method
+                        {t('docQtCustomMethod')}
                       </label>
                       <input
                         className={inputCls}
@@ -1323,7 +1360,7 @@ export default function QuotationPage() {
                       className="mb-1 block text-xs font-medium"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Additional Notes
+                      {t('docQtAdditionalNotes')}
                     </label>
                     <textarea
                       className={inputCls}
@@ -1344,13 +1381,14 @@ export default function QuotationPage() {
                 >
                   {saved ? (
                     <>
-                      <Check size={16} /> Saved!
+                      <Check size={16} /> {t('docQtSaved')}
                     </>
                   ) : saving ? (
-                    'Saving…'
+                    t('docCommonSaving')
                   ) : (
                     <>
-                      <Save size={16} /> {editingId ? 'Update Quotation' : 'Save Quotation'}
+                      <Save size={16} />{' '}
+                      {editingId ? t('docQtUpdateQuotation') : t('docQtSaveQuotation')}
                     </>
                   )}
                 </button>

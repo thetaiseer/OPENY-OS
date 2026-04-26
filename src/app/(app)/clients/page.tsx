@@ -364,7 +364,7 @@ function ClientsPage() {
           }}
         >
           <AlertCircle size={16} className="shrink-0" />
-          <span>{fetchError}</span>
+          <span>{t('clientsLoadError')}</span>
         </div>
       )}
 

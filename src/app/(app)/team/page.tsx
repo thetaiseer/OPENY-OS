@@ -42,13 +42,14 @@ import type {
   ActivityLogEntry,
 } from '@/lib/types';
 import {
-  getWorkspaceLabel,
   normalizeWorkspaceKey,
   WORKSPACE_ROLES,
   workspaceSearchParamFromPathname,
 } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
+
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
 const inputCls =
   'w-full h-9 px-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]';
@@ -70,73 +71,92 @@ const ACCESS_ROLE_VALUES = [
   'client',
 ] as const;
 
-const ACCESS_ROLE_OPTIONS = [
-  { value: 'admin', label: 'Admin — full access' },
-  { value: 'manager', label: 'Manager — operational management' },
-  { value: 'team_member', label: 'Member — standard access' },
-  { value: 'viewer', label: 'Viewer — read only' },
-];
+function getAccessRoleOptions(t: TranslateFn) {
+  return [
+    { value: 'admin', label: t('teamAccessInviteAdmin') },
+    { value: 'manager', label: t('teamAccessInviteManager') },
+    { value: 'team_member', label: t('teamAccessInviteMember') },
+    { value: 'viewer', label: t('teamAccessInviteViewer') },
+  ];
+}
 
-const WORKSPACE_ROLE_OPTIONS = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'member', label: 'Member' },
-  { value: 'viewer', label: 'Viewer' },
-];
+function getWorkspaceRoleOptions(t: TranslateFn) {
+  return [
+    { value: 'admin', label: t('teamWsRoleAdmin') },
+    { value: 'member', label: t('teamWsRoleMember') },
+    { value: 'viewer', label: t('teamWsRoleViewer') },
+  ];
+}
 
-const MODULE_ACCESS_OPTIONS: { value: ModuleAccess; label: string }[] = [
-  { value: 'full', label: 'Full access' },
-  { value: 'read', label: 'Read only' },
-  { value: 'none', label: 'No access' },
-];
+function getModuleAccessOptions(t: TranslateFn): { value: ModuleAccess; label: string }[] {
+  return [
+    { value: 'full', label: t('teamModuleAccessFull') },
+    { value: 'read', label: t('teamModuleAccessRead') },
+    { value: 'none', label: t('teamModuleAccessNone') },
+  ];
+}
 
-const OS_MODULE_LABELS: Record<OsModule, string> = {
-  dashboard: 'Dashboard',
-  clients: 'Clients',
-  tasks: 'Tasks',
-  content: 'Content',
-  calendar: 'Calendar',
-  assets: 'Assets',
-  reports: 'Reports',
-  team: 'Team',
-  activity: 'Activity',
-  security: 'Security',
+const OS_MODULE_LANG_KEYS: Record<OsModule, string> = {
+  dashboard: 'dashboard',
+  clients: 'clients',
+  tasks: 'tasks',
+  content: 'content',
+  calendar: 'calendar',
+  assets: 'assets',
+  reports: 'reports',
+  team: 'team',
+  activity: 'activity',
+  security: 'security',
 };
 
-const DOCS_MODULE_LABELS: Record<DocsModule, string> = {
-  invoice: 'Invoice',
-  quotation: 'Quotation',
-  contracts: 'Contracts',
-  accounting: 'Accounting',
+const DOCS_MODULE_LANG_KEYS: Record<DocsModule, string> = {
+  invoice: 'docModuleInvoice',
+  quotation: 'docModuleQuotation',
+  contracts: 'docsModuleContracts',
+  accounting: 'docModuleAccounting',
 };
+
+function workspaceLabelUi(workspace: 'os' | 'docs', t: TranslateFn) {
+  return workspace === 'os' ? t('workspaceBrandOs') : t('workspaceBrandDocs');
+}
+
+function osModuleLabel(mod: OsModule, t: TranslateFn) {
+  return t(OS_MODULE_LANG_KEYS[mod]);
+}
+
+function docsModuleLabel(mod: DocsModule, t: TranslateFn) {
+  return t(DOCS_MODULE_LANG_KEYS[mod]);
+}
 
 const ACTIVE_INVITE_STATUSES = new Set(['pending', 'invited']);
 const CANCELLATION_STATUSES = new Set(['revoked', 'cancelled']);
 
 // ── Marketing roles list (job titles) ────────────────────────────────────────
 // Stored in team_members.job_title — separate from the access role.
-const JOB_TITLE_OPTIONS = [
-  { value: 'Content Creator', label: 'Content Creator' },
-  { value: 'Social Media Manager', label: 'Social Media Manager' },
-  { value: 'Graphic Designer', label: 'Graphic Designer' },
-  { value: 'Video Editor', label: 'Video Editor' },
-  { value: 'Copywriter', label: 'Copywriter' },
-  { value: 'SEO Specialist', label: 'SEO Specialist' },
-  { value: 'Paid Ads Specialist', label: 'Paid Ads Specialist' },
-  { value: 'Email Marketing Specialist', label: 'Email Marketing Specialist' },
-  { value: 'Brand Strategist', label: 'Brand Strategist' },
-  { value: 'Marketing Manager', label: 'Marketing Manager' },
-  { value: 'Account Manager', label: 'Account Manager' },
-  { value: 'Project Manager', label: 'Project Manager' },
-  { value: 'UX/UI Designer', label: 'UX/UI Designer' },
-  { value: 'Photographer', label: 'Photographer' },
-  { value: 'Influencer Manager', label: 'Influencer Manager' },
-  { value: 'PR Specialist', label: 'PR Specialist' },
-  { value: 'Analytics Specialist', label: 'Analytics Specialist' },
-  { value: '__other__', label: 'Other…' },
-];
+const JOB_TITLE_OPTION_DEFS = [
+  { value: 'Content Creator', labelKey: 'teamJobContentCreator' },
+  { value: 'Social Media Manager', labelKey: 'teamJobSocialMediaManager' },
+  { value: 'Graphic Designer', labelKey: 'teamJobGraphicDesigner' },
+  { value: 'Video Editor', labelKey: 'teamJobVideoEditor' },
+  { value: 'Copywriter', labelKey: 'teamJobCopywriter' },
+  { value: 'SEO Specialist', labelKey: 'teamJobSeoSpecialist' },
+  { value: 'Paid Ads Specialist', labelKey: 'teamJobPaidAdsSpecialist' },
+  { value: 'Email Marketing Specialist', labelKey: 'teamJobEmailMarketingSpecialist' },
+  { value: 'Brand Strategist', labelKey: 'teamJobBrandStrategist' },
+  { value: 'Marketing Manager', labelKey: 'teamJobMarketingManager' },
+  { value: 'Account Manager', labelKey: 'teamJobAccountManager' },
+  { value: 'Project Manager', labelKey: 'teamJobProjectManager' },
+  { value: 'UX/UI Designer', labelKey: 'teamJobUxUiDesigner' },
+  { value: 'Photographer', labelKey: 'teamJobPhotographer' },
+  { value: 'Influencer Manager', labelKey: 'teamJobInfluencerManager' },
+  { value: 'PR Specialist', labelKey: 'teamJobPrSpecialist' },
+  { value: 'Analytics Specialist', labelKey: 'teamJobAnalyticsSpecialist' },
+  { value: '__other__', labelKey: 'teamJobOther' },
+] as const;
 
-// Keep ROLE_OPTIONS for backward compat (edit form uses it for job_title)
-const ROLE_OPTIONS = JOB_TITLE_OPTIONS;
+function getJobTitleOptions(t: TranslateFn) {
+  return JOB_TITLE_OPTION_DEFS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
+}
 
 // Returns the job title to display on a MemberCard.
 // After the team-identity migration, job_title holds the display title.
@@ -150,36 +170,42 @@ function resolveDisplayJobTitle(member: { role?: string; job_title?: string }): 
   return null;
 }
 
-function formatWorkspaceRole(role: string | undefined): string {
+function formatWorkspaceRole(role: string | undefined, t: TranslateFn): string {
   const candidate = (role ?? '').toLowerCase();
   const normalized = WORKSPACE_ROLES.includes(candidate as (typeof WORKSPACE_ROLES)[number])
     ? candidate
     : 'member';
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  if (normalized === 'owner') return t('wsRoleOwner');
+  if (normalized === 'admin') return t('wsRoleAdmin');
+  if (normalized === 'viewer') return t('wsRoleViewer');
+  return t('wsRoleMember');
 }
 
-function formatAccessRole(role: string | null | undefined): string {
+function formatAccessRole(role: string | null | undefined, t: TranslateFn): string {
   const normalized = (role ?? '').toLowerCase();
-  if (normalized === 'team_member') return 'Member';
-  if (normalized === 'owner') return 'Owner';
-  if (normalized === 'admin') return 'Admin';
-  if (!normalized) return 'Member';
+  if (normalized === 'team_member') return t('teamRoleMember');
+  if (normalized === 'owner') return t('teamRoleOwner');
+  if (normalized === 'admin') return t('teamRoleAdmin');
+  if (normalized === 'manager') return t('teamRoleManager');
+  if (normalized === 'viewer') return t('teamRoleViewer');
+  if (normalized === 'client') return t('teamRoleClient');
+  if (!normalized) return t('teamRoleMember');
   return normalized
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
-function formatLastActive(lastActiveRaw: string | null | undefined): string {
-  if (!lastActiveRaw) return 'No recent activity';
+function formatLastActive(lastActiveRaw: string | null | undefined, t: TranslateFn) {
+  if (!lastActiveRaw) return t('teamLastActiveNone');
   const ts = new Date(lastActiveRaw).getTime();
-  if (Number.isNaN(ts)) return 'No recent activity';
+  if (Number.isNaN(ts)) return t('teamLastActiveNone');
   const diff = Date.now() - ts;
-  if (diff < 60_000) return 'Active just now';
-  if (diff < 3_600_000) return `Active ${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `Active ${Math.floor(diff / 3_600_000)}h ago`;
-  if (diff < 604_800_000) return `Active ${Math.floor(diff / 86_400_000)}d ago`;
-  return `Active ${new Date(lastActiveRaw).toLocaleDateString()}`;
+  if (diff < 60_000) return t('teamLastActiveJustNow');
+  if (diff < 3_600_000) return t('teamLastActiveMinutes', { n: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t('teamLastActiveHours', { n: Math.floor(diff / 3_600_000) });
+  if (diff < 604_800_000) return t('teamLastActiveDays', { n: Math.floor(diff / 86_400_000) });
+  return t('teamLastActiveDate', { date: new Date(lastActiveRaw).toLocaleDateString() });
 }
 
 function parseInviteWorkspaceAccess(raw: TeamInvitation['workspace_access']): Array<'os' | 'docs'> {
@@ -218,10 +244,10 @@ function parseInviteWorkspaceRoles(raw: TeamInvitation['workspace_roles']): Reco
   return {};
 }
 
-function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>): string {
-  if (access.length === 2) return 'OPENY OS + OPENY DOCS';
-  if (access[0] === 'docs') return 'OPENY DOCS';
-  return 'OPENY OS';
+function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>, t: TranslateFn): string {
+  if (access.length === 2) return t('teamWsSummaryBoth');
+  if (access[0] === 'docs') return workspaceLabelUi('docs', t);
+  return workspaceLabelUi('os', t);
 }
 
 function hasInviteInsertResult(
@@ -265,8 +291,9 @@ function buildSyntheticInvitation(member: TeamMember): TeamInvitation {
 
 // ── RoleField — dropdown + optional custom text input ────────────────────────
 function RoleField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  // Determine if the current value matches a preset option
-  const isPreset = ROLE_OPTIONS.some((o) => o.value === value && o.value !== '__other__');
+  const { t } = useLang();
+  const roleOptions = getJobTitleOptions(t);
+  const isPreset = roleOptions.some((o) => o.value === value && o.value !== '__other__');
   const [dropVal, setDropVal] = useState(isPreset ? value : value ? '__other__' : '');
   const [customVal, setCustomVal] = useState(isPreset ? '' : value);
 
@@ -290,8 +317,8 @@ function RoleField({ value, onChange }: { value: string; onChange: (v: string) =
       <SelectDropdown
         value={dropVal}
         onChange={handleDropChange}
-        options={ROLE_OPTIONS}
-        placeholder="Select role…"
+        options={roleOptions}
+        placeholder={t('teamSelectRole')}
         fullWidth
         clearable
       />
@@ -302,7 +329,7 @@ function RoleField({ value, onChange }: { value: string; onChange: (v: string) =
           onChange={(e) => handleCustomChange(e.target.value)}
           className={inputCls}
           style={inputStyle}
-          placeholder="Enter custom role"
+          placeholder={t('teamCustomRolePlaceholder')}
           autoFocus
         />
       )}
@@ -345,11 +372,12 @@ function MemberForm({
   f: typeof blankForm;
   setF: React.Dispatch<React.SetStateAction<typeof blankForm>>;
 }) {
+  const { t } = useLang();
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Full Name *
+          {t('teamLabelFullNameRequired')}
         </label>
         <input
           required
@@ -357,12 +385,12 @@ function MemberForm({
           onChange={(e) => setF((x) => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
-          placeholder="Team member name"
+          placeholder={t('teamPlaceholderMemberName')}
         />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Email
+          {t('teamLabelEmail')}
         </label>
         <input
           type="email"
@@ -370,12 +398,12 @@ function MemberForm({
           onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))}
           className={inputCls}
           style={inputStyle}
-          placeholder="email@company.com"
+          placeholder={t('teamPlaceholderEmail')}
         />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Job Title
+          {t('teamLabelJobTitle')}
         </label>
         <RoleField value={f.job_title} onChange={(v) => setF((x) => ({ ...x, job_title: v }))} />
       </div>
@@ -391,11 +419,16 @@ function InviteForm({
   f: typeof blankInviteForm;
   setF: React.Dispatch<React.SetStateAction<typeof blankInviteForm>>;
 }) {
+  const { t } = useLang();
+  const accessOpts = getAccessRoleOptions(t);
+  const wsOpts = getWorkspaceRoleOptions(t);
+  const modOpts = getModuleAccessOptions(t);
+  const defaultModOpts = [{ value: '', label: t('teamDefaultOption') }, ...modOpts];
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Full Name *
+          {t('teamLabelFullNameRequired')}
         </label>
         <input
           required
@@ -403,12 +436,12 @@ function InviteForm({
           onChange={(e) => setF((x) => ({ ...x, full_name: e.target.value }))}
           className={inputCls}
           style={inputStyle}
-          placeholder="Team member name"
+          placeholder={t('teamPlaceholderMemberName')}
         />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Email *
+          {t('teamLabelEmailRequired')}
         </label>
         <input
           required
@@ -417,34 +450,34 @@ function InviteForm({
           onChange={(e) => setF((x) => ({ ...x, email: e.target.value }))}
           className={inputCls}
           style={inputStyle}
-          placeholder="email@company.com"
+          placeholder={t('teamPlaceholderEmail')}
         />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Access Role *
+          {t('teamLabelAccessRoleRequired')}
         </label>
         <SelectDropdown
           value={f.access_role}
           onChange={(v) => setF((x) => ({ ...x, access_role: v }))}
-          options={ACCESS_ROLE_OPTIONS}
-          placeholder="Select access level…"
+          options={accessOpts}
+          placeholder={t('teamSelectAccessLevel')}
           fullWidth
         />
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Controls what this person can see and do in OPENY OS.
+          {t('teamAccessRoleHint')}
         </p>
       </div>
       <div className="space-y-2">
         <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Workspace Access *
+          {t('teamLabelWorkspaceAccessRequired')}
         </p>
         <label
           className="flex items-center justify-between rounded-lg border px-3 py-2"
           style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
         >
           <span className="text-sm" style={{ color: 'var(--text)' }}>
-            OPENY OS
+            {t('workspaceBrandOs')}
           </span>
           <input
             type="checkbox"
@@ -456,8 +489,8 @@ function InviteForm({
           <SelectDropdown
             value={f.os_role}
             onChange={(v) => setF((x) => ({ ...x, os_role: v }))}
-            options={WORKSPACE_ROLE_OPTIONS}
-            placeholder="OS role"
+            options={wsOpts}
+            placeholder={t('teamPlaceholderOsRole')}
             fullWidth
           />
         )}
@@ -466,7 +499,7 @@ function InviteForm({
           style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
         >
           <span className="text-sm" style={{ color: 'var(--text)' }}>
-            OPENY DOCS
+            {t('workspaceBrandDocs')}
           </span>
           <input
             type="checkbox"
@@ -478,22 +511,22 @@ function InviteForm({
           <SelectDropdown
             value={f.docs_role}
             onChange={(v) => setF((x) => ({ ...x, docs_role: v }))}
-            options={WORKSPACE_ROLE_OPTIONS}
-            placeholder="DOCS role"
+            options={wsOpts}
+            placeholder={t('teamPlaceholderDocsRole')}
             fullWidth
           />
         )}
         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Access to each workspace is managed independently.
+          {t('teamWorkspaceAccessIndependentHint')}
         </p>
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-          Job Title
+          {t('teamLabelJobTitle')}
         </label>
         <RoleField value={f.job_title} onChange={(v) => setF((x) => ({ ...x, job_title: v }))} />
         <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Their actual role on the team (e.g. Graphic Designer).
+          {t('teamJobTitleHint')}
         </p>
       </div>
 
@@ -509,14 +542,14 @@ function InviteForm({
         >
           <span className="flex items-center gap-2">
             <Shield size={14} style={{ color: 'var(--accent)' }} />
-            Advanced Module Permissions
+            {t('teamAdvancedModulePerms')}
           </span>
           {f.show_advanced_permissions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {f.show_advanced_permissions && (
           <div className="space-y-3 px-3 py-3" style={{ background: 'var(--surface)' }}>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Override default access for specific modules. Leave blank to use role defaults.
+              {t('teamAdvancedModulePermsHint')}
             </p>
             {f.os_access && (
               <div>
@@ -524,13 +557,13 @@ function InviteForm({
                   className="mb-2 text-xs font-semibold"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  OPENY OS Modules
+                  {t('teamOsModules')}
                 </p>
                 <div className="space-y-1.5">
                   {OS_MODULES.map((mod) => (
                     <div key={mod} className="flex items-center justify-between gap-2">
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>
-                        {OS_MODULE_LABELS[mod]}
+                        {osModuleLabel(mod, t)}
                       </span>
                       <SelectDropdown
                         value={f.os_permissions[mod] ?? ''}
@@ -542,8 +575,8 @@ function InviteForm({
                             return { ...x, os_permissions: perms };
                           })
                         }
-                        options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
-                        placeholder="Default"
+                        options={defaultModOpts}
+                        placeholder={t('teamDefaultOption')}
                       />
                     </div>
                   ))}
@@ -556,13 +589,13 @@ function InviteForm({
                   className="mb-2 text-xs font-semibold"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  OPENY DOCS Modules
+                  {t('teamDocsModules')}
                 </p>
                 <div className="space-y-1.5">
                   {DOCS_MODULES.map((mod) => (
                     <div key={mod} className="flex items-center justify-between gap-2">
                       <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>
-                        {DOCS_MODULE_LABELS[mod]}
+                        {docsModuleLabel(mod, t)}
                       </span>
                       <SelectDropdown
                         value={f.docs_permissions[mod] ?? ''}
@@ -574,8 +607,8 @@ function InviteForm({
                             return { ...x, docs_permissions: perms };
                           })
                         }
-                        options={[{ value: '', label: 'Default' }, ...MODULE_ACCESS_OPTIONS]}
-                        placeholder="Default"
+                        options={defaultModOpts}
+                        placeholder={t('teamDefaultOption')}
                       />
                     </div>
                   ))}
@@ -587,7 +620,7 @@ function InviteForm({
       </div>
 
       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-        An invitation email will be sent automatically. The link expires in 7 days.
+        {t('teamInviteEmailFooter')}
       </p>
     </div>
   );
@@ -595,13 +628,38 @@ function InviteForm({
 
 // ── Invite status badge ───────────────────────────────────────────────────────
 function InviteBadge({ status }: { status: string }) {
+  const { t } = useLang();
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
-    pending: { label: 'Pending', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
-    invited: { label: 'Invited', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
-    accepted: { label: 'Active', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
-    expired: { label: 'Expired', color: 'var(--text-secondary)', bg: 'var(--surface-2)' },
-    revoked: { label: 'Cancelled', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
-    cancelled: { label: 'Cancelled', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
+    pending: {
+      label: t('inviteStatusPending'),
+      color: 'var(--color-warning)',
+      bg: 'var(--color-warning-bg)',
+    },
+    invited: {
+      label: t('inviteStatusInvited'),
+      color: 'var(--color-warning)',
+      bg: 'var(--color-warning-bg)',
+    },
+    accepted: {
+      label: t('inviteStatusActiveMember'),
+      color: 'var(--color-success)',
+      bg: 'var(--color-success-bg)',
+    },
+    expired: {
+      label: t('inviteStatusExpired'),
+      color: 'var(--text-secondary)',
+      bg: 'var(--surface-2)',
+    },
+    revoked: {
+      label: t('inviteStatusCancelled'),
+      color: 'var(--color-danger)',
+      bg: 'var(--color-danger-bg)',
+    },
+    cancelled: {
+      label: t('inviteStatusCancelled'),
+      color: 'var(--color-danger)',
+      bg: 'var(--color-danger-bg)',
+    },
   };
   const c = cfg[status] ?? {
     label: status,
@@ -620,10 +678,23 @@ function InviteBadge({ status }: { status: string }) {
 
 // ── AccessBadge — colored module access level badge ───────────────────────────
 function AccessBadge({ level }: { level: ModuleAccess }) {
+  const { t } = useLang();
   const cfg: Record<ModuleAccess, { color: string; bg: string; label: string }> = {
-    full: { color: 'var(--color-success)', bg: 'var(--color-success-bg)', label: 'Full' },
-    read: { color: 'var(--color-info)', bg: 'var(--color-info-bg)', label: 'Read' },
-    none: { color: 'var(--text-secondary)', bg: 'var(--surface-2)', label: 'None' },
+    full: {
+      color: 'var(--color-success)',
+      bg: 'var(--color-success-bg)',
+      label: t('teamAccessBadgeFull'),
+    },
+    read: {
+      color: 'var(--color-info)',
+      bg: 'var(--color-info-bg)',
+      label: t('teamAccessBadgeRead'),
+    },
+    none: {
+      color: 'var(--text-secondary)',
+      bg: 'var(--surface-2)',
+      label: t('teamAccessBadgeNone'),
+    },
   };
   const c = cfg[level];
   return (
@@ -660,6 +731,7 @@ function MemberSidePanel({
   const [actLoading, setActLoading] = useState(true);
 
   const isOwner = member.role === 'owner';
+  const { t } = useLang();
 
   useEffect(() => {
     async function load() {
@@ -709,8 +781,8 @@ function MemberSidePanel({
 
   function formatDate(d: string) {
     const diff = Date.now() - new Date(d).getTime();
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    if (diff < 3_600_000) return t('relativeMinutesAgo', { n: Math.floor(diff / 60_000) });
+    if (diff < 86_400_000) return t('relativeHoursAgo', { n: Math.floor(diff / 3_600_000) });
     return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
@@ -730,7 +802,7 @@ function MemberSidePanel({
           style={{ borderColor: 'var(--border)' }}
         >
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            Member Profile
+            {t('teamMemberProfileTitle')}
           </h2>
           <button
             onClick={onClose}
@@ -751,7 +823,7 @@ function MemberSidePanel({
               {member.full_name.charAt(0).toUpperCase()}
               {isOwner && (
                 <span
-                  className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full"
+                  className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
                   style={{ background: 'var(--accent)', color: '#fff' }}
                 >
                   <Crown size={10} />
@@ -786,13 +858,13 @@ function MemberSidePanel({
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   {isOwner && <Crown size={9} />}
-                  {formatAccessRole(member.role)}
+                  {formatAccessRole(member.role, t)}
                 </span>
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}
                 >
-                  Active
+                  {t('inviteStatusActiveMember')}
                 </span>
               </div>
             </div>
@@ -805,7 +877,7 @@ function MemberSidePanel({
             className="mb-2 text-xs font-semibold uppercase tracking-wide"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Workspace Access
+            {t('teamWorkspaceAccessSection')}
           </p>
           <div className="flex flex-wrap gap-2">
             {workspaceAccess?.os?.enabled && (
@@ -813,7 +885,7 @@ function MemberSidePanel({
                 className="rounded-lg px-2.5 py-1 text-xs font-medium"
                 style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
               >
-                {getWorkspaceLabel('os')} · {workspaceAccess.os.role}
+                {workspaceLabelUi('os', t)} · {formatWorkspaceRole(workspaceAccess.os.role, t)}
               </span>
             )}
             {workspaceAccess?.docs?.enabled && (
@@ -821,12 +893,12 @@ function MemberSidePanel({
                 className="rounded-lg px-2.5 py-1 text-xs font-medium"
                 style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
               >
-                {getWorkspaceLabel('docs')} · {workspaceAccess.docs.role}
+                {workspaceLabelUi('docs', t)} · {formatWorkspaceRole(workspaceAccess.docs.role, t)}
               </span>
             )}
             {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                No workspace access configured
+                {t('teamNoWorkspaceConfigured')}
               </span>
             )}
           </div>
@@ -838,8 +910,8 @@ function MemberSidePanel({
             className="mb-3 text-xs font-semibold uppercase tracking-wide"
             style={{ color: 'var(--text-secondary)' }}
           >
-            <Shield size={12} className="mr-1 inline" />
-            Module Permissions
+            <Shield size={12} className="me-1 inline" />
+            {t('teamModulePermissions')}
           </p>
           {permLoading ? (
             <div className="space-y-1.5">
@@ -859,13 +931,13 @@ function MemberSidePanel({
                     className="mb-1.5 text-[11px] font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    OS
+                    {t('teamModuleOsShort')}
                   </p>
                   <div className="grid grid-cols-2 gap-1">
                     {OS_MODULES.map((mod) => (
                       <div key={mod} className="flex items-center justify-between">
                         <span className="text-[11px]" style={{ color: 'var(--text)' }}>
-                          {OS_MODULE_LABELS[mod]}
+                          {osModuleLabel(mod, t)}
                         </span>
                         <AccessBadge level={permissions.os[mod]} />
                       </div>
@@ -879,13 +951,13 @@ function MemberSidePanel({
                     className="mb-1.5 text-[11px] font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    DOCS
+                    {t('teamModuleDocsShort')}
                   </p>
                   <div className="grid grid-cols-2 gap-1">
                     {DOCS_MODULES.map((mod) => (
                       <div key={mod} className="flex items-center justify-between">
                         <span className="text-[11px]" style={{ color: 'var(--text)' }}>
-                          {DOCS_MODULE_LABELS[mod]}
+                          {docsModuleLabel(mod, t)}
                         </span>
                         <AccessBadge level={permissions.docs[mod]} />
                       </div>
@@ -896,7 +968,7 @@ function MemberSidePanel({
             </div>
           ) : (
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Permissions unavailable
+              {t('teamPermissionsUnavailable')}
             </p>
           )}
         </div>
@@ -907,8 +979,8 @@ function MemberSidePanel({
             className="mb-3 text-xs font-semibold uppercase tracking-wide"
             style={{ color: 'var(--text-secondary)' }}
           >
-            <Activity size={12} className="mr-1 inline" />
-            Recent Activity
+            <Activity size={12} className="me-1 inline" />
+            {t('teamRecentActivitySection')}
           </p>
           {actLoading ? (
             <div className="space-y-1.5">
@@ -922,7 +994,7 @@ function MemberSidePanel({
             </div>
           ) : recentActivity.length === 0 ? (
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              No recent activity found.
+              {t('teamNoRecentActivityFound')}
             </p>
           ) : (
             <div className="space-y-2">
@@ -962,7 +1034,7 @@ function MemberSidePanel({
               }}
             >
               <Pencil size={14} />
-              Edit Profile & Role
+              {t('teamEditProfileRole')}
             </button>
             <button
               onClick={() => {
@@ -977,7 +1049,7 @@ function MemberSidePanel({
               }}
             >
               <Trash2 size={14} />
-              Remove Member
+              {t('teamRemoveMember')}
             </button>
           </div>
         )}
@@ -993,10 +1065,7 @@ export default function TeamPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canManage = myRole === 'owner' || myRole === 'admin';
-  const tr = (key: string, fallback: string) => {
-    const value = t(key);
-    return value && value !== key ? value : fallback;
-  };
+  const workspaceRoleOpts = getWorkspaceRoleOptions(t);
 
   // ── React Query: fetch and cache team members and invitations ─────────────
   const { data: teamData, isLoading: loading } = useQuery({
@@ -1173,11 +1242,11 @@ export default function TeamPage() {
       !inviteForm.email.trim() ||
       !inviteForm.access_role.trim()
     ) {
-      setActionError('Full name, email, and access role are required.');
+      setActionError(t('teamInviteRequiredFields'));
       return;
     }
     if (!inviteForm.os_access && !inviteForm.docs_access) {
-      setActionError('At least one workspace must be enabled (OPENY OS or OPENY DOCS).');
+      setActionError(t('teamInviteWorkspaceRequired'));
       return;
     }
     setSaving(true);
@@ -1204,12 +1273,12 @@ export default function TeamPage() {
       if (!res.ok) {
         const exactDbError =
           process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
-        setActionError(exactDbError || data.error || 'Failed to send invitation.');
+        setActionError(exactDbError || data.error || t('teamInviteFailed'));
         if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
         return;
       }
       if (!hasInviteInsertResult(data)) {
-        setActionError('Invite request succeeded but no invitation row was returned.');
+        setActionError(t('teamInviteNoRowReturned'));
         console.error('[team] Missing insert result after invite:', data);
         return;
       }
@@ -1265,17 +1334,13 @@ export default function TeamPage() {
       const emailSent = (data as { emailSent?: boolean }).emailSent === true;
       const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
       if (emailSent) {
-        toast(`Invitation sent to ${inviteForm.email}`, 'success');
+        toast(t('teamInviteSentTo', { email: inviteForm.email }), 'success');
       } else {
-        toast(
-          skipReason ??
-            `Invitation created for ${inviteForm.email} — email was not sent. Use Copy invite link on the Team page.`,
-          'warning',
-        );
+        toast(skipReason ?? t('teamInviteCreatedNoEmail', { email: inviteForm.email }), 'warning');
       }
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Network error. Please try again.');
+      setActionError(err instanceof Error ? err.message : t('teamNetworkErrorRetry'));
     } finally {
       setSaving(false);
     }
@@ -1314,7 +1379,7 @@ export default function TeamPage() {
       });
       if (!memberRes.ok) {
         const payload = await memberRes.json().catch(() => ({}));
-        throw new Error(payload.error ?? 'Failed to update team member. Please try again.');
+        throw new Error(payload.error ?? t('teamFailedUpdateMemberApi'));
       }
       if (editForm.email) {
         const accessRes = await fetch('/api/team/workspace-access', {
@@ -1330,14 +1395,14 @@ export default function TeamPage() {
         });
         if (!accessRes.ok) {
           const payload = await accessRes.json().catch(() => ({}));
-          throw new Error(payload.error ?? 'Failed to update workspace permissions');
+          throw new Error(payload.error ?? t('teamFailedUpdateWorkspacePerms'));
         }
       }
       setEditMember(null);
-      toast('Member updated successfully', 'success');
+      toast(t('teamMemberUpdated'), 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to update member', 'error');
+      toast(err instanceof Error ? err.message : t('teamFailedUpdateMember'), 'error');
     } finally {
       setSaving(false);
     }
@@ -1348,7 +1413,7 @@ export default function TeamPage() {
     if (!deleteMember) return;
     // Owner is never deletable — guard at both UI and API level.
     if (deleteMember.role === 'owner') {
-      toast('The workspace owner cannot be removed.', 'error');
+      toast(t('teamOwnerCannotRemove'), 'error');
       setDeleteMember(null);
       return;
     }
@@ -1364,14 +1429,14 @@ export default function TeamPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast(data.error ?? 'Failed to remove member.', 'error');
+        toast(data.error ?? t('teamFailedRemoveMember'), 'error');
         return;
       }
       setDeleteMember(null);
-      toast('Member removed', 'info');
+      toast(t('teamMemberRemoved'), 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast('Network error. Please try again.', 'error');
+      toast(t('teamNetworkErrorRetry'), 'error');
     } finally {
       setRemovingMember(false);
     }
@@ -1391,28 +1456,27 @@ export default function TeamPage() {
         emailSkippedReason?: string;
       };
       if (!res.ok) {
-        toast(data.error ?? 'Failed to resend invitation.', 'error');
+        toast(data.error ?? t('teamFailedResendInvite'), 'error');
         return;
       }
       if (data.emailSent === false) {
         toast(
-          data.emailSkippedReason ??
-            `Invitation was renewed but email was not sent. Use Copy invite link for ${invitation.email}.`,
+          data.emailSkippedReason ?? t('teamInviteRenewedNoEmail', { email: invitation.email }),
           'warning',
         );
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
         return;
       }
-      toast(`Invitation resent to ${invitation.email}`, 'success');
+      toast(t('teamInviteResentTo', { email: invitation.email }), 'success');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast('Network error. Please try again.', 'error');
+      toast(t('teamNetworkErrorRetry'), 'error');
     }
   };
 
   // ── Cancel invite ─────────────────────────────────────────────────────────
   const handleCancelInvite = async (invitation: TeamInvitation) => {
-    if (!confirm(`Cancel invitation for ${invitation.email}?`)) return;
+    if (!confirm(t('teamCancelInviteConfirm', { email: invitation.email }))) return;
     try {
       const res = await fetch('/api/team/invite/revoke', {
         method: 'POST',
@@ -1421,28 +1485,28 @@ export default function TeamPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast(data.error ?? 'Failed to revoke invitation.', 'error');
+        toast(data.error ?? t('teamFailedRevokeInvite'), 'error');
         return;
       }
-      toast('Invitation cancelled', 'info');
+      toast(t('teamInvitationCancelled'), 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast('Network error. Please try again.', 'error');
+      toast(t('teamNetworkErrorRetry'), 'error');
     }
   };
 
   const handleCopyInviteLink = async (invitation: TeamInvitation) => {
     if (!invitation.token) {
-      toast('Invite link is unavailable for this invitation.', 'error');
+      toast(t('teamInviteLinkUnavailable'), 'error');
       return;
     }
 
     const inviteUrl = `${window.location.origin}/invite?token=${encodeURIComponent(invitation.token)}`;
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      toast('Invite link copied', 'success');
+      toast(t('teamInviteLinkCopied'), 'success');
     } catch {
-      toast('Failed to copy invite link', 'error');
+      toast(t('teamFailedCopyInvite'), 'error');
     }
   };
 
@@ -1458,7 +1522,7 @@ export default function TeamPage() {
           ? [
               {
                 id: user.id,
-                full_name: user.name || 'Workspace Owner',
+                full_name: user.name || t('teamWorkspaceOwnerDisplay'),
                 email: user.email,
                 role: 'owner',
                 status: 'active',
@@ -1476,9 +1540,9 @@ export default function TeamPage() {
           (user.name && user.name.trim()) || user.email?.split('@')[0]?.trim() || '';
         if (fromSession) return { ...m, full_name: fromSession };
       }
-      return { ...m, full_name: 'Workspace Owner' };
+      return { ...m, full_name: t('teamWorkspaceOwnerDisplay') };
     });
-  }, [ownerMembers, myRole, user.id, user.email, user.name]);
+  }, [ownerMembers, myRole, user.id, user.email, user.name, t]);
   const activeMembers = members
     .filter((m) => m.role !== 'owner' && (!m.status || m.status === 'active'))
     .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
@@ -1490,7 +1554,10 @@ export default function TeamPage() {
     <PageShell className="max-w-6xl space-y-6">
       <PageHeader
         title={t('team')}
-        subtitle={`${activeMembers.length + ownerMembersForDisplay.length} active · ${pendingInvites.length} pending`}
+        subtitle={t('teamSubtitleCounts', {
+          active: activeMembers.length + ownerMembersForDisplay.length,
+          pending: pendingInvites.length,
+        })}
         actions={
           canManage ? (
             <Button
@@ -1502,7 +1569,7 @@ export default function TeamPage() {
               }}
             >
               <Send size={15} />
-              Invite Member
+              {t('teamInviteMember')}
             </Button>
           ) : undefined
         }
@@ -1517,10 +1584,7 @@ export default function TeamPage() {
             color: 'var(--color-warning, var(--text))',
           }}
         >
-          {tr(
-            'teamInvitationsLoadFailed',
-            'Could not load the invitation list from the server. Pending invites may be incomplete until you refresh the page.',
-          )}
+          {t('teamInvitationsLoadFailed')}
         </p>
       ) : null}
 
@@ -1533,10 +1597,7 @@ export default function TeamPage() {
             color: 'var(--text-secondary)',
           }}
         >
-          {tr(
-            'teamEmailNotConfiguredHint',
-            'Transactional email is not configured on the server (missing RESEND_API_KEY). Invitations are created but invitees will not receive an email until you add a Resend API key in Vercel (or your host) and redeploy. Until then, use “Copy invite link” and send the link manually (e.g. WhatsApp). Also set NEXT_PUBLIC_APP_URL to your site URL so links in emails work.',
-          )}
+          {t('teamEmailNotConfiguredHint')}
         </p>
       ) : null}
 
@@ -1553,10 +1614,7 @@ export default function TeamPage() {
             color: 'var(--color-warning, var(--text))',
           }}
         >
-          {tr(
-            'teamInviteUrlNotConfigured',
-            'NEXT_PUBLIC_APP_URL is not set on the server. Invitation emails may contain broken links. Set it to your production URL (e.g. https://openy-os.com) and redeploy.',
-          )}
+          {t('teamInviteUrlNotConfigured')}
         </p>
       ) : null}
 
@@ -1569,16 +1627,13 @@ export default function TeamPage() {
       ) : !hasAnyTeamData ? (
         <EmptyState
           icon={Users}
-          title={tr('noTeamMembers', 'No team members yet')}
-          description={tr(
-            'noTeamMembersDesc',
-            'Invite teammates to collaborate across OPENY OS and OPENY DOCS with secure, role-based access.',
-          )}
+          title={t('noTeamMembers')}
+          description={t('noTeamMembersDesc')}
           action={
             canManage ? (
               <Button type="button" variant="primary" onClick={() => setInviteOpen(true)}>
                 <Send size={15} />
-                Invite Member
+                {t('teamInviteMember')}
               </Button>
             ) : undefined
           }
@@ -1589,7 +1644,7 @@ export default function TeamPage() {
             <CardContent className="space-y-4 !p-0">
               <SectionHeader
                 icon={<Crown size={14} />}
-                label="Owner"
+                label={t('teamSectionOwner')}
                 count={ownerMembersForDisplay.length}
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1604,13 +1659,11 @@ export default function TeamPage() {
             <CardContent className="space-y-4 !p-0">
               <SectionHeader
                 icon={<CheckCircle size={14} />}
-                label="Active Team Members"
+                label={t('teamSectionActiveMembers')}
                 count={activeMembers.length}
               />
               {activeMembers.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {tr('noActiveMembers', 'No active members yet.')}
-                </p>
+                <p className="text-sm text-[var(--text-secondary)]">{t('noActiveMembers')}</p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {activeMembers.map((m) => (
@@ -1634,13 +1687,11 @@ export default function TeamPage() {
             <CardContent className="space-y-4 !p-0">
               <SectionHeader
                 icon={<Clock size={14} />}
-                label="Pending Invitations"
+                label={t('teamSectionPendingInvites')}
                 count={pendingInvites.length}
               />
               {pendingInvites.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {tr('noPendingInvitations', 'No pending invitations.')}
-                </p>
+                <p className="text-sm text-[var(--text-secondary)]">{t('noPendingInvitations')}</p>
               ) : (
                 <div className="space-y-3">
                   {pendingInvites.map((invitation) => (
@@ -1658,7 +1709,7 @@ export default function TeamPage() {
               {invitationHistory.length > 0 && (
                 <div className="mt-5 space-y-2 border-t border-[var(--border)] pt-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]">
-                    Invite History
+                    {t('teamInviteHistory')}
                   </p>
                   <div className="space-y-2">
                     {invitationHistory.map((invitation) => (
@@ -1669,8 +1720,10 @@ export default function TeamPage() {
                         <div className="min-w-0">
                           <p className="truncate text-sm text-[var(--text)]">{invitation.email}</p>
                           <p className="text-xs text-[var(--text-secondary)]">
-                            {invitation.role ? `${formatAccessRole(invitation.role)} · ` : ''}
-                            Created {new Date(invitation.created_at).toLocaleDateString()}
+                            {invitation.role ? `${formatAccessRole(invitation.role, t)} · ` : ''}
+                            {t('teamCreatedOn', {
+                              date: new Date(invitation.created_at).toLocaleDateString(),
+                            })}
                           </p>
                         </div>
                         <InviteBadge
@@ -1694,7 +1747,7 @@ export default function TeamPage() {
       <Modal
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        title="Invite Team Member"
+        title={t('teamInviteModalTitle')}
         size="sm"
       >
         <form onSubmit={handleInvite} className="space-y-4">
@@ -1723,26 +1776,31 @@ export default function TeamPage() {
               style={{ background: 'var(--accent)' }}
             >
               <Send size={14} />
-              {saving ? 'Sending…' : 'Send Invite'}
+              {saving ? t('teamSending') : t('teamSendInvite')}
             </button>
           </div>
         </form>
       </Modal>
 
       {/* ── Edit Modal ────────────────────────────────────────────────────── */}
-      <Modal open={!!editMember} onClose={() => setEditMember(null)} title="Edit Member" size="sm">
+      <Modal
+        open={!!editMember}
+        onClose={() => setEditMember(null)}
+        title={t('teamEditMemberTitle')}
+        size="sm"
+      >
         <form onSubmit={handleEdit} className="space-y-4">
           <MemberForm f={editForm} setF={setEditForm} />
           <div className="space-y-2">
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              Workspace Access
+              {t('teamWorkspaceAccessSection')}
             </p>
             <label
               className="flex items-center justify-between rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
             >
               <span className="text-sm" style={{ color: 'var(--text)' }}>
-                OPENY OS
+                {t('workspaceBrandOs')}
               </span>
               <input
                 type="checkbox"
@@ -1754,8 +1812,8 @@ export default function TeamPage() {
               <SelectDropdown
                 value={editForm.os_role}
                 onChange={(v) => setEditForm((x) => ({ ...x, os_role: v }))}
-                options={WORKSPACE_ROLE_OPTIONS}
-                placeholder="OS role"
+                options={workspaceRoleOpts}
+                placeholder={t('teamPlaceholderOsRole')}
                 fullWidth
               />
             )}
@@ -1764,7 +1822,7 @@ export default function TeamPage() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
             >
               <span className="text-sm" style={{ color: 'var(--text)' }}>
-                OPENY DOCS
+                {t('workspaceBrandDocs')}
               </span>
               <input
                 type="checkbox"
@@ -1776,8 +1834,8 @@ export default function TeamPage() {
               <SelectDropdown
                 value={editForm.docs_role}
                 onChange={(v) => setEditForm((x) => ({ ...x, docs_role: v }))}
-                options={WORKSPACE_ROLE_OPTIONS}
-                placeholder="DOCS role"
+                options={workspaceRoleOpts}
+                placeholder={t('teamPlaceholderDocsRole')}
                 fullWidth
               />
             )}
@@ -1809,14 +1867,16 @@ export default function TeamPage() {
         onClose={() => !removingMember && setDeleteMember(null)}
         title={
           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Remove member
+            {t('teamRemoveMemberTitle')}
           </span>
         }
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-            Remove <strong>{deleteMember?.full_name}</strong> from the team? This cannot be undone.
+            {t('teamRemoveMemberLead')}
+            <strong>{deleteMember?.full_name}</strong>
+            {t('teamRemoveMemberTrail')}
           </p>
           <div className="flex justify-end gap-3">
             <button
@@ -1835,7 +1895,7 @@ export default function TeamPage() {
               className="h-9 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: 'var(--color-danger)' }}
             >
-              {removingMember ? 'Removing…' : 'Remove'}
+              {removingMember ? t('teamRemoving') : t('teamRemove')}
             </button>
           </div>
         </div>
@@ -1870,7 +1930,7 @@ function SectionHeader({ icon, label, count }: { icon: ReactNode; label: string;
       <span className="text-[var(--text-secondary)]">{icon}</span>
       <h2 className="text-sm font-semibold text-[var(--text-secondary)]">{label}</h2>
       {count !== undefined && (
-        <span className="ml-1 rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
+        <span className="ms-1 rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
           {count}
         </span>
       )}
@@ -1888,6 +1948,7 @@ function OwnerCard({
   canManage: boolean;
   onEdit: (m: TeamMember) => void;
 }) {
+  const { t } = useLang();
   return (
     <div
       className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5"
@@ -1898,7 +1959,7 @@ function OwnerCard({
     >
       {/* subtle accent stripe at top */}
       <div
-        className="absolute left-0 right-0 top-0 h-0.5 rounded-t-xl"
+        className="absolute end-0 start-0 top-0 h-0.5 rounded-t-xl"
         style={{ background: 'var(--accent)' }}
       />
       <div className="flex items-start gap-3">
@@ -1910,9 +1971,9 @@ function OwnerCard({
             {member.full_name.charAt(0).toUpperCase()}
           </div>
           <span
-            className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full"
+            className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
             style={{ background: 'var(--accent)', color: '#fff' }}
-            title="Workspace Owner"
+            title={t('teamWorkspaceOwnerDisplay')}
           >
             <Crown size={10} />
           </span>
@@ -1926,7 +1987,7 @@ function OwnerCard({
             style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
           >
             <Crown size={9} />
-            Owner
+            {t('teamSectionOwner')}
           </span>
           {resolveDisplayJobTitle(member) && (
             <p
@@ -1947,7 +2008,7 @@ function OwnerCard({
             </p>
           )}
           <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {formatLastActive(member.updated_at ?? member.created_at)}
+            {formatLastActive(member.updated_at ?? member.created_at, t)}
           </p>
         </div>
         {/* Edit only — owner is never deletable */}
@@ -1956,7 +2017,7 @@ function OwnerCard({
             onClick={() => onEdit(member)}
             className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
-            title="Edit owner profile"
+            title={t('teamEditOwnerProfile')}
           >
             <Pencil size={13} />
           </button>
@@ -1979,6 +2040,7 @@ function PendingInvitationRow({
   onCopyLink: (invitation: TeamInvitation) => void;
   onCancel: (invitation: TeamInvitation) => void;
 }) {
+  const { t } = useLang();
   const member = Array.isArray(invitation.team_member)
     ? invitation.team_member[0]
     : invitation.team_member;
@@ -1991,7 +2053,7 @@ function PendingInvitationRow({
       : null;
   const displayEmail = invitation.email ?? profile?.email ?? '';
   const displayName = member?.full_name ?? profile?.full_name ?? displayEmail;
-  const roleLabel = formatAccessRole(invitation.role ?? member?.role ?? 'team_member');
+  const roleLabel = formatAccessRole(invitation.role ?? member?.role ?? 'team_member', t);
   const status = CANCELLATION_STATUSES.has((invitation.status ?? '').toLowerCase())
     ? 'cancelled'
     : invitation.status;
@@ -1999,7 +2061,7 @@ function PendingInvitationRow({
   const canResend = canCancel || invitation.status === 'expired';
   const workspaceAccess = parseInviteWorkspaceAccess(invitation.workspace_access);
   const workspaceRoles = parseInviteWorkspaceRoles(invitation.workspace_roles);
-  const workspaceSummary = formatWorkspaceAccessSummary(workspaceAccess);
+  const workspaceSummary = formatWorkspaceAccessSummary(workspaceAccess, t);
 
   return (
     <div
@@ -2015,7 +2077,10 @@ function PendingInvitationRow({
             {displayEmail}
           </p>
           <p className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>
-            {roleLabel} · Invited {new Date(invitation.created_at).toLocaleDateString()}
+            {roleLabel} ·{' '}
+            {t('teamPendingRowInvited', {
+              date: new Date(invitation.created_at).toLocaleDateString(),
+            })}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {workspaceAccess.map((workspace) => (
@@ -2024,7 +2089,8 @@ function PendingInvitationRow({
                 className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                 style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
               >
-                {getWorkspaceLabel(workspace)} · {formatWorkspaceRole(workspaceRoles[workspace])}
+                {workspaceLabelUi(workspace, t)} ·{' '}
+                {formatWorkspaceRole(workspaceRoles[workspace], t)}
               </span>
             ))}
             {workspaceAccess.length === 0 && (
@@ -2032,16 +2098,16 @@ function PendingInvitationRow({
                 className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                 style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
               >
-                OPENY OS · Member
+                {t('teamFallbackOsMember')}
               </span>
             )}
           </div>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Workspace Access: {workspaceSummary}
+            {t('teamWorkspaceAccessLabel', { summary: workspaceSummary })}
           </p>
           {invitation.expires_at && (
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Expires {new Date(invitation.expires_at).toLocaleDateString()}
+              {t('teamExpires', { date: new Date(invitation.expires_at).toLocaleDateString() })}
             </p>
           )}
         </div>
@@ -2058,7 +2124,7 @@ function PendingInvitationRow({
               onClick={() => onResend(invitation)}
             >
               <RotateCcw size={12} />
-              Resend
+              {t('teamResend')}
             </Button>
           )}
           <Button
@@ -2069,7 +2135,7 @@ function PendingInvitationRow({
             className="h-8 text-xs"
           >
             <Copy size={12} />
-            Copy Invite Link
+            {t('teamCopyInviteLink')}
           </Button>
           {canCancel && (
             <Button
@@ -2079,7 +2145,7 @@ function PendingInvitationRow({
               onClick={() => onCancel(invitation)}
             >
               <XCircle size={12} />
-              Cancel Invitation
+              {t('teamCancelInvitation')}
             </Button>
           )}
         </div>
@@ -2106,6 +2172,7 @@ function MemberCard({
   onDelete: (m: TeamMember) => void;
   onView?: (m: TeamMember) => void;
 }) {
+  const { t } = useLang();
   const isInvited = member.status === 'invited' || member.status === 'pending';
   const isInteractive = !isInvited && !!onView;
 
@@ -2149,7 +2216,7 @@ function MemberCard({
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                 style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)' }}
               >
-                Active
+                {t('inviteStatusActiveMember')}
               </span>
             )}
           </div>
@@ -2167,7 +2234,7 @@ function MemberCard({
               className="mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs font-medium capitalize"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
-              {formatAccessRole(member.role)}
+              {formatAccessRole(member.role, t)}
             </span>
           )}
           {member.email && (
@@ -2180,7 +2247,7 @@ function MemberCard({
             </p>
           )}
           <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {formatLastActive(member.updated_at ?? member.created_at)}
+            {formatLastActive(member.updated_at ?? member.created_at, t)}
           </p>
           <div className="mt-1">
             <p
@@ -2188,7 +2255,7 @@ function MemberCard({
               className="text-[11px]"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Access:
+              {t('teamMemberAccessLabel')}
             </p>
             <ul
               aria-labelledby={`member-access-${member.id}`}
@@ -2199,7 +2266,7 @@ function MemberCard({
                   className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                   style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                 >
-                  {getWorkspaceLabel('os')} · {formatWorkspaceRole(workspaceAccess.os.role)}
+                  {workspaceLabelUi('os', t)} · {formatWorkspaceRole(workspaceAccess.os.role, t)}
                 </li>
               )}
               {workspaceAccess?.docs?.enabled && (
@@ -2207,7 +2274,8 @@ function MemberCard({
                   className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                   style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                 >
-                  {getWorkspaceLabel('docs')} · {formatWorkspaceRole(workspaceAccess.docs.role)}
+                  {workspaceLabelUi('docs', t)} ·{' '}
+                  {formatWorkspaceRole(workspaceAccess.docs.role, t)}
                 </li>
               )}
               {!workspaceAccess?.os?.enabled && !workspaceAccess?.docs?.enabled && (
@@ -2215,16 +2283,20 @@ function MemberCard({
                   className="inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                   style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                 >
-                  No workspace access
+                  {t('teamNoWorkspaceAccess')}
                 </li>
               )}
             </ul>
           </div>
           {invitation && (
             <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Invited {new Date(invitation.created_at).toLocaleDateString()}
+              {t('teamPendingRowInvited', {
+                date: new Date(invitation.created_at).toLocaleDateString(),
+              })}
               {invitation.expires_at &&
-                ` · expires ${new Date(invitation.expires_at).toLocaleDateString()}`}
+                t('teamInviteExpiresLine', {
+                  date: new Date(invitation.expires_at).toLocaleDateString(),
+                })}
             </p>
           )}
         </div>

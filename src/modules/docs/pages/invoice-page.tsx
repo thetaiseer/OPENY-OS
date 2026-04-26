@@ -38,6 +38,7 @@ import {
   normalizeInvoiceTemplateName,
   type InvoiceTemplateKey,
 } from '@/lib/invoiceTemplates';
+import { useLang } from '@/context/lang-context';
 import {
   createDefaultProIconKsaBranchConfigs,
   deriveProIconKsaBranchConfigs,
@@ -85,24 +86,28 @@ function createEmptyRow(): InvoiceCampaignRow {
   return { id: uid(), ad_name: '', date: '', results: '', cost: 0 };
 }
 
-function createEmptyPlatform(name = 'Instagram'): InvoicePlatformGroup {
+type DocsT = (key: string, vars?: Record<string, string | number>) => string;
+
+function createEmptyPlatform(name?: string, t?: DocsT): InvoicePlatformGroup {
+  const platformName = name ?? (t ? t('docDefaultPlatformInstagram') : 'Instagram');
   return {
     id: uid(),
-    platform_name: name,
+    platform_name: platformName,
     campaign_rows: [createEmptyRow()],
   };
 }
 
-function createEmptyBranch(name = 'Main Branch'): InvoiceBranchGroup {
+function createEmptyBranch(name?: string, t?: DocsT): InvoiceBranchGroup {
+  const branchName = name ?? (t ? t('docDefaultMainBranch') : 'Main branch');
   return {
     id: uid(),
-    branch_name: name,
-    platform_groups: [createEmptyPlatform()],
+    branch_name: branchName,
+    platform_groups: [createEmptyPlatform(undefined, t)],
   };
 }
 
-function createManualDefaultBranchGroups(): InvoiceBranchGroup[] {
-  return [createEmptyBranch()];
+function createManualDefaultBranchGroups(t?: DocsT): InvoiceBranchGroup[] {
+  return [createEmptyBranch(undefined, t)];
 }
 
 function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[] = []) {
@@ -124,13 +129,16 @@ function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[] = []) {
 function normalizeBranchGroupsForEditor(
   branchGroups: InvoiceBranchGroup[] = [],
   ensureAtLeastOne = false,
+  t?: DocsT,
 ) {
   const normalized = branchGroups.map((branch, branchIndex) => ({
     id: branch.id || `branch-${branchIndex + 1}-${uid()}`,
-    branch_name: branch.branch_name || `Branch ${branchIndex + 1}`,
+    branch_name:
+      branch.branch_name ||
+      (t ? t('docBranchNumbered', { n: branchIndex + 1 }) : `Branch ${branchIndex + 1}`),
     platform_groups: (branch.platform_groups ?? []).map((platform, platformIndex) => ({
       id: platform.id || `platform-${branchIndex + 1}-${platformIndex + 1}-${uid()}`,
-      platform_name: platform.platform_name || 'Platform',
+      platform_name: platform.platform_name || (t ? t('docPlatformFallback') : 'Platform'),
       campaign_rows: (platform.campaign_rows ?? []).map((row, rowIndex) => ({
         id: row.id || `row-${branchIndex + 1}-${platformIndex + 1}-${rowIndex + 1}-${uid()}`,
         ad_name: row.ad_name || '',
@@ -142,11 +150,11 @@ function normalizeBranchGroupsForEditor(
   }));
 
   if (!ensureAtLeastOne) return normalized;
-  if (normalized.length === 0) return createManualDefaultBranchGroups();
+  if (normalized.length === 0) return createManualDefaultBranchGroups(t);
 
   return normalized.map((branch) => {
     if (branch.platform_groups.length === 0) {
-      return { ...branch, platform_groups: [createEmptyPlatform()] };
+      return { ...branch, platform_groups: [createEmptyPlatform(undefined, t)] };
     }
     return {
       ...branch,
@@ -262,11 +270,12 @@ function toForm(invoice: DocsInvoice): FormState {
 }
 
 export default function InvoicePage() {
+  const { t } = useLang();
   const [invoices, setInvoices] = useState<DocsInvoice[]>([]);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [form, setForm] = useState<FormState>(() => blank([]));
-  const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(
-    createManualDefaultBranchGroups,
+  const [branchGroups, setBranchGroups] = useState<InvoiceBranchGroup[]>(() =>
+    createManualDefaultBranchGroups(t),
   );
   const [totalBudget, setTotalBudget] = useState<number>(DEFAULT_TOTAL_BUDGET);
   const [ksaBranchConfigs, setKsaBranchConfigs] = useState<ProIconKsaBranchConfig[]>(
@@ -287,7 +296,7 @@ export default function InvoicePage() {
     (invoice: DocsInvoice | null, availableInvoices: DocsInvoice[]) => {
       if (!invoice) {
         setForm(blank(availableInvoices));
-        setBranchGroups(createManualDefaultBranchGroups());
+        setBranchGroups(createManualDefaultBranchGroups(t));
         setTotalBudget(DEFAULT_TOTAL_BUDGET);
         setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
         setGenerationSeed(0);
@@ -298,6 +307,7 @@ export default function InvoicePage() {
       const normalizedGroups = normalizeBranchGroupsForEditor(
         invoice.branch_groups ?? [],
         nextForm.invoice_template === 'manual',
+        t,
       );
       const inferredBudget = Math.max(
         0,
@@ -309,7 +319,7 @@ export default function InvoicePage() {
         normalizedGroups.length
           ? normalizedGroups
           : nextForm.invoice_template === 'manual'
-            ? createManualDefaultBranchGroups()
+            ? createManualDefaultBranchGroups(t)
             : [],
       );
       setTotalBudget(inferredBudget || DEFAULT_TOTAL_BUDGET);
@@ -320,7 +330,7 @@ export default function InvoicePage() {
       );
       setGenerationSeed(0);
     },
-    [],
+    [t],
   );
 
   const load = useCallback(async () => {
@@ -332,18 +342,18 @@ export default function InvoicePage() {
         fetchDocsClientProfiles(),
       ]);
       const invJson = (await invRes.json()) as { invoices?: DocsInvoice[]; error?: string };
-      if (!invRes.ok) throw new Error(invJson.error ?? 'Unable to load invoices.');
+      if (!invRes.ok) throw new Error(invJson.error ?? t('docInvLoadError'));
 
       const loadedInvoices = invJson.invoices ?? [];
       setInvoices(loadedInvoices);
       setProfiles(docsProfiles);
       loadFromInvoice(loadedInvoices[0] ?? null, loadedInvoices);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to load invoices.');
+      setError(e instanceof Error ? e.message : t('docInvLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [loadFromInvoice]);
+  }, [loadFromInvoice, t]);
 
   useEffect(() => {
     void load();
@@ -376,7 +386,7 @@ export default function InvoicePage() {
   function applyTemplate(templateName: InvoiceTemplateKey) {
     if (templateName === 'manual') {
       setForm((prev) => ({ ...prev, invoice_template: 'manual' }));
-      setBranchGroups(createManualDefaultBranchGroups());
+      setBranchGroups(createManualDefaultBranchGroups(t));
       setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
       setGenerationSeed(0);
       return;
@@ -397,7 +407,7 @@ export default function InvoicePage() {
       our_fees: generated.fees,
       currency: PRO_ICON_KSA_TEMPLATE_CONFIG.defaultCurrency,
     }));
-    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
+    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups, false, t));
     setTotalBudget(generated.totalBudget || totalBudget);
     setKsaBranchConfigs(
       generated.defaultBranchConfigs
@@ -427,7 +437,7 @@ export default function InvoicePage() {
       setKsaBranchConfigs(createDefaultProIconKsaBranchConfigs());
     }
 
-    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups));
+    setBranchGroups(normalizeBranchGroupsForEditor(generated.branchGroups, false, t));
     setForm((prev) => ({
       ...prev,
       invoice_template: PRO_ICON_KSA_TEMPLATE_KEY,
@@ -488,7 +498,7 @@ export default function InvoicePage() {
                 ...branch.platforms,
                 {
                   id: uid(),
-                  name: `Platform ${branch.platforms.length + 1}`,
+                  name: t('docPlatformNumbered', { n: branch.platforms.length + 1 }),
                   enabled: true,
                   campaignCount: 1,
                   allocationPct: 0,
@@ -575,7 +585,10 @@ export default function InvoicePage() {
   }
 
   function addBranch() {
-    setBranchGroups((prev) => [...prev, createEmptyBranch(`Branch ${prev.length + 1}`)]);
+    setBranchGroups((prev) => [
+      ...prev,
+      createEmptyBranch(t('docBranchNumbered', { n: prev.length + 1 }), t),
+    ]);
   }
 
   function removeBranch(branchIndex: number) {
@@ -600,7 +613,10 @@ export default function InvoicePage() {
     setBranchGroups((prev) =>
       prev.map((branch, bIdx) =>
         bIdx === branchIndex
-          ? { ...branch, platform_groups: [...branch.platform_groups, createEmptyPlatform()] }
+          ? {
+              ...branch,
+              platform_groups: [...branch.platform_groups, createEmptyPlatform(undefined, t)],
+            }
           : branch,
       ),
     );
@@ -686,11 +702,11 @@ export default function InvoicePage() {
 
   async function saveInvoice() {
     if (!form.invoice_number.trim()) {
-      setError('Invoice number is required.');
+      setError(t('docInvNumberRequired'));
       return;
     }
     if (!form.client_name.trim()) {
-      setError('Client name is required.');
+      setError(t('docInvClientRequired'));
       return;
     }
 
@@ -709,7 +725,7 @@ export default function InvoicePage() {
         status: form.status,
         our_fees: Math.max(0, Number(form.our_fees || 0)),
         notes: form.notes,
-        branch_groups: normalizeBranchGroupsForEditor(branchGroups),
+        branch_groups: normalizeBranchGroupsForEditor(branchGroups, false, t),
       };
 
       const url = form.id ? `/api/docs/invoices/${form.id}` : '/api/docs/invoices';
@@ -721,7 +737,7 @@ export default function InvoicePage() {
       });
 
       const json = (await res.json()) as { invoice?: DocsInvoice; error?: string };
-      if (!res.ok || !json.invoice) throw new Error(json.error ?? 'Unable to save invoice.');
+      if (!res.ok || !json.invoice) throw new Error(json.error ?? t('docInvSaveError'));
 
       const savedInvoice = json.invoice;
       setForm(toForm(savedInvoice));
@@ -734,7 +750,11 @@ export default function InvoicePage() {
         return next.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
       });
 
-      const normalizedGroups = normalizeBranchGroupsForEditor(savedInvoice.branch_groups ?? []);
+      const normalizedGroups = normalizeBranchGroupsForEditor(
+        savedInvoice.branch_groups ?? [],
+        false,
+        t,
+      );
       const persistedBudget = Math.max(
         0,
         Math.round(Number(savedInvoice.final_budget ?? sumBranchGroupsCost(normalizedGroups))),
@@ -743,7 +763,7 @@ export default function InvoicePage() {
         normalizedGroups.length
           ? normalizedGroups
           : asTemplateName(savedInvoice.invoice_template ?? null) === 'manual'
-            ? createManualDefaultBranchGroups()
+            ? createManualDefaultBranchGroups(t)
             : [],
       );
       setTotalBudget(persistedBudget || totalBudget);
@@ -753,10 +773,10 @@ export default function InvoicePage() {
           : createDefaultProIconKsaBranchConfigs(),
       );
 
-      setSuccess('Invoice saved successfully.');
+      setSuccess(t('docInvSaved'));
       setTimeout(() => setSuccess(''), 2200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to save invoice.');
+      setError(e instanceof Error ? e.message : t('docInvSaveError'));
     } finally {
       setSaving(false);
     }
@@ -766,14 +786,14 @@ export default function InvoicePage() {
     if (!form.id) return;
     const res = await fetch(`/api/docs/invoices/${form.id}`, { method: 'DELETE' });
     if (!res.ok) {
-      setError('Unable to delete invoice.');
+      setError(t('docInvDeleteError'));
       return;
     }
 
     const nextInvoices = invoices.filter((invoice) => invoice.id !== form.id);
     setInvoices(nextInvoices);
     loadFromInvoice(nextInvoices[0] ?? null, nextInvoices);
-    setSuccess('Invoice deleted.');
+    setSuccess(t('docInvDeleted'));
     setTimeout(() => setSuccess(''), 1800);
   }
 
@@ -801,7 +821,7 @@ export default function InvoicePage() {
                 className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               >
-                <Plus size={12} className="mr-1 inline" /> New
+                <Plus size={12} className="me-1 inline" /> {t('docInvNew')}
               </button>
               <button
                 type="button"
@@ -810,7 +830,8 @@ export default function InvoicePage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: 'var(--accent)' }}
               >
-                <Save size={12} className="mr-1 inline" /> {saving ? 'Saving…' : 'Save'}
+                <Save size={12} className="me-1 inline" />{' '}
+                {saving ? t('docCommonSaving') : t('docCommonSave')}
               </button>
               {form.id ? (
                 <a
@@ -818,7 +839,7 @@ export default function InvoicePage() {
                   className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 >
-                  <Download size={12} className="mr-1 inline" /> Excel
+                  <Download size={12} className="me-1 inline" /> {t('docInvExcel')}
                 </a>
               ) : null}
               <button
@@ -833,7 +854,7 @@ export default function InvoicePage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#0f172a' }}
               >
-                <Printer size={12} className="mr-1 inline" /> PDF
+                <Printer size={12} className="me-1 inline" /> {t('docInvPdf')}
               </button>
               {form.id ? (
                 <button
@@ -842,14 +863,14 @@ export default function InvoicePage() {
                   className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ background: '#dc2626' }}
                 >
-                  <Trash2 size={12} className="mr-1 inline" /> Delete
+                  <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
                 </button>
               ) : null}
             </div>
           </div>
           <div className="docs-workspace-quickbar-grid">
             <div>
-              <label htmlFor="invoice-template">Mode / Template</label>
+              <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
               <SelectDropdown
                 id="invoice-template"
                 fullWidth
@@ -863,7 +884,7 @@ export default function InvoicePage() {
               />
             </div>
             <div>
-              <label>Client</label>
+              <label>{t('docInvClientField')}</label>
               <SelectDropdown
                 fullWidth
                 className={inputClass}
@@ -874,7 +895,7 @@ export default function InvoicePage() {
                   if (profile) setField('client_name', profile.client_name);
                 }}
                 options={[
-                  { value: '', label: 'Select client' },
+                  { value: '', label: t('docCommonSelectClient') },
                   ...profiles.map((profile) => ({
                     value: profile.client_id,
                     label: profile.client_name,
@@ -883,7 +904,7 @@ export default function InvoicePage() {
               />
             </div>
             <div>
-              <label htmlFor="invoice-campaign-month">Campaign Month</label>
+              <label htmlFor="invoice-campaign-month">{t('docInvCampaignMonth')}</label>
               <input
                 id="invoice-campaign-month"
                 type="month"
@@ -893,7 +914,7 @@ export default function InvoicePage() {
               />
             </div>
             <div>
-              <label htmlFor="invoice-date">Invoice Date</label>
+              <label htmlFor="invoice-date">{t('docInvInvoiceDate')}</label>
               <input
                 id="invoice-date"
                 type="date"
@@ -903,7 +924,7 @@ export default function InvoicePage() {
               />
             </div>
             <div>
-              <label>History</label>
+              <label>{t('docInvHistory')}</label>
               <SelectDropdown
                 fullWidth
                 className={inputClass}
@@ -913,7 +934,7 @@ export default function InvoicePage() {
                   loadFromInvoice(selected, invoices);
                 }}
                 options={[
-                  { value: '', label: 'New unsaved invoice' },
+                  { value: '', label: t('docCommonUnsavedNew') },
                   ...invoices.map((invoice) => ({
                     value: invoice.id,
                     label: `${invoice.invoice_number} · ${invoice.client_name}`,
@@ -925,7 +946,7 @@ export default function InvoicePage() {
         </div>
       }
       editor={
-        <div className="space-y-3 overflow-y-auto pr-1">
+        <div className="space-y-3 overflow-y-auto pe-1">
           {error ? (
             <div
               className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
@@ -954,28 +975,28 @@ export default function InvoicePage() {
           <div className="docs-tabs">
             {(
               [
-                ['setup', 'Setup'],
-                ['generator', 'Generator'],
-                ['data', 'Campaign Data'],
-                ['totals', 'Totals'],
+                ['setup', 'docTabSetup'],
+                ['generator', 'docTabGenerator'],
+                ['data', 'docTabCampaignData'],
+                ['totals', 'docTabTotals'],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, labelKey]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setEditorPanel(key)}
                 className={clsx('docs-tab', editorPanel === key && 'docs-tab-active')}
               >
-                {label}
+                {t(labelKey)}
               </button>
             ))}
           </div>
 
           {editorPanel === 'setup' ? (
-            <DocsEditorCard title="Document Setup">
+            <DocsEditorCard title={t('docCardDocumentSetup')}>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label>Invoice Number</label>
+                  <label>{t('docInvInvoiceNumber')}</label>
                   <input
                     className={inputClass}
                     value={form.invoice_number}
@@ -983,7 +1004,7 @@ export default function InvoicePage() {
                   />
                 </div>
                 <div>
-                  <label>Currency</label>
+                  <label>{t('docInvCurrency')}</label>
                   <SelectDropdown
                     fullWidth
                     className={inputClass}
@@ -996,25 +1017,25 @@ export default function InvoicePage() {
                   />
                 </div>
                 <div>
-                  <label>Status</label>
+                  <label>{t('docInvStatus')}</label>
                   <SelectDropdown
                     fullWidth
                     className={inputClass}
                     value={form.status}
                     onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
                     options={[
-                      { value: 'unpaid', label: 'Unpaid' },
-                      { value: 'paid', label: 'Paid' },
+                      { value: 'unpaid', label: t('docStatusUnpaid') },
+                      { value: 'paid', label: t('docStatusPaid') },
                     ]}
                   />
                 </div>
                 <div>
-                  <label>Client Name</label>
+                  <label>{t('docInvClientName')}</label>
                   <input
                     className={inputClass}
                     value={form.client_name}
                     onChange={(e) => setField('client_name', e.target.value)}
-                    placeholder={selectedProfile?.client_name || 'Client name'}
+                    placeholder={selectedProfile?.client_name || t('docInvClientNamePh')}
                   />
                 </div>
               </div>
@@ -1029,7 +1050,7 @@ export default function InvoicePage() {
                 }}
               />
               <div>
-                <label htmlFor="invoice-notes">Notes</label>
+                <label htmlFor="invoice-notes">{t('notes')}</label>
                 <textarea
                   id="invoice-notes"
                   className={inputClass}
@@ -1043,10 +1064,10 @@ export default function InvoicePage() {
 
           {editorPanel === 'generator' ? (
             <DocsEditorCard
-              title="Template Generator"
+              title={t('docCardTemplateGenerator')}
               actions={
                 <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  Allocation total: {totalAllocation}%
+                  {t('docAllocationTotal', { n: totalAllocation })}
                 </div>
               }
             >
@@ -1054,7 +1075,7 @@ export default function InvoicePage() {
                 <div className="space-y-3">
                   <div className="grid grid-cols-[1fr_180px] gap-2">
                     <div>
-                      <label htmlFor="invoice-total-budget">Total Budget</label>
+                      <label htmlFor="invoice-total-budget">{t('docTotalBudget')}</label>
                       <input
                         id="invoice-total-budget"
                         type="number"
@@ -1071,7 +1092,7 @@ export default function InvoicePage() {
                       style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                     >
                       <div className="flex items-center justify-between">
-                        <span style={{ color: 'var(--text-secondary)' }}>Deduction</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{t('docDeduction')}</span>
                         <span className="font-semibold" style={{ color: 'var(--text)' }}>
                           {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
                             ? `${PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount.toLocaleString()} ${form.currency}`
@@ -1110,13 +1131,13 @@ export default function InvoicePage() {
                           >
                             {branch.enabled
                               ? `${branchBudget.toLocaleString()} ${form.currency}`
-                              : 'Disabled'}
+                              : t('docDisabled')}
                           </span>
                         </div>
                         <div className="grid grid-cols-[1fr_120px] items-end gap-2">
                           <div>
                             <label htmlFor={`branch-allocation-range-${branch.id}`}>
-                              Branch Allocation %
+                              {t('docBranchAllocationPct')}
                             </label>
                             <input
                               id={`branch-allocation-range-${branch.id}`}
@@ -1184,30 +1205,30 @@ export default function InvoicePage() {
                                       )
                                     }
                                     disabled={!platform.enabled}
-                                    placeholder="Platform name"
+                                    placeholder={t('docPlatformNamePh')}
                                   />
                                 </label>
                                 <span
-                                  className="text-right text-[11px] font-semibold"
+                                  className="text-end text-[11px] font-semibold"
                                   style={{ color: 'var(--accent)' }}
                                 >
                                   {platform.enabled
                                     ? `${platformBudget.toLocaleString()} ${form.currency}`
-                                    : 'Disabled'}
+                                    : t('docDisabled')}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => removeKsaPlatform(branchIndex, platformIndex)}
                                   className="h-7 rounded border text-[10px]"
                                   style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                                  title="Remove platform"
+                                  title={t('docRemovePlatform')}
                                 >
                                   <Trash2 size={11} className="mx-auto" />
                                 </button>
                               </div>
                               <div className="grid grid-cols-[120px_1fr_90px] items-end gap-2">
                                 <div>
-                                  <label>Campaign Count</label>
+                                  <label>{t('docCampaignCount')}</label>
                                   <input
                                     type="number"
                                     min={1}
@@ -1224,7 +1245,7 @@ export default function InvoicePage() {
                                   />
                                 </div>
                                 <div>
-                                  <label>Platform Allocation %</label>
+                                  <label>{t('docPlatformAllocationPct')}</label>
                                   <input
                                     type="range"
                                     min={0}
@@ -1265,7 +1286,7 @@ export default function InvoicePage() {
                           className="text-[11px]"
                           style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}
                         >
-                          Platform allocation total: {localAllocationTotal}%
+                          {t('docPlatformAllocationTotal', { n: localAllocationTotal })}
                         </div>
                         <button
                           type="button"
@@ -1273,7 +1294,7 @@ export default function InvoicePage() {
                           className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
                           style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                         >
-                          <Plus size={12} className="mr-1 inline" /> Add Platform
+                          <Plus size={12} className="me-1 inline" /> {t('docAddPlatform')}
                         </button>
                       </div>
                     );
@@ -1286,7 +1307,7 @@ export default function InvoicePage() {
                       className="rounded-lg px-3 py-2 text-xs font-semibold text-white"
                       style={{ background: 'var(--accent)' }}
                     >
-                      <Wand2 size={13} className="mr-1 inline" /> Generate Invoice Data
+                      <Wand2 size={13} className="me-1 inline" /> {t('docGenerateInvoiceData')}
                     </button>
                     <button
                       type="button"
@@ -1294,7 +1315,7 @@ export default function InvoicePage() {
                       className="rounded-lg border px-3 py-2 text-xs font-semibold"
                       style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                     >
-                      <RotateCcw size={13} className="mr-1 inline" /> Reset Generator
+                      <RotateCcw size={13} className="me-1 inline" /> {t('docResetGenerator')}
                     </button>
                   </div>
                 </div>
@@ -1303,8 +1324,7 @@ export default function InvoicePage() {
                   className="rounded-lg border px-3 py-2 text-xs"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 >
-                  Manual mode does not require template generation. Use Campaign Data tab to manage
-                  branch/platform rows.
+                  {t('docManualGeneratorHint')}
                 </div>
               )}
             </DocsEditorCard>
@@ -1312,7 +1332,7 @@ export default function InvoicePage() {
 
           {editorPanel === 'data' ? (
             <DocsEditorCard
-              title="Generated Campaign Data"
+              title={t('docCardCampaignData')}
               actions={
                 form.invoice_template === 'manual' ? (
                   <button
@@ -1321,7 +1341,7 @@ export default function InvoicePage() {
                     className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
                     style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                   >
-                    <Plus size={12} className="mr-1 inline" /> Add Branch
+                    <Plus size={12} className="me-1 inline" /> {t('docAddBranch')}
                   </button>
                 ) : null
               }
@@ -1331,7 +1351,7 @@ export default function InvoicePage() {
                   className="rounded-lg border px-3 py-2 text-xs"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 >
-                  No rows yet. Add a branch to start building your invoice.
+                  {t('docEmptyCampaignData')}
                 </div>
               ) : null}
 
@@ -1358,7 +1378,7 @@ export default function InvoicePage() {
                           className={inputClass}
                           value={branch.branch_name}
                           onChange={(e) => updateBranchName(branchIndex, e.target.value)}
-                          placeholder="Branch name"
+                          placeholder={t('docBranchNamePh')}
                         />
                         <div
                           className="rounded-lg px-2 py-1 text-xs font-semibold"
@@ -1373,7 +1393,7 @@ export default function InvoicePage() {
                             className="rounded-lg border px-2 py-2 text-xs font-semibold"
                             style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                           >
-                            {expanded ? 'Collapse' : 'Expand'}
+                            {expanded ? t('docCollapse') : t('docExpand')}
                           </button>
                           {form.invoice_template === 'manual' ? (
                             <button
@@ -1411,7 +1431,7 @@ export default function InvoicePage() {
                                     onChange={(e) =>
                                       updatePlatformName(branchIndex, platformIndex, e.target.value)
                                     }
-                                    placeholder="Platform name"
+                                    placeholder={t('docPlatformNamePh')}
                                   />
                                   <div
                                     className="rounded-lg px-2 py-1 text-xs font-semibold"
@@ -1428,7 +1448,7 @@ export default function InvoicePage() {
                                         borderColor: 'var(--border)',
                                         color: 'var(--text-secondary)',
                                       }}
-                                      title="Add row"
+                                      title={t('docAddRow')}
                                     >
                                       <Plus size={12} />
                                     </button>
@@ -1441,7 +1461,7 @@ export default function InvoicePage() {
                                           borderColor: 'rgba(239,68,68,0.3)',
                                           color: '#dc2626',
                                         }}
-                                        title="Remove platform"
+                                        title={t('docRemovePlatform')}
                                       >
                                         <Trash2 size={12} />
                                       </button>
@@ -1454,7 +1474,7 @@ export default function InvoicePage() {
                                     className="text-[11px]"
                                     style={{ color: 'var(--text-secondary)' }}
                                   >
-                                    No rows. Add one row.
+                                    {t('docNoCampaignRows')}
                                   </div>
                                 ) : null}
 
@@ -1475,7 +1495,7 @@ export default function InvoicePage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Ad name"
+                                      placeholder={t('docAdNamePh')}
                                     />
                                     <input
                                       type="date"
@@ -1503,7 +1523,7 @@ export default function InvoicePage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Results"
+                                      placeholder={t('docResultsPh')}
                                     />
                                     <input
                                       type="number"
@@ -1519,7 +1539,7 @@ export default function InvoicePage() {
                                           e.target.value,
                                         )
                                       }
-                                      placeholder="Cost"
+                                      placeholder={t('docCostPh')}
                                     />
                                     <button
                                       type="button"
@@ -1531,7 +1551,7 @@ export default function InvoicePage() {
                                         borderColor: 'rgba(239,68,68,0.3)',
                                         color: '#dc2626',
                                       }}
-                                      title="Remove row"
+                                      title={t('docRemoveRow')}
                                     >
                                       <Trash2 size={12} />
                                     </button>
@@ -1551,7 +1571,7 @@ export default function InvoicePage() {
                                 color: 'var(--text-secondary)',
                               }}
                             >
-                              <Plus size={12} className="mr-1 inline" /> Add Platform
+                              <Plus size={12} className="me-1 inline" /> {t('docAddPlatform')}
                             </button>
                           ) : null}
                         </div>
@@ -1564,13 +1584,13 @@ export default function InvoicePage() {
           ) : null}
 
           {editorPanel === 'totals' ? (
-            <DocsEditorCard title="Totals & Controls">
+            <DocsEditorCard title={t('docCardTotals')}>
               <div className="space-y-2">
                 <div
                   className="flex items-center justify-between border-b py-1.5 text-xs"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  <span style={{ color: 'var(--text-secondary)' }}>Final Budget</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{t('docFinalBudget')}</span>
                   <span className="font-semibold" style={{ color: 'var(--text)' }}>
                     {model.totals.finalBudget.toLocaleString()} {form.currency}
                   </span>
@@ -1579,12 +1599,12 @@ export default function InvoicePage() {
                   className="flex items-center justify-between border-b py-1.5 text-xs"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  <label htmlFor="invoice-our-fees">Our Fees</label>
+                  <label htmlFor="invoice-our-fees">{t('docOurFees')}</label>
                   <input
                     id="invoice-our-fees"
                     type="number"
                     min={0}
-                    className="w-36 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-right text-xs text-[var(--text)] outline-none"
+                    className="w-36 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-end text-xs text-[var(--text)] outline-none"
                     value={form.our_fees}
                     onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
                   />
@@ -1593,14 +1613,14 @@ export default function InvoicePage() {
                   className="flex items-center justify-between rounded-lg px-2 py-2 text-sm"
                   style={{ background: 'var(--text)', color: 'var(--surface)' }}
                 >
-                  <span className="font-bold">GRAND TOTAL</span>
+                  <span className="font-bold">{t('docGrandTotal')}</span>
                   <span className="font-black">
                     {model.totals.grandTotal.toLocaleString()} {form.currency}
                   </span>
                 </div>
                 {loading ? (
                   <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    Loading invoices…
+                    {t('docInvLoadingList')}
                   </p>
                 ) : null}
               </div>

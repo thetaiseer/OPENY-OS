@@ -13,63 +13,62 @@ import {
 import { PageShell, PageHeader, SectionHeader } from '@/components/layout/PageLayout';
 import { Card, CardContent } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
+import { useLang } from '@/context/lang-context';
 
 const MODULES = [
   {
     href: '/docs/invoice',
     icon: FileText,
-    label: 'Invoice',
-    description: 'Generate, manage and export client invoices with platform budget allocation.',
+    labelKey: 'docModuleInvoice',
+    descKey: 'docModuleInvoiceDesc',
   },
   {
     href: '/docs/quotation',
     icon: ClipboardList,
-    label: 'Quotation',
-    description: 'Create professional quotations with deliverables, pricing and payment terms.',
+    labelKey: 'docModuleQuotation',
+    descKey: 'docModuleQuotationDesc',
   },
   {
     href: '/docs/client-contract',
     icon: FileSignature,
-    label: 'Client contract',
-    description: 'Bilingual client agreements with legal clauses, services and signatures.',
+    labelKey: 'docModuleClientContract',
+    descKey: 'docModuleClientContractDesc',
   },
   {
     href: '/docs/hr-contract',
     icon: BookOpen,
-    label: 'HR contract',
-    description: 'Employee contracts with job details, salary, benefits and legal clauses.',
+    labelKey: 'docModuleHrContract',
+    descKey: 'docModuleHrContractDesc',
   },
   {
     href: '/docs/employees',
     icon: Users,
-    label: 'Employees',
-    description: 'Profiles, payroll history and salary adjustments.',
+    labelKey: 'docModuleEmployees',
+    descKey: 'docModuleEmployeesDesc',
   },
   {
     href: '/docs/accounting',
     icon: BarChart2,
-    label: 'Accounting',
-    description: 'Client ledger, expenses and partner-based settlement summaries.',
+    labelKey: 'docModuleAccounting',
+    descKey: 'docModuleAccountingDesc',
   },
 ] as const;
 
 export default function DocsHomePage() {
+  const { t } = useLang();
   return (
     <PageShell className="max-w-6xl space-y-6">
-      <PageHeader
-        title="Docs"
-        subtitle="OPENY DOCS — invoices, quotations, contracts, payroll, and accounting in one workspace."
-      />
+      <PageHeader title={t('docs')} subtitle={t('docsHomeSubtitle')} />
 
       <Card padding="sm" className="sm:p-6">
         <CardContent className="space-y-5 !p-0">
           <SectionHeader
-            title="Document modules"
-            subtitle="Open a module to work with forms, exports, and saved records — same navigation and surfaces as the rest of OPENY OS."
+            title={t('docsDocumentModules')}
+            subtitle={t('docsDocumentModulesSubtitle')}
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {MODULES.map(({ href, icon: Icon, label, description }) => (
+            {MODULES.map(({ href, icon: Icon, labelKey, descKey }) => (
               <Link
                 key={href}
                 href={href}
@@ -86,15 +85,15 @@ export default function DocsHomePage() {
                 >
                   <Icon size={22} strokeWidth={2} />
                 </span>
-                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pr-1">
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pe-1">
                   <span className="text-base font-semibold text-primary transition-colors group-hover:text-[color:var(--accent)]">
-                    {label}
+                    {t(labelKey)}
                   </span>
-                  <span className="text-sm leading-snug text-secondary">{description}</span>
+                  <span className="text-sm leading-snug text-secondary">{t(descKey)}</span>
                 </div>
                 <span className="flex shrink-0 items-center self-center text-secondary transition-colors group-hover:text-[color:var(--accent)]">
                   <ChevronRight
-                    className="h-5 w-5 opacity-50 group-hover:opacity-100"
+                    className="h-5 w-5 opacity-50 group-hover:opacity-100 rtl:rotate-180"
                     aria-hidden
                   />
                 </span>

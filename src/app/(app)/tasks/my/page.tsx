@@ -35,6 +35,7 @@ import {
   getPlatformDisplayColor,
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
+import { taskStatusLabel } from '@/lib/task-status-labels';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -56,18 +57,19 @@ function isDueToday(task: Task) {
   return task.due_date === todayStr();
 }
 
-function fmtDate(d?: string | null) {
+function fmtDate(d?: string | null, lang?: 'en' | 'ar') {
   if (!d) return '';
-  return new Date(d).toLocaleDateString(undefined, {
+  return new Date(d).toLocaleDateString(lang === 'ar' ? 'ar-SA' : undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-function fmtTime(t?: string | null) {
-  if (!t) return '';
-  const [h, m] = t.split(':');
+function fmtTime(time?: string | null, lang?: 'en' | 'ar') {
+  if (!time) return '';
+  const [h, m] = time.split(':');
+  if (lang === 'ar') return `${h}:${m ?? '00'}`;
   const hr = parseInt(h, 10);
   const ampm = hr >= 12 ? 'PM' : 'AM';
   const h12 = hr % 12 || 12;
@@ -89,35 +91,19 @@ const statusVariant = (s: string) => {
   return 'default' as const;
 };
 
-function statusLabel(s: string): string {
-  const labels: Record<string, string> = {
-    in_progress: 'In Progress',
-    in_review: 'In Review',
-    waiting_client: 'Waiting Client',
-    review: 'Review',
-    delivered: 'Delivered',
-    published: 'Published',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-    scheduled: 'Scheduled',
-    approved: 'Approved',
-    todo: 'To Do',
-    done: 'Done',
-    overdue: 'Overdue',
-  };
-  return labels[s] ?? s;
-}
+const CATEGORY_TKEY: Record<string, string> = {
+  internal_task: 'taskCategoryInternal',
+  content_creation: 'taskCategoryContent',
+  design_task: 'taskCategoryDesign',
+  publishing_task: 'taskCategoryPublishing',
+  asset_upload_task: 'taskCategoryAssetUpload',
+  follow_up_task: 'taskCategoryFollowUp',
+};
 
-function categoryLabel(cat?: string | null): string {
-  const labels: Record<string, string> = {
-    internal_task: 'Internal',
-    content_creation: 'Content',
-    design_task: 'Design',
-    publishing_task: 'Publishing',
-    asset_upload_task: 'Asset Upload',
-    follow_up_task: 'Follow-up',
-  };
-  return cat ? (labels[cat] ?? cat) : '';
+function categoryLabel(cat: string | null | undefined, t: (k: string) => string): string {
+  if (!cat) return '';
+  const key = CATEGORY_TKEY[cat];
+  return key ? t(key) : cat;
 }
 
 function categoryColor(cat?: string | null): string {
@@ -145,17 +131,18 @@ const SECTIONS: { key: SectionKey; labelKey: string; icon: React.ElementType; co
 ];
 
 const CATEGORY_FILTERS = [
-  { value: 'content_creation', label: 'Content' },
-  { value: 'publishing_task', label: 'Publishing' },
-  { value: 'design_task', label: 'Design' },
-  { value: 'internal_task', label: 'Internal' },
-  { value: 'follow_up_task', label: 'Follow-up' },
-  { value: 'asset_upload_task', label: 'Asset Upload' },
-];
+  { value: 'content_creation', labelKey: 'taskCategoryContent' },
+  { value: 'publishing_task', labelKey: 'taskCategoryPublishing' },
+  { value: 'design_task', labelKey: 'taskCategoryDesign' },
+  { value: 'internal_task', labelKey: 'taskCategoryInternal' },
+  { value: 'follow_up_task', labelKey: 'taskCategoryFollowUp' },
+  { value: 'asset_upload_task', labelKey: 'taskCategoryAssetUpload' },
+] as const;
 
 // ─── TaskCard ─────────────────────────────────────────────────────────────────
 
 function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task) => void }) {
+  const { t, lang } = useLang();
   const overdue = isTaskOverdue(task);
   const isToday = isDueToday(task);
   const hasPlatforms = (task.platforms ?? []).length > 0;
@@ -175,8 +162,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
   return (
     <Card
       padding="none"
-      className="flex flex-col gap-2.5 border-l-[3px] px-4 py-3 transition-shadow hover:shadow-sm"
-      style={{ borderLeftColor: borderColor }}
+      className="flex flex-col gap-2.5 border-s-[3px] px-4 py-3 transition-shadow hover:shadow-sm"
+      style={{ borderInlineStartColor: borderColor }}
     >
       {/* Row 1: title + status badges */}
       <div className="flex items-start gap-2">
@@ -189,8 +176,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
-          <Badge variant={statusVariant(task.status)}>{statusLabel(task.status)}</Badge>
+          <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
+          <Badge variant={statusVariant(task.status)}>{taskStatusLabel(task.status, t)}</Badge>
         </div>
       </div>
 
@@ -201,7 +188,7 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
             className="rounded-full px-2 py-0.5 font-medium text-white"
             style={{ background: categoryColor(cat), fontSize: '10px' }}
           >
-            {categoryLabel(cat)}
+            {categoryLabel(cat, t)}
           </span>
         )}
         {task.client && (
@@ -216,9 +203,9 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
             style={{ background: overdue ? '#fef2f2' : isToday ? '#fffbeb' : 'var(--surface-2)' }}
           >
             <Calendar size={10} />
-            {fmtDate(task.due_date)}
-            {task.due_time && ` · ${fmtTime(task.due_time)}`}
-            {overdue ? ' · Overdue' : isToday ? ' · Today' : ''}
+            {fmtDate(task.due_date, lang)}
+            {task.due_time && ` · ${fmtTime(task.due_time, lang)}`}
+            {overdue ? ` · ${t('dueChipOverdue')}` : isToday ? ` · ${t('dueChipToday')}` : ''}
           </span>
         )}
       </div>
@@ -262,8 +249,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
               className="rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{ background: '#e0f2fe', color: '#0284c7' }}
             >
-              <Paperclip size={9} className="mr-0.5 inline" />
-              Asset
+              <Paperclip size={9} className="me-0.5 inline" />
+              {t('taskLinkedAsset')}
             </span>
           )}
           {hasPubSchedule && (
@@ -271,8 +258,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
               className="rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{ background: '#f3e8ff', color: '#7c3aed' }}
             >
-              <Send size={9} className="mr-0.5 inline" />
-              Schedule
+              <Send size={9} className="me-0.5 inline" />
+              {t('taskLinkedSchedule')}
             </span>
           )}
         </div>
@@ -286,9 +273,9 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
             variant="ghost"
             className="h-8 min-h-0 gap-1 px-2 py-1 text-xs opacity-70 hover:opacity-100"
             onClick={() => onDuplicate(task)}
-            title="Duplicate task"
+            title={t('duplicateTaskTitle')}
           >
-            <Copy size={11} /> Duplicate
+            <Copy size={11} /> {t('duplicateTask')}
           </Button>
         </div>
       )}
@@ -407,19 +394,23 @@ export default function MyTasksPage() {
   }, [memberTasks, activeSection]);
 
   const overdueCount = memberTasks.filter(isTaskOverdue).length;
-  const selectedMemberName =
-    team.find((m) => m.id === selectedMember)?.full_name ?? user.name ?? 'All';
+  const selectedMemberName = selectedMember
+    ? (team.find((m) => m.id === selectedMember)?.full_name ?? '')
+    : t('allTeamMembers');
 
   function handleTaskCreated(task: Task) {
     setTasks((prev) => [task, ...prev]);
-    toast('Task created successfully', 'success');
+    toast(t('taskCreatedSuccess'), 'success');
   }
 
   async function duplicateTask(task: Task) {
     try {
-      const baseTitle = task.title.replace(/^Copy of /, '');
+      const copyPrefix = t('copyOfPrefix');
+      let baseTitle = task.title;
+      if (baseTitle.startsWith(copyPrefix)) baseTitle = baseTitle.slice(copyPrefix.length);
+      else if (baseTitle.startsWith('Copy of ')) baseTitle = baseTitle.slice('Copy of '.length);
       const body: Record<string, unknown> = {
-        title: `Copy of ${baseTitle}`,
+        title: `${copyPrefix}${baseTitle}`,
         description: task.description ?? '',
         status: 'todo',
         priority: task.priority,
@@ -444,12 +435,12 @@ export default function MyTasksPage() {
       const json = (await res.json()) as { success: boolean; task?: Task; error?: string };
       if (json.success && json.task) {
         setTasks((prev) => [json.task!, ...prev]);
-        toast('Task duplicated', 'success');
+        toast(t('taskDuplicated'), 'success');
       } else {
-        toast(json.error ?? 'Failed to duplicate task', 'error');
+        toast(json.error ?? t('failedDuplicateTask'), 'error');
       }
     } catch (err) {
-      toast('Failed to duplicate task', 'error');
+      toast(t('failedDuplicateTask'), 'error');
       console.error('[duplicateTask] error:', err);
     }
   }
@@ -470,15 +461,17 @@ export default function MyTasksPage() {
         }
         subtitle={
           <>
-            {selectedMemberName} &mdash; {memberTasks.length} tasks
+            {t('myTasksSubtitle', { name: selectedMemberName, count: memberTasks.length })}
             {overdueCount > 0 && (
-              <span className="ml-2 font-medium text-red-500">{overdueCount} overdue</span>
+              <span className="ms-2 font-medium text-red-500">
+                {t('myTasksOverdueCount', { count: overdueCount })}
+              </span>
             )}
           </>
         }
         actions={
           <Button type="button" variant="primary" onClick={() => setShowNewTask(true)}>
-            <Plus size={16} /> New Task
+            <Plus size={16} /> {t('newTask')}
           </Button>
         }
       />
@@ -510,7 +503,7 @@ export default function MyTasksPage() {
                 className="h-7 min-h-0 gap-1 rounded-full px-2.5 py-0 text-xs"
                 onClick={() => setCategoryFilter('')}
               >
-                <X size={10} /> Clear
+                <X size={10} /> {t('clear')}
               </Button>
             )}
             {CATEGORY_FILTERS.map((cf) => {
@@ -523,7 +516,7 @@ export default function MyTasksPage() {
                   className="h-7 min-h-0 rounded-full px-2.5 py-0 text-xs"
                   onClick={() => setCategoryFilter(active ? '' : cf.value)}
                 >
-                  {cf.label}
+                  {t(cf.labelKey)}
                 </Button>
               );
             })}
@@ -550,7 +543,7 @@ export default function MyTasksPage() {
                 onClick={() => setActiveSection(active ? 'all' : sec.key)}
                 className={cn(
                   cardSurfaceClass,
-                  'w-full p-4 text-left transition-shadow hover:shadow-sm',
+                  'w-full p-4 text-start transition-shadow hover:shadow-sm',
                   active &&
                     'border-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]',
                 )}
@@ -593,7 +586,7 @@ export default function MyTasksPage() {
             className="h-8 shrink-0 text-xs"
             onClick={() => setShowNewTask(true)}
           >
-            <Plus size={12} /> Add task
+            <Plus size={12} /> {t('addTask')}
           </Button>
         </div>
 
@@ -611,7 +604,7 @@ export default function MyTasksPage() {
             />
             <p className="mb-4 text-sm text-[var(--text-secondary)]">{t('noTasksInSection')}</p>
             <Button type="button" variant="primary" onClick={() => setShowNewTask(true)}>
-              <Plus size={14} /> Create your first task
+              <Plus size={14} /> {t('createYourFirstTask')}
             </Button>
           </Card>
         ) : (

@@ -49,7 +49,7 @@ function DiagRow({ label, value, ok }: { label: string; value: string; ok?: bool
     <div className="flex items-center justify-between gap-4">
       <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span
-        className="max-w-[180px] truncate text-right font-mono"
+        className="max-w-[180px] truncate text-end font-mono"
         style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
       >
         {value}
@@ -59,6 +59,7 @@ function DiagRow({ label, value, ok }: { label: string; value: string; ok?: bool
 }
 
 function R2StorageCard() {
+  const { t } = useLang();
   const [status, setStatus] = useState<R2Status | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,14 +70,14 @@ function R2StorageCard() {
       if (res.ok) {
         setStatus((await res.json()) as R2Status);
       } else {
-        setStatus({ configured: false, missingVars: ['Unable to check status'] });
+        setStatus({ configured: false, missingVars: [t('r2UnableCheck')] });
       }
     } catch {
-      setStatus({ configured: false, missingVars: ['Network error'] });
+      setStatus({ configured: false, missingVars: [t('r2NetworkError')] });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchStatus();
@@ -88,7 +89,7 @@ function R2StorageCard() {
         <div className="flex items-center gap-2">
           <HardDrive size={18} className="text-[var(--accent)]" />
           <SectionTitle as="h2" className="!mb-0 text-base">
-            Cloudflare R2 Storage
+            {t('r2StorageTitle')}
           </SectionTitle>
         </div>
         <Button
@@ -97,14 +98,14 @@ function R2StorageCard() {
           className="h-8 min-h-0 w-8 p-0"
           onClick={fetchStatus}
           disabled={loading}
-          title="Refresh status"
+          title={t('refreshStatus')}
         >
           {loading ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
         </Button>
       </div>
 
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Cloudflare R2 is the sole file storage provider. All asset uploads go directly to R2.
+        {t('r2StorageIntro')}
       </p>
 
       <section className="space-y-2">
@@ -112,14 +113,14 @@ function R2StorageCard() {
           className="text-xs font-semibold uppercase tracking-wide"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Configuration
+          {t('r2Configuration')}
         </p>
         {loading ? (
           <div
             className="flex items-center gap-2 text-sm"
             style={{ color: 'var(--text-secondary)' }}
           >
-            <Loader2 size={15} className="animate-spin" /> Checking…
+            <Loader2 size={15} className="animate-spin" /> {t('r2Checking')}
           </div>
         ) : (
           <div
@@ -137,17 +138,17 @@ function R2StorageCard() {
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                  {status?.configured ? 'Configured' : 'Not configured'}
+                  {status?.configured ? t('r2Configured') : t('r2NotConfigured')}
                 </p>
                 <StatusBadge
                   ok={!!status?.configured}
-                  label={status?.configured ? 'Ready' : 'Missing env vars'}
+                  label={status?.configured ? t('r2Ready') : t('r2MissingEnvVars')}
                 />
               </div>
               {!status?.configured && (status?.missingVars?.length ?? 0) > 0 && (
                 <div className="mt-1 space-y-0.5">
                   <p className="text-xs" style={{ color: '#ef4444' }}>
-                    Missing environment variable(s):
+                    {t('r2MissingEnvVarsTitle')}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {(status?.missingVars ?? []).map((v) => (
@@ -179,27 +180,27 @@ function R2StorageCard() {
           className="font-semibold uppercase tracking-wide"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Diagnostics
+          {t('r2Diagnostics')}
         </p>
-        <DiagRow label="Storage provider" value="Cloudflare R2" ok={true} />
+        <DiagRow label={t('r2StorageProvider')} value="Cloudflare R2" ok={true} />
         <DiagRow
           label="R2_ACCOUNT_ID"
-          value={status?.configured ? '(set)' : 'Not set'}
+          value={status?.configured ? t('r2ValueSet') : t('r2ValueNotSet')}
           ok={!!status?.configured}
         />
         <DiagRow
           label="R2_ACCESS_KEY_ID"
-          value={status?.configured ? '(set)' : 'Not set'}
+          value={status?.configured ? t('r2ValueSet') : t('r2ValueNotSet')}
           ok={!!status?.configured}
         />
         <DiagRow
           label="R2_PUBLIC_URL"
-          value={status?.configured ? '(set)' : 'Not set'}
+          value={status?.configured ? t('r2ValueSet') : t('r2ValueNotSet')}
           ok={!!status?.configured}
         />
         <DiagRow
-          label="Upload enabled"
-          value={status?.configured ? 'Yes' : 'No (missing env vars)'}
+          label={t('uploadEnabled')}
+          value={status?.configured ? t('uploadYes') : t('uploadNoMissing')}
           ok={!!status?.configured}
         />
       </section>
@@ -216,7 +217,7 @@ function R2StorageCard() {
             border: '1px solid var(--border)',
           }}
         >
-          <CloudLightning size={15} /> Open Cloudflare R2
+          <CloudLightning size={15} /> {t('openCloudflareR2')}
         </a>
       </section>
     </Card>
@@ -228,17 +229,20 @@ function R2StorageCard() {
 export default function SettingsProfilePage() {
   const { user, role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { lang, toggleLang } = useLang();
+  const { lang, toggleLang, t } = useLang();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
 
-  const roleDescriptions: Record<string, string> = {
-    admin: 'Full access to all data and settings',
-    team: 'Access to assigned clients — can upload assets and create tasks',
-    client: 'Can view own assets',
-  };
+  const roleDescription =
+    role === 'admin' || role === 'owner'
+      ? t('roleDescAdmin')
+      : role === 'team_member' || role === 'manager'
+        ? t('roleDescTeam')
+        : role === 'client'
+          ? t('roleDescClient')
+          : t('roleDescDefault');
 
   async function handleSignOut() {
     setSignOutError(null);
@@ -246,7 +250,7 @@ export default function SettingsProfilePage() {
     try {
       await signOut();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign out failed. Please try again.';
+      const message = err instanceof Error ? err.message : t('signOutFailedGeneric');
       setSignOutError(message);
       setSigningOut(false);
     }
@@ -254,14 +258,11 @@ export default function SettingsProfilePage() {
 
   return (
     <PageShell className="space-y-6">
-      <PageHeader
-        title="Settings"
-        subtitle="Profile, appearance, access, and session preferences."
-      />
+      <PageHeader title={t('settingsPageTitle')} subtitle={t('settingsPageSubtitle')} />
 
       <Card padding="md">
         <CardHeader className="!mb-4">
-          <CardTitle>Profile</CardTitle>
+          <CardTitle>{t('profileSection')}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-4 !p-0">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-lg font-bold text-white">
@@ -276,13 +277,15 @@ export default function SettingsProfilePage() {
 
       <Card padding="md">
         <CardHeader className="!mb-4">
-          <CardTitle>Appearance</CardTitle>
+          <CardTitle>{t('appearanceSection')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 !p-0">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-[var(--text)]">Theme</p>
-              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Currently: {theme}</p>
+              <p className="text-sm font-medium text-[var(--text)]">{t('themeLabel')}</p>
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                {t('themeCurrently', { value: theme })}
+              </p>
             </div>
             <Button
               type="button"
@@ -290,18 +293,20 @@ export default function SettingsProfilePage() {
               className="h-9 shrink-0"
               onClick={toggleTheme}
             >
-              Switch to {theme === 'light' ? 'Dark' : 'Light'}
+              {theme === 'light' ? t('switchToDark') : t('switchToLight')}
             </Button>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-[var(--border)] pt-4">
             <div>
-              <p className="text-sm font-medium text-[var(--text)]">Language</p>
+              <p className="text-sm font-medium text-[var(--text)]">{t('languageLabel')}</p>
               <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                Currently: {lang === 'en' ? 'English' : 'Arabic'}
+                {t('languageCurrently', {
+                  value: lang === 'en' ? t('langEnglish') : t('langArabic'),
+                })}
               </p>
             </div>
             <Button type="button" variant="secondary" className="shrink-0" onClick={toggleLang}>
-              Switch to {lang === 'en' ? 'Arabic' : 'English'}
+              {lang === 'en' ? t('switchToArabicUi') : t('switchToEnglishUi')}
             </Button>
           </div>
         </CardContent>
@@ -313,7 +318,7 @@ export default function SettingsProfilePage() {
         <CardHeader className="!mb-4">
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-[var(--accent)]" />
-            <CardTitle>Role & Access</CardTitle>
+            <CardTitle>{t('roleAccessSection')}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4 !p-0">
@@ -331,15 +336,13 @@ export default function SettingsProfilePage() {
               </span>
             </div>
           </div>
-          <p className="text-xs text-[var(--text-secondary)]">
-            {roleDescriptions[role] ?? 'Your access level is managed by your administrator.'}
-          </p>
+          <p className="text-xs text-[var(--text-secondary)]">{roleDescription}</p>
         </CardContent>
       </Card>
 
       <Card padding="md">
         <CardHeader className="!mb-3">
-          <CardTitle>Session</CardTitle>
+          <CardTitle>{t('sessionSection')}</CardTitle>
         </CardHeader>
         <CardContent className="!p-0">
           {signOutError && (
@@ -354,7 +357,7 @@ export default function SettingsProfilePage() {
             onClick={handleSignOut}
             disabled={signingOut}
           >
-            <LogOut size={15} /> {signingOut ? 'Signing out…' : 'Sign out'}
+            <LogOut size={15} /> {signingOut ? t('signingOut') : t('logout')}
           </Button>
         </CardContent>
       </Card>

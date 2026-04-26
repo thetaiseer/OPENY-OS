@@ -43,6 +43,52 @@ import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorkspace';
+import { useLang } from '@/context/lang-context';
+
+type DocsT = (key: string, vars?: Record<string, string | number>) => string;
+
+function docsPaymentMethodLabel(method: string, t: DocsT) {
+  const map: Record<string, string> = {
+    'Bank Transfer': t('docPayBankTransfer'),
+    Cash: t('docPayCash'),
+    Cheque: t('docPayCheque'),
+    'Online Payment': t('docPayOnline'),
+    'Credit Card': t('docPayCreditCard'),
+    Custom: t('docPayCustom'),
+  };
+  return map[method] ?? method;
+}
+
+function contractStatusLabel(status: string, t: DocsT) {
+  const m: Record<string, string> = {
+    draft: t('docContractStatusDraft'),
+    active: t('docContractStatusActive'),
+    signed: t('docContractStatusSigned'),
+    expired: t('docContractStatusExpired'),
+    terminated: t('docContractStatusTerminated'),
+  };
+  return m[status] ?? status;
+}
+
+function employmentTypeLabel(value: string, t: DocsT) {
+  const m: Record<string, string> = {
+    full_time: t('docEmpTypeFullTime'),
+    part_time: t('docEmpTypePartTime'),
+    contract: t('docEmpTypeContract'),
+    freelance: t('docEmpTypeFreelance'),
+  };
+  return m[value] ?? value;
+}
+
+function maritalStatusLabel(s: string, t: DocsT) {
+  const m: Record<string, string> = {
+    Single: t('docHrMaritalSingle'),
+    Married: t('docHrMaritalMarried'),
+    Divorced: t('docHrMaritalDivorced'),
+    Widowed: t('docHrMaritalWidowed'),
+  };
+  return m[s] ?? s;
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -151,18 +197,19 @@ function blank(num: string): SF {
 }
 
 function HrContractPreview({ form }: { form: SF }) {
-  const isAr = form.language === 'ar';
+  const { t } = useLang();
+  const dir = form.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
-    <OpenyDocumentPage id="hr-contract-preview" dir={isAr ? 'rtl' : 'ltr'} fontSize={12}>
+    <OpenyDocumentPage id="hr-contract-preview" dir={dir} fontSize={12}>
       <OpenyDocumentHeader
-        title={isAr ? 'عقد عمل' : 'EMPLOYMENT CONTRACT'}
+        title={t('docHrPreviewTitle')}
         number={form.contract_number}
         date={form.contract_date}
         centerTitle
       />
       <OpenyClientBlock
-        label={isAr ? 'مُعَد لـ' : 'PREPARED FOR'}
+        label={t('docQtPreparedFor')}
         name={form.employee_full_name || '—'}
         subtext={form.job_title || form.department || undefined}
       />
@@ -170,16 +217,22 @@ function HrContractPreview({ form }: { form: SF }) {
         <table style={{ width: '100%', marginBottom: 20, fontSize: 12 }}>
           <tbody>
             <tr>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Date:</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>
+                {t('docHrLabelDate')}
+              </td>
               <td style={{ fontWeight: 600 }}>{form.contract_date}</td>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>Duration:</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted, width: 160 }}>
+                {t('docHrLabelDuration')}
+              </td>
               <td style={{ fontWeight: 600 }}>{form.duration}</td>
             </tr>
             <tr>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>Status:</td>
-              <td style={{ fontWeight: 600 }}>{form.status}</td>
-              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>Language:</td>
-              <td style={{ fontWeight: 600 }}>{isAr ? 'Arabic' : 'English'}</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrLabelStatus')}</td>
+              <td style={{ fontWeight: 600 }}>{contractStatusLabel(form.status, t)}</td>
+              <td style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrLabelLanguage')}</td>
+              <td style={{ fontWeight: 600 }}>
+                {form.language === 'ar' ? t('docHrLangArabic') : t('docHrLangEnglish')}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -194,17 +247,19 @@ function HrContractPreview({ form }: { form: SF }) {
               background: OPENY_DOC_STYLE.surface,
             }}
           >
-            <OpenySectionTitle>Employer</OpenySectionTitle>
-            {[
-              ['Company', form.company_name],
-              ['Representative', form.company_representative],
-              ['Address', form.company_address],
-              ['Email', form.company_email],
-              ['Phone', form.company_phone],
-            ].map(([l, v]) =>
+            <OpenySectionTitle>{t('docHrEmployer')}</OpenySectionTitle>
+            {(
+              [
+                ['docCcLblCompany', form.company_name],
+                ['docCcLblRepresentative', form.company_representative],
+                ['docCcLblAddress', form.company_address],
+                ['docCcLblEmail', form.company_email],
+                ['docCcLblPhone', form.company_phone],
+              ] as const
+            ).map(([key, v]) =>
               v ? (
-                <div key={l} style={{ fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
+                <div key={key} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t(key)}: </span>
                   {v}
                 </div>
               ) : null,
@@ -219,19 +274,21 @@ function HrContractPreview({ form }: { form: SF }) {
               background: OPENY_DOC_STYLE.surface,
             }}
           >
-            <OpenySectionTitle>Employee</OpenySectionTitle>
-            {[
-              ['Name', form.employee_full_name],
-              ['ID / Passport', form.employee_national_id],
-              ['Address', form.employee_address],
-              ['Phone', form.employee_phone],
-              ['Email', form.employee_email],
-              ['Nationality', form.employee_nationality],
-              ['Marital Status', form.employee_marital_status],
-            ].map(([l, v]) =>
+            <OpenySectionTitle>{t('docHrEmployee')}</OpenySectionTitle>
+            {(
+              [
+                ['docHrLblName', form.employee_full_name],
+                ['docHrLblIdPassport', form.employee_national_id],
+                ['docCcLblAddress', form.employee_address],
+                ['docCcLblPhone', form.employee_phone],
+                ['docCcLblEmail', form.employee_email],
+                ['docHrLblNationality', form.employee_nationality],
+                ['docHrLblMaritalStatus', maritalStatusLabel(form.employee_marital_status, t)],
+              ] as const
+            ).map(([key, v]) =>
               v ? (
-                <div key={l} style={{ fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
+                <div key={key} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t(key)}: </span>
                   {v}
                 </div>
               ) : null,
@@ -248,7 +305,7 @@ function HrContractPreview({ form }: { form: SF }) {
             background: OPENY_DOC_STYLE.surface,
           }}
         >
-          <OpenySectionTitle>Job Details</OpenySectionTitle>
+          <OpenySectionTitle>{t('docHrJobDetails')}</OpenySectionTitle>
           <div
             style={{
               display: 'grid',
@@ -258,13 +315,13 @@ function HrContractPreview({ form }: { form: SF }) {
             }}
           >
             {[
-              ['Title', form.job_title],
-              ['Department', form.department],
-              ['Manager', form.direct_manager],
-              ['Type', form.employment_type],
+              [t('docHrLblTitle'), form.job_title],
+              [t('docHrLblDepartment'), form.department],
+              [t('docHrLblManager'), form.direct_manager],
+              [t('docHrLblType'), employmentTypeLabel(form.employment_type, t)],
             ].map(([l, v]) =>
               v ? (
-                <div key={l}>
+                <div key={String(l)}>
                   <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
                   <span style={{ fontWeight: 600 }}>{v}</span>
                 </div>
@@ -282,7 +339,7 @@ function HrContractPreview({ form }: { form: SF }) {
             background: OPENY_DOC_STYLE.surface,
           }}
         >
-          <OpenySectionTitle>Employment Terms</OpenySectionTitle>
+          <OpenySectionTitle>{t('docHrEmploymentTerms')}</OpenySectionTitle>
           <div
             style={{
               display: 'grid',
@@ -292,13 +349,13 @@ function HrContractPreview({ form }: { form: SF }) {
             }}
           >
             {[
-              ['Start Date', form.start_date],
-              ['Duration', form.contract_duration],
-              ['Probation', form.probation_period],
-              ['Workplace', form.workplace],
+              [t('docHrLblStartDate'), form.start_date],
+              [t('docHrLblContractDuration'), form.contract_duration],
+              [t('docHrLblProbation'), form.probation_period],
+              [t('docHrLblWorkplace'), form.workplace],
             ].map(([l, v]) =>
               v ? (
-                <div key={l}>
+                <div key={String(l)}>
                   <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{l}: </span>
                   <span style={{ fontWeight: 600 }}>{v}</span>
                 </div>
@@ -316,19 +373,19 @@ function HrContractPreview({ form }: { form: SF }) {
             background: OPENY_DOC_STYLE.surface,
           }}
         >
-          <OpenySectionTitle>Salary & Benefits</OpenySectionTitle>
+          <OpenySectionTitle>{t('docHrSalaryBenefits')}</OpenySectionTitle>
           <div
             style={{ fontSize: 15, fontWeight: 800, color: OPENY_DOC_STYLE.title, marginBottom: 8 }}
           >
-            {fmt(form.salary, form.currency)} / month
+            {fmt(form.salary, form.currency)} {t('docHrSalaryPerMonthSuffix')}
           </div>
           <div style={{ fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Payment: </span>
-            {form.payment_method} · {form.payment_date}
+            <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docCcPaymentPrefix')} </span>
+            {docsPaymentMethodLabel(form.payment_method, t)} · {form.payment_date}
           </div>
           {form.benefits.length > 0 && (
             <div style={{ fontSize: 12 }}>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Benefits: </span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrBenefitsPrefix')} </span>
               {form.benefits.join(', ')}
             </div>
           )}
@@ -343,26 +400,28 @@ function HrContractPreview({ form }: { form: SF }) {
             background: OPENY_DOC_STYLE.surface,
           }}
         >
-          <OpenySectionTitle>Working Hours</OpenySectionTitle>
+          <OpenySectionTitle>{t('docHrWorkingHours')}</OpenySectionTitle>
           <div style={{ display: 'flex', gap: 24, fontSize: 12 }}>
             <div>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Daily: </span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrDaily')} </span>
               <span style={{ fontWeight: 600 }}>{form.daily_hours}h</span>
             </div>
             <div>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Days: </span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrDays')} </span>
               <span style={{ fontWeight: 600 }}>{form.work_days}</span>
             </div>
             <div>
-              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>Annual Leave: </span>
-              <span style={{ fontWeight: 600 }}>{form.annual_leave} days</span>
+              <span style={{ color: OPENY_DOC_STYLE.textMuted }}>{t('docHrAnnualLeave')} </span>
+              <span style={{ fontWeight: 600 }}>
+                {t('docHrAnnualLeaveDays', { n: form.annual_leave })}
+              </span>
             </div>
           </div>
         </div>
 
         {form.legal_clauses.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <OpenySectionTitle>Legal Clauses</OpenySectionTitle>
+            <OpenySectionTitle>{t('docCcLegalClauses')}</OpenySectionTitle>
             {form.legal_clauses.map((cl, i) => (
               <div key={cl.id} style={{ marginBottom: 10 }}>
                 <div style={{ fontWeight: 600, fontSize: 12 }}>
@@ -372,7 +431,7 @@ function HrContractPreview({ form }: { form: SF }) {
                   style={{
                     fontSize: 11,
                     color: OPENY_DOC_STYLE.textMuted,
-                    paddingLeft: 14,
+                    paddingInlineStart: 14,
                     marginTop: 2,
                   }}
                 >
@@ -395,7 +454,7 @@ function HrContractPreview({ form }: { form: SF }) {
               {form.sig_company_rep}
             </div>
             <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>
-              Company Representative
+              {t('docHrCompanyRep')}
             </div>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
@@ -408,7 +467,9 @@ function HrContractPreview({ form }: { form: SF }) {
             >
               {form.sig_employee_name}
             </div>
-            <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>Employee Signature</div>
+            <div style={{ fontSize: 11, color: OPENY_DOC_STYLE.textMuted }}>
+              {t('docHrEmployeeSig')}
+            </div>
           </div>
         </div>
         <div
@@ -436,6 +497,7 @@ function BackupModal({
   onClose: () => void;
   onRestore: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [backups, setBackups] = useState<
     Array<{ id: string; label: string | null; created_at: string }>
   >([]);
@@ -462,23 +524,23 @@ function BackupModal({
     <AppModal
       open
       onClose={onClose}
-      title="Restore Backup"
+      title={t('docBackupRestoreTitle')}
       size="sm"
       bodyClassName="space-y-2"
       footer={
         <button onClick={onClose} className="openy-modal-btn-secondary w-full">
-          Close
+          {t('docBackupClose')}
         </button>
       }
     >
       {loading && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Loading backups…
+          {t('docBackupLoadingList')}
         </p>
       )}
       {!loading && backups.length === 0 && (
         <p className="py-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          No backups found
+          {t('docBackupNone')}
         </p>
       )}
       <div className="max-h-80 space-y-2 overflow-y-auto">
@@ -490,7 +552,7 @@ function BackupModal({
           >
             <div>
               <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                {b.label ?? 'Backup'}
+                {b.label ?? t('docBackupDefaultName')}
               </div>
               <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {new Date(b.created_at).toLocaleString()}
@@ -502,7 +564,7 @@ function BackupModal({
                 className="rounded-lg px-2.5 py-1 text-xs font-medium text-white"
                 style={{ background: 'var(--accent)' }}
               >
-                Restore
+                {t('docBackupRestoreBtn')}
               </button>
               <button
                 onClick={() => deleteBackup(b.id)}
@@ -539,6 +601,7 @@ function HistoryPanel({
   onClearAll: () => Promise<void>;
   onRestoreData: (data: unknown) => void;
 }) {
+  const { t } = useLang();
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
   const [showRestore, setShowRestore] = useState(false);
@@ -563,17 +626,17 @@ function HistoryPanel({
           <div className="relative flex-1">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
+              className="absolute start-2.5 top-1/2 -translate-y-1/2"
               style={{ color: 'var(--text-secondary)' }}
             />
             <input
-              className="w-full rounded-lg border py-1.5 pl-8 pr-3 text-sm outline-none"
+              className="w-full rounded-lg border py-1.5 pe-3 ps-8 text-sm outline-none"
               style={{
                 background: 'var(--surface-2)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)',
               }}
-              placeholder="Search HR contracts…"
+              placeholder={t('docHrSearchHrContracts')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -592,7 +655,7 @@ function HistoryPanel({
             }}
             disabled={backing}
             className="rounded-lg p-1.5 hover:bg-[var(--accent-soft)]"
-            title="Backup all HR contracts"
+            title={t('docHrBackupAll')}
           >
             <Archive
               size={14}
@@ -602,13 +665,13 @@ function HistoryPanel({
           <button
             onClick={() => setShowRestore(true)}
             className="rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
-            title="Restore from backup"
+            title={t('docBackupTooltipRestore')}
           >
             <RotateCcw size={14} style={{ color: '#f59e0b' }} />
           </button>
           <button
             onClick={async () => {
-              if (!confirm('Clear ALL HR contracts? This cannot be undone.')) return;
+              if (!confirm(t('docHrClearAllConfirm'))) return;
               setClearing(true);
               try {
                 await onClearAll();
@@ -618,13 +681,22 @@ function HistoryPanel({
             }}
             disabled={clearing}
             className="rounded-lg p-1.5 hover:bg-red-50"
-            title="Clear all HR contracts"
+            title={t('docHrClearAllTitle')}
           >
             <Trash2 size={14} style={{ color: '#ef4444' }} />
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {['all', 'draft', 'active', 'signed', 'expired', 'terminated'].map((s) => (
+          {(
+            [
+              ['all', 'all'] as const,
+              ['draft', 'docContractStatusDraft'] as const,
+              ['active', 'docContractStatusActive'] as const,
+              ['signed', 'docContractStatusSigned'] as const,
+              ['expired', 'docContractStatusExpired'] as const,
+              ['terminated', 'docContractStatusTerminated'] as const,
+            ] as const
+          ).map(([s, labelKey]) => (
             <button
               key={s}
               onClick={() => setStatusF(s)}
@@ -635,7 +707,7 @@ function HistoryPanel({
                   : 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
               )}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {labelKey === 'all' ? t('all') : t(labelKey)}
             </button>
           ))}
         </div>
@@ -643,12 +715,12 @@ function HistoryPanel({
       <div className="flex-1 divide-y overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
         {loading && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Loading…
+            {t('docLoading')}
           </div>
         )}
         {!loading && visible.length === 0 && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No HR contracts found
+            {t('docHrEmptyList')}
           </div>
         )}
         {visible.map((c) => (
@@ -663,14 +735,14 @@ function HistoryPanel({
                     className="rounded-full bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] font-bold"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    {c.status}
+                    {contractStatusLabel(c.status, t)}
                   </span>
                 </div>
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   {c.employee_full_name} · {c.job_title ?? '—'}
                 </div>
                 <div className="mt-0.5 text-xs font-semibold" style={{ color: '#059669' }}>
-                  {fmt(c.salary, c.currency)} / month
+                  {fmt(c.salary, c.currency)} {t('docHrSalaryPerMonthSuffix')}
                 </div>
                 <a
                   href={`/api/docs/hr-contracts/${c.id}/export`}
@@ -679,7 +751,7 @@ function HistoryPanel({
                   className="mt-1 flex items-center gap-1 text-[10px] font-medium hover:underline"
                   style={{ color: 'var(--text-secondary)' }}
                 >
-                  <ExternalLink size={9} /> HTML Doc
+                  <ExternalLink size={9} /> {t('docCcExportHtml')}
                 </a>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -715,6 +787,7 @@ function HistoryPanel({
 }
 
 export default function HrContractPage() {
+  const { t } = useLang();
   const [contracts, setContracts] = useState<DocsHrContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -805,11 +878,11 @@ export default function HrContractPage() {
 
   async function save() {
     if (!form.employee_full_name.trim()) {
-      setError('Employee full name is required');
+      setError(t('docHrEmployeeRequired'));
       return;
     }
     if (!form.contract_number.trim()) {
-      setError('Contract number is required');
+      setError(t('docHrNumberRequired'));
       return;
     }
     setSaving(true);
@@ -822,7 +895,7 @@ export default function HrContractPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       setSaved(true);
@@ -846,11 +919,7 @@ export default function HrContractPage() {
       form.employee_full_name.trim() ||
       form.legal_clauses.length > 0
     );
-    if (
-      hasManualEdits &&
-      !confirm('Replace current HR contract defaults with selected client template?')
-    )
-      return;
+    if (hasManualEdits && !confirm(t('docHrReplaceTemplate'))) return;
     const cfg = profile.hr_contract_template_config ?? {};
     setForm((prev) => ({
       ...prev,
@@ -863,14 +932,17 @@ export default function HrContractPage() {
   }
 
   async function deleteC(id: string) {
-    if (!confirm('Delete this contract?')) return;
+    if (!confirm(t('docHrDeleteConfirm'))) return;
     await fetch(`/api/docs/hr-contracts/${id}`, { method: 'DELETE' });
     await load();
     if (editingId === id) resetForm();
   }
 
   async function handleBackup() {
-    const label = `Backup ${new Date().toLocaleDateString()} (${contracts.length} HR contracts)`;
+    const label = t('docHrBackupLabel', {
+      date: new Date().toLocaleDateString(),
+      count: contracts.length,
+    });
     await fetch('/api/docs/backups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -888,15 +960,10 @@ export default function HrContractPage() {
 
   async function handleRestoreData(data: unknown) {
     if (!Array.isArray(data) || data.length === 0) {
-      alert('Invalid or empty backup data.');
+      alert(t('docHrBackupInvalid'));
       return;
     }
-    if (
-      !confirm(
-        `Restore ${data.length} HR contract(s) from backup? They will be created as new records.`,
-      )
-    )
-      return;
+    if (!confirm(t('docHrRestoreConfirm', { n: data.length }))) return;
     let count = 0;
     for (const item of data as DocsHrContract[]) {
       const {
@@ -918,7 +985,7 @@ export default function HrContractPage() {
       if (res.ok) count++;
     }
     await load();
-    alert(`Restored ${count} of ${data.length} HR contract(s).`);
+    alert(t('docHrRestoredCount', { ok: count, total: data.length }));
   }
 
   async function exportPdf() {
@@ -926,7 +993,7 @@ export default function HrContractPage() {
       await exportPreviewPdf('hr-contract-preview', form.contract_number, 'hr-contract');
     } catch (err) {
       console.error('[HrContractPage] PDF export failed:', err);
-      setError('Could not export PDF. Please try again.');
+      setError(t('docQtPdfExportError'));
     }
   }
 
@@ -962,20 +1029,20 @@ export default function HrContractPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                 style={{ background: 'var(--accent)' }}
               >
-                <Save size={12} className="mr-1 inline" />{' '}
-                {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
+                <Save size={12} className="me-1 inline" />{' '}
+                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
               </button>
               <button
                 onClick={exportPdf}
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#0f172a' }}
               >
-                <Printer size={12} className="mr-1 inline" /> PDF
+                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
               </button>
               <button
                 onClick={() => {
                   if (!editingId) {
-                    alert('Please save the contract first to export it.');
+                    alert(t('docHrSaveFirstWord'));
                     return;
                   }
                   window.open(
@@ -987,13 +1054,13 @@ export default function HrContractPage() {
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ background: '#475569' }}
               >
-                <Download size={12} className="mr-1 inline" /> Word
+                <Download size={12} className="me-1 inline" /> {t('docCcWord')}
               </button>
             </div>
           </div>
           <div className="docs-workspace-quickbar-grid">
             <div>
-              <label>Contract Number</label>
+              <label>{t('docCcContractNumber')}</label>
               <input
                 className={inp}
                 value={form.contract_number}
@@ -1001,7 +1068,7 @@ export default function HrContractPage() {
               />
             </div>
             <div>
-              <label>Date</label>
+              <label>{t('date')}</label>
               <input
                 type="date"
                 className={inp}
@@ -1010,7 +1077,7 @@ export default function HrContractPage() {
               />
             </div>
             <div>
-              <label>Employee</label>
+              <label>{t('docHrEmployee')}</label>
               <input
                 className={inp}
                 value={form.employee_full_name}
@@ -1018,7 +1085,7 @@ export default function HrContractPage() {
               />
             </div>
             <div>
-              <label>History</label>
+              <label>{t('docInvHistory')}</label>
               <SelectDropdown
                 fullWidth
                 className={inp}
@@ -1029,7 +1096,7 @@ export default function HrContractPage() {
                   else resetForm();
                 }}
                 options={[
-                  { value: '', label: 'New contract' },
+                  { value: '', label: t('docHrNewContract') },
                   ...contracts.map((c) => ({
                     value: c.id,
                     label: `${c.contract_number} · ${c.employee_full_name}`,
@@ -1057,7 +1124,7 @@ export default function HrContractPage() {
                     : 'border-transparent text-[var(--text-secondary)]',
                 )}
               >
-                {tab}
+                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
               </button>
             ))}
           </div>
@@ -1069,9 +1136,9 @@ export default function HrContractPage() {
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
                   style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
                 >
-                  <Edit2 size={14} /> Editing ·{' '}
+                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
                   <button onClick={resetForm} className="underline">
-                    Cancel
+                    {t('docQtCancelEdit')}
                   </button>
                 </div>
               )}
@@ -1084,10 +1151,10 @@ export default function HrContractPage() {
                 </div>
               )}
 
-              <Sec title="Contract Info">
+              <Sec title={t('docHrSectionContractInfo')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Contract Number')}
+                    {lbl(t('docCcContractNumber'))}
                     <input
                       className={inp}
                       value={form.contract_number}
@@ -1095,7 +1162,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Date')}
+                    {lbl(t('date'))}
                     <input
                       type="date"
                       className={inp}
@@ -1104,7 +1171,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Duration')}
+                    {lbl(t('docHrFieldDuration'))}
                     <input
                       className={inp}
                       value={form.duration}
@@ -1112,7 +1179,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Status')}
+                    {lbl(t('status'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
@@ -1120,12 +1187,12 @@ export default function HrContractPage() {
                       onChange={(v) => setField('status', v)}
                       options={['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => ({
                         value: s,
-                        label: s,
+                        label: contractStatusLabel(s, t),
                       }))}
                     />
                   </div>
                   <div>
-                    {lbl('Currency')}
+                    {lbl(t('docInvCurrency'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
@@ -1135,36 +1202,36 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Language')}
+                    {lbl(t('docCcDocumentLanguage'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
                       value={form.language}
                       onChange={(v) => setField('language', v as 'ar' | 'en')}
                       options={[
-                        { value: 'en', label: 'English' },
-                        { value: 'ar', label: 'Arabic' },
+                        { value: 'en', label: t('docCcLangEn') },
+                        { value: 'ar', label: t('docCcLangAr') },
                       ]}
                     />
                   </div>
                 </div>
               </Sec>
 
-              <Sec title="Company Info">
+              <Sec title={t('docHrCompanyInfo')}>
                 <ClientProfileSelector
                   profiles={profiles}
                   selectedClientId={
                     profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
                   }
                   onSelectClientId={applyClientProfile}
-                  label="Client"
+                  label={t('docCcLblClient')}
                 />
                 {[
-                  ['Company Name', 'company_name'],
-                  ['Representative', 'company_representative'],
-                  ['Address', 'company_address'],
-                  ['Email', 'company_email'],
-                  ['Phone', 'company_phone'],
+                  [t('companyName'), 'company_name'],
+                  [t('docCcLblRepresentative'), 'company_representative'],
+                  [t('docCcLblAddress'), 'company_address'],
+                  [t('docCcLblEmail'), 'company_email'],
+                  [t('docCcLblPhone'), 'company_phone'],
                 ].map(([l, f2]) => (
                   <div key={f2}>
                     {lbl(l)}
@@ -1177,9 +1244,9 @@ export default function HrContractPage() {
                 ))}
               </Sec>
 
-              <Sec title="Employee Info">
+              <Sec title={t('docHrEmployeeInfo')}>
                 <div>
-                  {lbl('Full Name *')}
+                  {lbl(t('docHrFullNameReq'))}
                   <input
                     className={inp}
                     value={form.employee_full_name}
@@ -1188,7 +1255,7 @@ export default function HrContractPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('National ID / Passport')}
+                    {lbl(t('docHrNationalId'))}
                     <input
                       className={inp}
                       value={form.employee_national_id}
@@ -1196,7 +1263,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Nationality')}
+                    {lbl(t('docHrLblNationality'))}
                     <input
                       className={inp}
                       value={form.employee_nationality}
@@ -1204,7 +1271,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Phone')}
+                    {lbl(t('phone'))}
                     <input
                       className={inp}
                       value={form.employee_phone}
@@ -1212,7 +1279,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Email')}
+                    {lbl(t('email'))}
                     <input
                       className={inp}
                       value={form.employee_email}
@@ -1220,18 +1287,21 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Marital Status')}
+                    {lbl(t('docHrLblMaritalStatus'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
                       value={form.employee_marital_status}
                       onChange={(v) => setField('employee_marital_status', v)}
-                      options={DOCS_MARITAL_STATUSES.map((s) => ({ value: s, label: s }))}
+                      options={DOCS_MARITAL_STATUSES.map((s) => ({
+                        value: s,
+                        label: maritalStatusLabel(s, t),
+                      }))}
                     />
                   </div>
                 </div>
                 <div>
-                  {lbl('Address')}
+                  {lbl(t('docCcLblAddress'))}
                   <input
                     className={inp}
                     value={form.employee_address}
@@ -1240,10 +1310,10 @@ export default function HrContractPage() {
                 </div>
               </Sec>
 
-              <Sec title="Job Details">
+              <Sec title={t('docHrJobDetails')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Job Title')}
+                    {lbl(t('docHrLblTitle'))}
                     <input
                       className={inp}
                       value={form.job_title}
@@ -1251,7 +1321,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Department')}
+                    {lbl(t('docHrLblDepartment'))}
                     <input
                       className={inp}
                       value={form.department}
@@ -1259,7 +1329,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Direct Manager')}
+                    {lbl(t('docHrLblDirectManager'))}
                     <input
                       className={inp}
                       value={form.direct_manager}
@@ -1267,25 +1337,25 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Employment Type')}
+                    {lbl(t('docHrLblType'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
                       value={form.employment_type}
                       onChange={(v) => setField('employment_type', v)}
-                      options={DOCS_EMPLOYMENT_TYPES.map((t) => ({
-                        value: t.value,
-                        label: t.label,
+                      options={DOCS_EMPLOYMENT_TYPES.map((et) => ({
+                        value: et.value,
+                        label: employmentTypeLabel(et.value, t),
                       }))}
                     />
                   </div>
                 </div>
               </Sec>
 
-              <Sec title="Employment Terms">
+              <Sec title={t('docHrEmploymentTerms')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Start Date')}
+                    {lbl(t('docHrLblStartDate'))}
                     <input
                       type="date"
                       className={inp}
@@ -1294,7 +1364,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Contract Duration')}
+                    {lbl(t('docHrLblContractDuration'))}
                     <input
                       className={inp}
                       value={form.contract_duration}
@@ -1302,7 +1372,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Probation Period')}
+                    {lbl(t('docHrLblProbation'))}
                     <input
                       className={inp}
                       value={form.probation_period}
@@ -1310,7 +1380,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Workplace')}
+                    {lbl(t('docHrLblWorkplace'))}
                     <input
                       className={inp}
                       value={form.workplace}
@@ -1320,10 +1390,10 @@ export default function HrContractPage() {
                 </div>
               </Sec>
 
-              <Sec title="Salary & Benefits">
+              <Sec title={t('docHrSalaryBenefits')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Salary')}
+                    {lbl(t('docEmpColSalary'))}
                     <input
                       type="number"
                       min={0}
@@ -1333,17 +1403,20 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Payment Method')}
+                    {lbl(t('docQtPaymentMethod'))}
                     <SelectDropdown
                       fullWidth
                       className={inp}
                       value={form.payment_method}
                       onChange={(v) => setField('payment_method', v)}
-                      options={DOCS_PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                      options={DOCS_PAYMENT_METHODS.map((m) => ({
+                        value: m,
+                        label: docsPaymentMethodLabel(m, t),
+                      }))}
                     />
                   </div>
                   <div>
-                    {lbl('Payment Date')}
+                    {lbl(t('docHrPaymentDate'))}
                     <input
                       className={inp}
                       value={form.payment_date}
@@ -1352,11 +1425,11 @@ export default function HrContractPage() {
                   </div>
                 </div>
                 <div>
-                  {lbl('Benefits')}
+                  {lbl(t('docHrLblBenefits'))}
                   <div className="mb-2 flex gap-2">
                     <input
                       className={inp}
-                      placeholder="Add benefit…"
+                      placeholder={t('docHrAddBenefitPh')}
                       value={newBenefit}
                       onChange={(e) => setNewBenefit(e.target.value)}
                       onKeyDown={(e) => {
@@ -1403,10 +1476,10 @@ export default function HrContractPage() {
                 </div>
               </Sec>
 
-              <Sec title="Working Hours">
+              <Sec title={t('docHrWorkingHours')}>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    {lbl('Daily Hours')}
+                    {lbl(t('docHrLblDailyHours'))}
                     <input
                       type="number"
                       min={1}
@@ -1417,7 +1490,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Annual Leave (days)')}
+                    {lbl(t('docHrFieldAnnualLeaveDays'))}
                     <input
                       type="number"
                       min={0}
@@ -1427,7 +1500,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div className="col-span-1">
-                    {lbl('Work Days')}
+                    {lbl(t('docHrLblWorkDays'))}
                     <input
                       className={inp}
                       value={form.work_days}
@@ -1443,7 +1516,7 @@ export default function HrContractPage() {
                     className="text-xs font-bold uppercase tracking-wider"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    Legal Clauses
+                    {t('docCcLegalClauses')}
                   </h3>
                   <button
                     onClick={() =>
@@ -1455,7 +1528,7 @@ export default function HrContractPage() {
                     className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs"
                     style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
-                    <Plus size={12} /> Add
+                    <Plus size={12} /> {t('docQtAddLine')}
                   </button>
                 </div>
                 {form.legal_clauses.map((cl, i) => (
@@ -1472,7 +1545,7 @@ export default function HrContractPage() {
                           borderColor: 'var(--border)',
                           color: 'var(--text)',
                         }}
-                        placeholder="Clause title"
+                        placeholder={t('docHrClauseTitlePh')}
                         value={cl.title}
                         onChange={(e) => {
                           const cls = [...form.legal_clauses];
@@ -1499,7 +1572,7 @@ export default function HrContractPage() {
                         borderColor: 'var(--border)',
                         color: 'var(--text)',
                       }}
-                      placeholder="Clause content…"
+                      placeholder={t('docHrClauseContentPh')}
                       value={cl.content}
                       onChange={(e) => {
                         const cls = [...form.legal_clauses];
@@ -1511,10 +1584,10 @@ export default function HrContractPage() {
                 ))}
               </section>
 
-              <Sec title="Signatures">
+              <Sec title={t('docHrSignatures')}>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {lbl('Company Representative')}
+                    {lbl(t('docHrCompanyRepresentative'))}
                     <input
                       className={inp}
                       value={form.sig_company_rep}
@@ -1522,7 +1595,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Employee Name')}
+                    {lbl(t('docHrEmployeeName'))}
                     <input
                       className={inp}
                       value={form.sig_employee_name}
@@ -1530,7 +1603,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Signature Date')}
+                    {lbl(t('docCcSignatureDate'))}
                     <input
                       type="date"
                       className={inp}
@@ -1539,7 +1612,7 @@ export default function HrContractPage() {
                     />
                   </div>
                   <div>
-                    {lbl('Place')}
+                    {lbl(t('docCcPlace'))}
                     <input
                       className={inp}
                       value={form.sig_place}
@@ -1558,13 +1631,14 @@ export default function HrContractPage() {
                 >
                   {saved ? (
                     <>
-                      <Check size={16} /> Saved!
+                      <Check size={16} /> {t('docCcSaved')}
                     </>
                   ) : saving ? (
-                    'Saving…'
+                    t('docCommonSaving')
                   ) : (
                     <>
-                      <Save size={16} /> {editingId ? 'Update Contract' : 'Save Contract'}
+                      <Save size={16} />{' '}
+                      {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
                     </>
                   )}
                 </button>

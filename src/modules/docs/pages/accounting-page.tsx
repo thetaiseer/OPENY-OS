@@ -24,6 +24,7 @@ import { DocsDocTypeTabs, DocsWorkspaceShell } from '@/components/docs/DocsWorks
 import { computeAccountingSettlement } from '@/lib/accounting-settlement';
 import { exportPreviewPdf } from '@/lib/docs-print';
 import { OPENY_DOC_STYLE } from '@/lib/openy-brand';
+import { useLang } from '@/context/lang-context';
 
 const [PARTNER_A, PARTNER_B] = ACCOUNTING_COLLECTORS;
 
@@ -45,10 +46,11 @@ function fmtMoney(n: number, cur = 'SAR') {
   }).format(n);
 }
 
-function monthHeading(month: string) {
+function monthHeading(month: string, lang: 'en' | 'ar') {
   const [y, mo] = month.split('-').map(Number);
   if (!y || !mo) return month;
-  return new Date(y, mo - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const loc = lang === 'ar' ? 'ar-SA' : 'en-US';
+  return new Date(y, mo - 1, 1).toLocaleString(loc, { month: 'long', year: 'numeric' });
 }
 
 // ── Entry modal ───────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ function EntryModal({
   onDone: () => void;
   selectedProfile?: DocsClientProfile | null;
 }) {
+  const { t } = useLang();
   const [form, setForm] = useState<EntryForm>(() =>
     initial
       ? {
@@ -127,7 +130,7 @@ function EntryModal({
 
   async function submit() {
     if (!form.client_name.trim()) {
-      setError('Client name is required');
+      setError(t('docAcctClientRequired'));
       return;
     }
     setSaving(true);
@@ -150,7 +153,7 @@ function EntryModal({
         }),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       onDone();
@@ -172,13 +175,13 @@ function EntryModal({
     <AppModal
       open
       onClose={onClose}
-      title={initial ? 'Edit revenue' : 'Add revenue'}
+      title={initial ? t('docAcctEditRevenue') : t('docAcctAddRevenue')}
       size="sm"
       bodyClassName="space-y-3"
       footer={
         <>
           <button type="button" onClick={onClose} className="openy-modal-btn-secondary flex-1">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -186,7 +189,7 @@ function EntryModal({
             disabled={saving}
             className="openy-modal-btn-primary flex-1 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : initial ? 'Update' : 'Add'}
+            {saving ? t('docCommonSaving') : initial ? t('docQtUpdate') : t('docQtAddLine')}
           </button>
         </>
       }
@@ -201,7 +204,7 @@ function EntryModal({
       ) : null}
       <div className="space-y-3">
         <div>
-          {lbl('Client *')}
+          {lbl(t('docAcctClientStar'))}
           <input
             className={inp}
             value={form.client_name}
@@ -209,7 +212,7 @@ function EntryModal({
           />
         </div>
         <div>
-          {lbl('Service')}
+          {lbl(t('docAcctService'))}
           <input
             className={inp}
             value={form.service}
@@ -218,7 +221,7 @@ function EntryModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            {lbl('Amount')}
+            {lbl(t('docAcctAmount'))}
             <input
               type="number"
               min={0}
@@ -229,7 +232,7 @@ function EntryModal({
             />
           </div>
           <div>
-            {lbl('Currency')}
+            {lbl(t('docAcctCurrency'))}
             <SelectDropdown
               fullWidth
               className={inp}
@@ -240,7 +243,7 @@ function EntryModal({
           </div>
         </div>
         <div>
-          {lbl('Collected by')}
+          {lbl(t('docAcctCollectedBy'))}
           <SelectDropdown
             fullWidth
             className={inp}
@@ -253,7 +256,7 @@ function EntryModal({
           />
         </div>
         <div>
-          {lbl('Entry date')}
+          {lbl(t('docAcctEntryDate'))}
           <input
             type="date"
             className={inp}
@@ -262,7 +265,7 @@ function EntryModal({
           />
         </div>
         <div>
-          {lbl('Notes')}
+          {lbl(t('docAcctNotes'))}
           <textarea
             className={inp}
             rows={2}
@@ -297,6 +300,7 @@ function ExpenseModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useLang();
   const [form, setForm] = useState<ExpenseForm>(() =>
     initial
       ? {
@@ -325,7 +329,7 @@ function ExpenseModal({
 
   async function submit() {
     if (!form.description.trim()) {
-      setError('Description is required');
+      setError(t('docAcctDescriptionRequired'));
       return;
     }
     setSaving(true);
@@ -340,7 +344,7 @@ function ExpenseModal({
         body: JSON.stringify({ ...form, month_key: mk }),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       onDone();
@@ -362,13 +366,13 @@ function ExpenseModal({
     <AppModal
       open
       onClose={onClose}
-      title={initial ? 'Edit expense' : 'Add expense'}
+      title={initial ? t('docAcctEditExpense') : t('docAcctAddExpense')}
       size="sm"
       bodyClassName="space-y-3"
       footer={
         <>
           <button type="button" onClick={onClose} className="openy-modal-btn-secondary flex-1">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -376,7 +380,7 @@ function ExpenseModal({
             disabled={saving}
             className="openy-modal-btn-primary flex-1 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : initial ? 'Update' : 'Add'}
+            {saving ? t('docCommonSaving') : initial ? t('docQtUpdate') : t('docQtAddLine')}
           </button>
         </>
       }
@@ -391,7 +395,7 @@ function ExpenseModal({
       ) : null}
       <div className="space-y-3">
         <div>
-          {lbl('Description *')}
+          {lbl(t('docAcctDescriptionStar'))}
           <input
             className={inp}
             value={form.description}
@@ -400,7 +404,7 @@ function ExpenseModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            {lbl('Amount')}
+            {lbl(t('docAcctAmount'))}
             <input
               type="number"
               min={0}
@@ -411,7 +415,7 @@ function ExpenseModal({
             />
           </div>
           <div>
-            {lbl('Currency')}
+            {lbl(t('docAcctCurrency'))}
             <SelectDropdown
               fullWidth
               className={inp}
@@ -422,7 +426,7 @@ function ExpenseModal({
           </div>
         </div>
         <div>
-          {lbl('Paid by partner')}
+          {lbl(t('docAcctPaidByPartner'))}
           <SelectDropdown
             fullWidth
             className={inp}
@@ -435,7 +439,7 @@ function ExpenseModal({
           />
         </div>
         <div>
-          {lbl('Expense date')}
+          {lbl(t('docAcctExpenseDate'))}
           <input
             type="date"
             className={inp}
@@ -444,7 +448,7 @@ function ExpenseModal({
           />
         </div>
         <div>
-          {lbl('Notes')}
+          {lbl(t('docAcctNotes'))}
           <textarea
             className={inp}
             rows={2}
@@ -479,6 +483,7 @@ function TransferModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useLang();
   const [form, setForm] = useState<TransferForm>(() =>
     initial
       ? {
@@ -507,11 +512,11 @@ function TransferModal({
 
   async function submit() {
     if (form.from_partner === form.to_partner) {
-      setError('From and to must differ');
+      setError(t('docAcctFromToDiffer'));
       return;
     }
     if (!Number.isFinite(form.amount) || form.amount <= 0) {
-      setError('Amount must be greater than zero');
+      setError(t('docAcctAmountPositive'));
       return;
     }
     setSaving(true);
@@ -526,7 +531,7 @@ function TransferModal({
         body: JSON.stringify({ ...form, month_key: mk }),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? 'Save failed');
+        setError((await res.json()).error ?? t('docQtSaveFailed'));
         return;
       }
       onDone();
@@ -548,13 +553,13 @@ function TransferModal({
     <AppModal
       open
       onClose={onClose}
-      title={initial ? 'Edit transfer' : 'Log partner transfer'}
+      title={initial ? t('docAcctEditTransfer') : t('docAcctLogTransfer')}
       size="sm"
       bodyClassName="space-y-3"
       footer={
         <>
           <button type="button" onClick={onClose} className="openy-modal-btn-secondary flex-1">
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -562,7 +567,7 @@ function TransferModal({
             disabled={saving}
             className="openy-modal-btn-primary flex-1 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : initial ? 'Update' : 'Add'}
+            {saving ? t('docCommonSaving') : initial ? t('docQtUpdate') : t('docQtAddLine')}
           </button>
         </>
       }
@@ -578,7 +583,7 @@ function TransferModal({
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            {lbl('From')}
+            {lbl(t('docAcctFrom'))}
             <SelectDropdown
               fullWidth
               className={inp}
@@ -591,7 +596,7 @@ function TransferModal({
             />
           </div>
           <div>
-            {lbl('To')}
+            {lbl(t('docAcctTo'))}
             <SelectDropdown
               fullWidth
               className={inp}
@@ -606,7 +611,7 @@ function TransferModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            {lbl('Amount')}
+            {lbl(t('docAcctAmount'))}
             <input
               type="number"
               min={0}
@@ -617,7 +622,7 @@ function TransferModal({
             />
           </div>
           <div>
-            {lbl('Currency')}
+            {lbl(t('docAcctCurrency'))}
             <SelectDropdown
               fullWidth
               className={inp}
@@ -628,7 +633,7 @@ function TransferModal({
           </div>
         </div>
         <div>
-          {lbl('Transfer date')}
+          {lbl(t('docAcctTransferDate'))}
           <input
             type="date"
             className={inp}
@@ -637,7 +642,7 @@ function TransferModal({
           />
         </div>
         <div>
-          {lbl('Notes')}
+          {lbl(t('docAcctNotes'))}
           <textarea
             className={inp}
             rows={2}
@@ -669,7 +674,38 @@ function SettlementPdfBlock({
   transfers: DocsAccountingTransfer[];
   monthNotes: string;
 }) {
+  const { t } = useLang();
   const s = OPENY_DOC_STYLE;
+  const summaryRows: [string, string][] = [
+    [t('docAcctTotalRevenue'), fmtMoney(settlement.totalRevenue)],
+    [t('docAcctTotalExpenses'), fmtMoney(settlement.totalExpenses)],
+    [t('docAcctNetProfit'), fmtMoney(settlement.netProfit)],
+    [t('docAcctPartnerShare'), fmtMoney(settlement.partnerShare)],
+    [
+      t('docAcctCollectedPrefix', { partner: PARTNER_A }),
+      fmtMoney(settlement.collectedBy[PARTNER_A] ?? 0),
+    ],
+    [
+      t('docAcctCollectedPrefix', { partner: PARTNER_B }),
+      fmtMoney(settlement.collectedBy[PARTNER_B] ?? 0),
+    ],
+    [
+      t('docAcctExpensesPaidPrefix', { partner: PARTNER_A }),
+      fmtMoney(settlement.expensesPaidBy[PARTNER_A] ?? 0),
+    ],
+    [
+      t('docAcctExpensesPaidPrefix', { partner: PARTNER_B }),
+      fmtMoney(settlement.expensesPaidBy[PARTNER_B] ?? 0),
+    ],
+    [
+      t('docAcctNetInHandPrefix', { partner: PARTNER_A }),
+      fmtMoney(settlement.netInHand[PARTNER_A] ?? 0),
+    ],
+    [
+      t('docAcctNetInHandPrefix', { partner: PARTNER_B }),
+      fmtMoney(settlement.netInHand[PARTNER_B] ?? 0),
+    ],
+  ];
   return (
     <div
       id="accounting-settlement-pdf"
@@ -684,9 +720,11 @@ function SettlementPdfBlock({
       <div
         style={{ borderBottom: `2px solid ${s.borderStrong}`, paddingBottom: 12, marginBottom: 16 }}
       >
-        <div style={{ fontSize: 11, color: s.textMuted, letterSpacing: '0.08em' }}>OPENY DOCS</div>
+        <div style={{ fontSize: 11, color: s.textMuted, letterSpacing: '0.08em' }}>
+          {t('docAcctOpenyDocs')}
+        </div>
         <h1 style={{ margin: '6px 0 0', fontSize: 22, color: s.title }}>
-          Monthly partner settlement
+          {t('docAcctMonthlySettlement')}
         </h1>
         <div style={{ fontSize: 13, color: s.textMuted, marginTop: 4 }}>
           {monthLabelText} · <span style={{ fontFamily: 'monospace' }}>{monthKeyStr}</span>
@@ -694,24 +732,15 @@ function SettlementPdfBlock({
       </div>
 
       <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 13, margin: '0 0 10px', color: s.title }}>Settlement summary</h2>
+        <h2 style={{ fontSize: 13, margin: '0 0 10px', color: s.title }}>
+          {t('docAcctSettlementSummary')}
+        </h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <tbody>
-            {[
-              ['Total revenue', fmtMoney(settlement.totalRevenue)],
-              ['Total expenses', fmtMoney(settlement.totalExpenses)],
-              ['Net profit', fmtMoney(settlement.netProfit)],
-              ['Partner share (net ÷ 2)', fmtMoney(settlement.partnerShare)],
-              [`Collected — ${PARTNER_A}`, fmtMoney(settlement.collectedBy[PARTNER_A] ?? 0)],
-              [`Collected — ${PARTNER_B}`, fmtMoney(settlement.collectedBy[PARTNER_B] ?? 0)],
-              [`Expenses paid — ${PARTNER_A}`, fmtMoney(settlement.expensesPaidBy[PARTNER_A] ?? 0)],
-              [`Expenses paid — ${PARTNER_B}`, fmtMoney(settlement.expensesPaidBy[PARTNER_B] ?? 0)],
-              [`Net in hand — ${PARTNER_A}`, fmtMoney(settlement.netInHand[PARTNER_A] ?? 0)],
-              [`Net in hand — ${PARTNER_B}`, fmtMoney(settlement.netInHand[PARTNER_B] ?? 0)],
-            ].map(([k, v]) => (
+            {summaryRows.map(([k, v]) => (
               <tr key={k} style={{ borderBottom: `1px solid ${s.border}` }}>
                 <td style={{ padding: '6px 0', color: s.textMuted }}>{k}</td>
-                <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 600 }}>{v}</td>
+                <td style={{ padding: '6px 0', textAlign: 'end', fontWeight: 600 }}>{v}</td>
               </tr>
             ))}
           </tbody>
@@ -728,27 +757,31 @@ function SettlementPdfBlock({
             color: settlement.debtor ? s.alert : s.title,
           }}
         >
-          {settlement.debtor
-            ? `${settlement.debtor} owes ${settlement.creditor}: ${fmtMoney(settlement.settlementAmount)}`
-            : 'Partners are balanced for this month.'}
+          {settlement.debtor && settlement.creditor
+            ? t('docAcctDebtorOwes', {
+                debtor: settlement.debtor,
+                creditor: settlement.creditor,
+                amount: fmtMoney(settlement.settlementAmount),
+              })
+            : t('docAcctBalanced')}
         </div>
       </section>
 
       <section style={{ marginBottom: 18 }}>
-        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>Revenues</h2>
+        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>{t('docAcctRevenues')}</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: s.headerBg, color: s.headerText }}>
-              <th style={{ textAlign: 'left', padding: 6 }}>Client</th>
-              <th style={{ textAlign: 'right', padding: 6 }}>Amount</th>
-              <th style={{ textAlign: 'left', padding: 6 }}>Collector</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctColClient')}</th>
+              <th style={{ textAlign: 'end', padding: 6 }}>{t('docAcctAmount')}</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctColCollector')}</th>
             </tr>
           </thead>
           <tbody>
             {entries.map((e) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${s.border}` }}>
                 <td style={{ padding: 6 }}>{e.client_name}</td>
-                <td style={{ padding: 6, textAlign: 'right' }}>{fmtMoney(e.amount, e.currency)}</td>
+                <td style={{ padding: 6, textAlign: 'end' }}>{fmtMoney(e.amount, e.currency)}</td>
                 <td style={{ padding: 6, color: s.textMuted }}>{e.collector ?? PARTNER_A}</td>
               </tr>
             ))}
@@ -757,20 +790,20 @@ function SettlementPdfBlock({
       </section>
 
       <section style={{ marginBottom: 18 }}>
-        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>Expenses</h2>
+        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>{t('docAcctExpenses')}</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: s.headerBg, color: s.headerText }}>
-              <th style={{ textAlign: 'left', padding: 6 }}>Description</th>
-              <th style={{ textAlign: 'right', padding: 6 }}>Amount</th>
-              <th style={{ textAlign: 'left', padding: 6 }}>Paid by</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctColDescription')}</th>
+              <th style={{ textAlign: 'end', padding: 6 }}>{t('docAcctAmount')}</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctColPaidBy')}</th>
             </tr>
           </thead>
           <tbody>
             {expenses.map((e) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${s.border}` }}>
                 <td style={{ padding: 6 }}>{e.description}</td>
-                <td style={{ padding: 6, textAlign: 'right' }}>{fmtMoney(e.amount, e.currency)}</td>
+                <td style={{ padding: 6, textAlign: 'end' }}>{fmtMoney(e.amount, e.currency)}</td>
                 <td style={{ padding: 6, color: s.textMuted }}>{e.paid_by_partner ?? PARTNER_B}</td>
               </tr>
             ))}
@@ -780,30 +813,30 @@ function SettlementPdfBlock({
 
       <section style={{ marginBottom: 18 }}>
         <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>
-          Partner transfers (record)
+          {t('docAcctPartnerTransfers')}
         </h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: s.headerBg, color: s.headerText }}>
-              <th style={{ textAlign: 'left', padding: 6 }}>From</th>
-              <th style={{ textAlign: 'left', padding: 6 }}>To</th>
-              <th style={{ textAlign: 'right', padding: 6 }}>Amount</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctFrom')}</th>
+              <th style={{ textAlign: 'start', padding: 6 }}>{t('docAcctTo')}</th>
+              <th style={{ textAlign: 'end', padding: 6 }}>{t('docAcctAmount')}</th>
             </tr>
           </thead>
           <tbody>
             {transfers.length === 0 ? (
               <tr>
                 <td colSpan={3} style={{ padding: 8, color: s.textMuted }}>
-                  No transfers logged.
+                  {t('docAcctNoTransfers')}
                 </td>
               </tr>
             ) : (
-              transfers.map((t) => (
-                <tr key={t.id} style={{ borderBottom: `1px solid ${s.border}` }}>
-                  <td style={{ padding: 6 }}>{t.from_partner}</td>
-                  <td style={{ padding: 6 }}>{t.to_partner}</td>
-                  <td style={{ padding: 6, textAlign: 'right' }}>
-                    {fmtMoney(t.amount, t.currency)}
+              transfers.map((tr) => (
+                <tr key={tr.id} style={{ borderBottom: `1px solid ${s.border}` }}>
+                  <td style={{ padding: 6 }}>{tr.from_partner}</td>
+                  <td style={{ padding: 6 }}>{tr.to_partner}</td>
+                  <td style={{ padding: 6, textAlign: 'end' }}>
+                    {fmtMoney(tr.amount, tr.currency)}
                   </td>
                 </tr>
               ))
@@ -813,7 +846,9 @@ function SettlementPdfBlock({
       </section>
 
       <section>
-        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>Month notes</h2>
+        <h2 style={{ fontSize: 13, margin: '0 0 8px', color: s.title }}>
+          {t('docAcctMonthNotes')}
+        </h2>
         <div
           style={{
             fontSize: 12,
@@ -835,6 +870,7 @@ function SettlementPdfBlock({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AccountingPage() {
+  const { t, lang } = useLang();
   const [month, setMonth] = useState(thisMonth());
   const mk = monthKey(month);
   const [entries, setEntries] = useState<DocsAccountingEntry[]>([]);
@@ -951,25 +987,25 @@ export default function AccountingPage() {
   });
 
   async function deleteEntry(id: string) {
-    if (!confirm('Delete this revenue line?')) return;
+    if (!confirm(t('docAcctDeleteRevenueConfirm'))) return;
     await fetch(`/api/docs/accounting/entries/${id}`, { method: 'DELETE' });
     await loadData();
   }
 
   async function deleteExpense(id: string) {
-    if (!confirm('Delete this expense?')) return;
+    if (!confirm(t('docAcctDeleteExpenseConfirm'))) return;
     await fetch(`/api/docs/accounting/expenses/${id}`, { method: 'DELETE' });
     await loadData();
   }
 
   async function deleteTransfer(id: string) {
-    if (!confirm('Delete this transfer record?')) return;
+    if (!confirm(t('docAcctDeleteTransferConfirm'))) return;
     await fetch(`/api/docs/accounting/transfers/${id}`, { method: 'DELETE' });
     await loadData();
   }
 
   async function handleBackup() {
-    const label = `Backup ${month} (accounting)`;
+    const label = t('docAcctBackupLabel', { month });
     await fetch('/api/docs/backups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1001,7 +1037,7 @@ export default function AccountingPage() {
                   value={month}
                   onChange={setMonth}
                   mode="month"
-                  placeholder="Settlement month"
+                  placeholder={t('docAcctSettlementMonth')}
                 />
                 <button
                   type="button"
@@ -1009,7 +1045,7 @@ export default function AccountingPage() {
                   className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ background: '#0f172a' }}
                 >
-                  <Printer size={12} className="mr-1 inline" /> PDF
+                  <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
                 </button>
                 <a
                   href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
@@ -1017,35 +1053,34 @@ export default function AccountingPage() {
                   className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white no-underline"
                   style={{ background: '#059669' }}
                 >
-                  <Download size={12} className="mr-1 inline" /> Excel
+                  <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </a>
               </div>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-              Partners: <strong className="text-[var(--text)]">{PARTNER_A}</strong> &{' '}
-              <strong className="text-[var(--text)]">{PARTNER_B}</strong>. Net profit is split
-              equally. Each partner&apos;s net in hand = collected revenue − expenses they paid.
-              Settlement closes the gap to an equal share of net profit.
+              {t('docAcctPartnersBlurb', { a: PARTNER_A, b: PARTNER_B })}
             </p>
           </div>
         }
         editor={
-          <div className="max-h-[calc(100vh-10rem)] space-y-6 overflow-y-auto pr-1 lg:max-h-none">
+          <div className="max-h-[calc(100vh-10rem)] space-y-6 overflow-y-auto pe-1 lg:max-h-none">
             {loading ? (
-              <p className="text-sm text-[var(--text-secondary)]">Loading month…</p>
+              <p className="text-sm text-[var(--text-secondary)]">{t('docAcctLoadingMonth')}</p>
             ) : null}
 
             <section
               className="rounded-2xl border p-4"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
-              <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">Month notes</h2>
+              <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">
+                {t('docAcctMonthNotesTitle')}
+              </h2>
               <textarea
                 className={inp}
                 rows={4}
                 value={monthNotes}
                 onChange={(e) => scheduleSaveNotes(e.target.value)}
-                placeholder="Internal notes for this month (saved automatically)…"
+                placeholder={t('docAcctMonthNotesPlaceholder')}
               />
             </section>
 
@@ -1054,14 +1089,16 @@ export default function AccountingPage() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-[var(--text)]">Revenues</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">
+                  {t('docAcctRevenuesSection')}
+                </h2>
                 <button
                   type="button"
                   onClick={() => setAddEntry(true)}
                   className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ background: 'var(--accent)' }}
                 >
-                  <Plus size={14} /> Add revenue
+                  <Plus size={14} /> {t('docAcctAddRevenueBtn')}
                 </button>
               </div>
               <div className="mb-3">
@@ -1069,17 +1106,17 @@ export default function AccountingPage() {
                   profiles={profiles}
                   selectedClientId={selectedClientId}
                   onSelectClientId={setSelectedClientId}
-                  label="Client context (optional)"
+                  label={t('docAcctClientContextOptional')}
                 />
               </div>
               <div className="relative mb-3 max-w-xs">
                 <Search
                   size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
+                  className="absolute start-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
                 />
                 <input
-                  className={clsx(inp, 'pl-8')}
-                  placeholder="Search revenues…"
+                  className={clsx(inp, 'ps-8')}
+                  placeholder={t('docAcctSearchRevenues')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -1094,15 +1131,24 @@ export default function AccountingPage() {
                       className="border-b bg-[var(--surface-2)]"
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      {['Client', 'Service', 'Amount', 'Collector', 'Date', ''].map((h) => (
+                      {(
+                        [
+                          [t('docAcctColClient'), 'start'],
+                          [t('docAcctColService'), 'start'],
+                          [t('docAcctAmount'), 'end'],
+                          [t('docAcctColCollector'), 'start'],
+                          [t('docAcctColDate'), 'start'],
+                          [t('docEmpColActions'), 'end'],
+                        ] as const
+                      ).map(([label, align]) => (
                         <th
-                          key={h}
+                          key={label}
                           className={clsx(
-                            'px-3 py-2 text-left text-xs font-semibold text-[var(--text-secondary)]',
-                            h === 'Amount' && 'text-right',
+                            'px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]',
+                            align === 'end' ? 'text-end' : 'text-start',
                           )}
                         >
-                          {h}
+                          {label}
                         </th>
                       ))}
                     </tr>
@@ -1116,14 +1162,14 @@ export default function AccountingPage() {
                         <td className="px-3 py-2 text-[var(--text-secondary)]">
                           {e.service ?? '—'}
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">
+                        <td className="px-3 py-2 text-end font-semibold text-emerald-700">
                           {fmtMoney(e.amount, e.currency)}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">
                           {e.collector ?? PARTNER_A}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{e.entry_date}</td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-end">
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-[var(--accent-soft)]"
@@ -1151,14 +1197,16 @@ export default function AccountingPage() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-[var(--text)]">Expenses</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">
+                  {t('docAcctExpensesSection')}
+                </h2>
                 <button
                   type="button"
                   onClick={() => setAddExpense(true)}
                   className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ background: '#0f172a' }}
                 >
-                  <Plus size={14} /> Add expense
+                  <Plus size={14} /> {t('docAcctAddExpenseBtn')}
                 </button>
               </div>
               <div
@@ -1171,15 +1219,23 @@ export default function AccountingPage() {
                       className="border-b bg-[var(--surface-2)]"
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      {['Description', 'Amount', 'Paid by', 'Date', ''].map((h) => (
+                      {(
+                        [
+                          [t('docAcctColDescription'), 'start'],
+                          [t('docAcctAmount'), 'end'],
+                          [t('docAcctColPaidBy'), 'start'],
+                          [t('docAcctColDate'), 'start'],
+                          [t('docEmpColActions'), 'end'],
+                        ] as const
+                      ).map(([label, align]) => (
                         <th
-                          key={h}
+                          key={label}
                           className={clsx(
-                            'px-3 py-2 text-left text-xs font-semibold text-[var(--text-secondary)]',
-                            h === 'Amount' && 'text-right',
+                            'px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]',
+                            align === 'end' ? 'text-end' : 'text-start',
                           )}
                         >
-                          {h}
+                          {label}
                         </th>
                       ))}
                     </tr>
@@ -1190,14 +1246,14 @@ export default function AccountingPage() {
                         <td className="px-3 py-2 font-medium text-[var(--text)]">
                           {e.description}
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-red-600">
+                        <td className="px-3 py-2 text-end font-semibold text-red-600">
                           {fmtMoney(e.amount, e.currency)}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">
                           {e.paid_by_partner ?? PARTNER_B}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{e.expense_date}</td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-end">
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-[var(--accent-soft)]"
@@ -1225,19 +1281,20 @@ export default function AccountingPage() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-[var(--text)]">Partner transfers</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">
+                  {t('docAcctPartnerTransfersSection')}
+                </h2>
                 <button
                   type="button"
                   onClick={() => setAddTransfer(true)}
                   className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 >
-                  <Plus size={14} /> Log transfer
+                  <Plus size={14} /> {t('docAcctLogTransferBtn')}
                 </button>
               </div>
               <p className="mb-3 text-xs text-[var(--text-secondary)]">
-                Record cash or bank movements between partners. Totals below still follow revenue
-                and expenses; this section is your audit trail.
+                {t('docAcctTransfersHelp')}
               </p>
               <div
                 className="overflow-x-auto rounded-xl border"
@@ -1249,42 +1306,50 @@ export default function AccountingPage() {
                       className="border-b bg-[var(--surface-2)]"
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      {['From', 'To', 'Amount', 'Date', ''].map((h) => (
+                      {(
+                        [
+                          [t('docAcctFrom'), 'start'],
+                          [t('docAcctTo'), 'start'],
+                          [t('docAcctAmount'), 'end'],
+                          [t('docAcctColDate'), 'start'],
+                          [t('docEmpColActions'), 'end'],
+                        ] as const
+                      ).map(([label, align]) => (
                         <th
-                          key={h}
+                          key={label}
                           className={clsx(
-                            'px-3 py-2 text-left text-xs font-semibold text-[var(--text-secondary)]',
-                            h === 'Amount' && 'text-right',
+                            'px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]',
+                            align === 'end' ? 'text-end' : 'text-start',
                           )}
                         >
-                          {h}
+                          {label}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {transfers.map((t) => (
-                      <tr key={t.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                        <td className="px-3 py-2 text-[var(--text)]">{t.from_partner}</td>
-                        <td className="px-3 py-2 text-[var(--text)]">{t.to_partner}</td>
-                        <td className="px-3 py-2 text-right font-semibold">
-                          {fmtMoney(t.amount, t.currency)}
+                    {transfers.map((tr) => (
+                      <tr key={tr.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                        <td className="px-3 py-2 text-[var(--text)]">{tr.from_partner}</td>
+                        <td className="px-3 py-2 text-[var(--text)]">{tr.to_partner}</td>
+                        <td className="px-3 py-2 text-end font-semibold">
+                          {fmtMoney(tr.amount, tr.currency)}
                         </td>
                         <td className="px-3 py-2 text-[var(--text-secondary)]">
-                          {t.transfer_date}
+                          {tr.transfer_date}
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-end">
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-[var(--accent-soft)]"
-                            onClick={() => setEditTransfer(t)}
+                            onClick={() => setEditTransfer(tr)}
                           >
                             <Edit2 size={13} className="text-[var(--accent)]" />
                           </button>
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-red-50"
-                            onClick={() => void deleteTransfer(t.id)}
+                            onClick={() => void deleteTransfer(tr.id)}
                           >
                             <Trash2 size={13} className="text-red-500" />
                           </button>
@@ -1303,11 +1368,11 @@ export default function AccountingPage() {
               className="mb-3 rounded-xl border p-3 text-xs text-[var(--text-secondary)]"
               style={{ borderColor: 'var(--border)' }}
             >
-              <div className="font-semibold text-[var(--text)]">Live settlement</div>
-              <div className="mt-1">{monthHeading(month)}</div>
+              <div className="font-semibold text-[var(--text)]">{t('docAcctLiveSettlement')}</div>
+              <div className="mt-1">{monthHeading(month, lang)}</div>
             </div>
             <SettlementPdfBlock
-              monthLabelText={monthHeading(month)}
+              monthLabelText={monthHeading(month, lang)}
               monthKeyStr={mk}
               settlement={settlement}
               entries={entries}
@@ -1319,17 +1384,14 @@ export default function AccountingPage() {
         }
         history={
           <div className="space-y-3 text-sm">
-            <p className="text-[var(--text-secondary)]">
-              Export PDF or Excel from the toolbar. Use backup to snapshot this month&apos;s lines
-              in OPENY backups.
-            </p>
+            <p className="text-[var(--text-secondary)]">{t('docAcctHistoryBlurb')}</p>
             <button
               type="button"
               onClick={() => void handleBackup()}
               className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
-              <Archive size={14} /> Backup month data
+              <Archive size={14} /> {t('docAcctBackupMonth')}
             </button>
           </div>
         }

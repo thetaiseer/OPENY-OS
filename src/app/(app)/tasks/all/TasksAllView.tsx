@@ -66,6 +66,7 @@ import {
   getPlatformDisplayColor,
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
+import { taskStatusLabel } from '@/lib/task-status-labels';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -161,10 +162,7 @@ function getStatusTone(status: string) {
 }
 
 function statusLabel(s: string, t: (k: string) => string): string {
-  if (s === 'in_progress') return t('inProgress');
-  if (s === 'in_review' || s === 'review') return t('review');
-  if (s === 'delivered') return t('delivered');
-  return t(s);
+  return taskStatusLabel(s, t);
 }
 
 // ─── blank form ─────────────────────────────────────────────────────────────
@@ -227,7 +225,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
           required
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          placeholder="Task title"
+          placeholder={t('taskTitlePlaceholder')}
         />
       </div>
 
@@ -248,7 +246,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={3}
           className="resize-none"
-          placeholder="Detailed description..."
+          placeholder={t('taskDescriptionPlaceholder')}
         />
       </div>
 
@@ -421,7 +419,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
         <Input
           value={form.tags}
           onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
-          placeholder="design, urgent, review"
+          placeholder={t('tagsPlaceholder')}
         />
       </div>
 
@@ -459,7 +457,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
     .map((id) => team.find((m) => m.id === id))
     .filter(Boolean) as TeamMember[];
 
-  const projectLabel = task.client?.name ?? (task.project_id ? 'Project linked' : null);
+  const projectLabel = task.client?.name ?? (task.project_id ? t('projectLinked') : null);
 
   return (
     <div
@@ -486,7 +484,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => onView(task)}
-            title="View"
+            title={t('viewAction')}
             className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
           >
@@ -494,7 +492,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           </button>
           <button
             onClick={() => onEdit(task)}
-            title="Edit"
+            title={t('editAction')}
             className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--text-secondary)' }}
           >
@@ -502,7 +500,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           </button>
           <button
             onClick={() => onDelete(task)}
-            title="Delete"
+            title={t('deleteAction')}
             className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-danger-bg)]"
             style={{ color: 'var(--color-danger)' }}
           >
@@ -527,7 +525,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
             {avatarInitials(assignee?.full_name)}
           </span>
           <span className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {assignee?.full_name ?? 'Unassigned'}
+            {assignee?.full_name ?? t('unassigned')}
           </span>
         </div>
         {task.due_date ? (
@@ -644,7 +642,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           </button>
           {statusOpen && (
             <div
-              className={`absolute left-0 top-full z-10 mt-1 min-w-[130px] overflow-hidden ${OPENY_MENU_PANEL_COMPACT_CLASS}`}
+              className={`absolute start-0 top-full z-10 mt-1 min-w-[130px] overflow-hidden ${OPENY_MENU_PANEL_COMPACT_CLASS}`}
             >
               {['todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'].map((s) => (
                 <button
@@ -653,7 +651,7 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
                     onStatusChange(task, s);
                     setStatusOpen(false);
                   }}
-                  className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-left text-xs`}
+                  className={`${OPENY_MENU_ITEM_COMPACT_CLASS} text-start text-xs`}
                   style={{ color: 'var(--text)' }}
                 >
                   {statusLabel(s, t)}
@@ -884,7 +882,7 @@ const KanbanPreviewCard = React.memo(function KanbanPreviewCard({
             {avatarInitials(assignee?.full_name)}
           </span>
           <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
-            {assignee?.full_name ?? 'Unassigned'}
+            {assignee?.full_name ?? t('unassigned')}
           </span>
         </div>
         <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
@@ -974,7 +972,7 @@ const DraggableKanbanTaskCard = React.memo(function DraggableKanbanTaskCard({
               {avatarInitials(assignee?.full_name)}
             </span>
             <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
-              {assignee?.full_name ?? 'Unassigned'}
+              {assignee?.full_name ?? t('unassigned')}
             </span>
           </div>
           <Badge variant={priorityVariant(task.priority)}>{t(task.priority)}</Badge>
@@ -1314,7 +1312,7 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
         setOverTaskId(null);
       }}
     >
-      <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-5 pr-2">
+      <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-5 pe-2">
         {KANBAN_COLS.map((col) => (
           <KanbanColumn
             key={col.key}
@@ -1607,7 +1605,7 @@ export default function TasksPage() {
     e.preventDefault();
     setCreateError(null);
     if (!canManageTasks) {
-      setCreateError('Only admin or team members can create tasks.');
+      setCreateError(t('onlyAdminCanCreateTasks'));
       return;
     }
     if (!createForm.title.trim()) return;
@@ -1644,7 +1642,7 @@ export default function TasksPage() {
 
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
-          () => reject(new Error('Request timed out. Please try again.')),
+          () => reject(new Error(t('requestTimedOut'))),
           MUTATION_TIMEOUT_MS,
         );
         fetch('/api/tasks', {
@@ -1660,19 +1658,19 @@ export default function TasksPage() {
       try {
         result = (await res.json()) as typeof result;
       } catch {
-        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+        throw new Error(t('serverStatusNonJson', { status: res.status }));
       }
 
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
-        const msg = result.error ?? 'Failed to create task';
+        const msg = result.error ?? t('failedCreateTask');
         throw new Error(`${msg}${step}`);
       }
 
       // — SUCCESS PATH —
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
-      toast(`Task "${createForm.title}" created successfully.`, 'success');
+      toast(t('taskCreatedToast', { title: createForm.title }), 'success');
 
       if (result.task) {
         const createdTask = result.task;
@@ -1695,7 +1693,7 @@ export default function TasksPage() {
       const message =
         err instanceof Error
           ? err.message
-          : ((err as { message?: string })?.message ?? 'Failed to create task');
+          : ((err as { message?: string })?.message ?? t('failedCreateTask'));
       setCreateError(message);
     } finally {
       clearTimeout(timeoutHandle);
@@ -1747,7 +1745,7 @@ export default function TasksPage() {
 
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
-          () => reject(new Error('Request timed out. Please try again.')),
+          () => reject(new Error(t('requestTimedOut'))),
           MUTATION_TIMEOUT_MS,
         );
         fetch(`/api/tasks/${editTask.id}`, {
@@ -1763,12 +1761,12 @@ export default function TasksPage() {
       try {
         result = (await res.json()) as typeof result;
       } catch {
-        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+        throw new Error(t('serverStatusNonJson', { status: res.status }));
       }
 
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
-        const msg = result.error ?? 'Failed to update task';
+        const msg = result.error ?? t('failedUpdateTask');
         throw new Error(`${msg}${step}`);
       }
 
@@ -1779,7 +1777,7 @@ export default function TasksPage() {
       }
 
       setEditTask(null);
-      toast(`Task "${editForm.title}" updated successfully.`, 'success');
+      toast(t('taskUpdatedToast', { title: editForm.title }), 'success');
 
       // Background refresh via React Query cache invalidation
       void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
@@ -1788,7 +1786,7 @@ export default function TasksPage() {
       const message =
         err instanceof Error
           ? err.message
-          : ((err as { message?: string })?.message ?? 'Failed to update task');
+          : ((err as { message?: string })?.message ?? t('failedUpdateTask'));
       setEditError(message);
     } finally {
       clearTimeout(timeoutHandle);
@@ -1805,7 +1803,7 @@ export default function TasksPage() {
     try {
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(
-          () => reject(new Error('Request timed out. Please try again.')),
+          () => reject(new Error(t('requestTimedOut'))),
           MUTATION_TIMEOUT_MS,
         );
         fetch(`/api/tasks/${deleteTask.id}`, {
@@ -1819,12 +1817,12 @@ export default function TasksPage() {
       try {
         result = (await res.json()) as typeof result;
       } catch {
-        throw new Error(`Server returned status ${res.status} with non-JSON body`);
+        throw new Error(t('serverStatusNonJson', { status: res.status }));
       }
 
       if (!result.success) {
         const step = result.step ? ` [${result.step}]` : '';
-        const msg = result.error ?? 'Failed to delete task';
+        const msg = result.error ?? t('failedDeleteTask');
         throw new Error(`${msg}${step}`);
       }
 
@@ -1832,13 +1830,13 @@ export default function TasksPage() {
       const deletedTitle = deleteTask.title;
       setTasks((prev) => prev.filter((t) => t.id !== deleteTask.id));
       setDeleteTask(null);
-      toast(`Task "${deletedTitle}" deleted.`, 'success');
+      toast(t('taskDeletedToast', { title: deletedTitle }), 'success');
     } catch (err: unknown) {
       console.error('[task delete] error:', err);
       const message =
         err instanceof Error
           ? err.message
-          : ((err as { message?: string })?.message ?? 'Failed to delete task');
+          : ((err as { message?: string })?.message ?? t('failedDeleteTask'));
       setDeleteError(message);
     } finally {
       clearTimeout(timeoutHandle);
@@ -1885,14 +1883,14 @@ export default function TasksPage() {
       if (!result.success) {
         console.error('[task status] update failed:', result.error);
         revertStatus();
-        toast(`Failed to update status: ${result.error ?? 'Unknown error'}`, 'warning');
+        toast(t('failedUpdateStatusWarn', { error: result.error ?? t('unknownError') }), 'warning');
       } else {
         invalidateTaskRelatedQueries();
       }
     } catch (err) {
       console.error('[task status] network error:', err);
       revertStatus();
-      toast('Failed to update task status. Please try again.', 'warning');
+      toast(t('failedUpdateTaskStatusRetry'), 'warning');
     }
   };
 
@@ -1912,17 +1910,14 @@ export default function TasksPage() {
           }),
         );
         const failed = results.find((r) => !r.ok);
-        if (failed) throw new Error(failed.error ?? 'Failed to update task order');
+        if (failed) throw new Error(failed.error ?? t('failedUpdateTaskOrder'));
         invalidateTaskRelatedQueries();
       } catch (err) {
         setTasks(previousTasks);
-        toast(
-          err instanceof Error ? err.message : 'Failed to move task. Changes were reverted.',
-          'warning',
-        );
+        toast(err instanceof Error ? err.message : t('failedMoveTaskReverted'), 'warning');
       }
     },
-    [invalidateTaskRelatedQueries, setTasks, toast],
+    [invalidateTaskRelatedQueries, setTasks, toast, t],
   );
 
   const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
@@ -1973,10 +1968,10 @@ export default function TasksPage() {
       <Card padding="sm" className="sm:p-6">
         <PageHeader
           title={t('tasks')}
-          subtitle={`${filtered.length} task${filtered.length !== 1 ? 's' : ''} shown · ${tasks.length} total`}
+          subtitle={t('tasksPageSubtitle', { shown: filtered.length, total: tasks.length })}
           actions={
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <div role="tablist" aria-label="Task views" className="openy-segmented">
+              <div role="tablist" aria-label={t('taskViewsAria')} className="openy-segmented">
                 <button
                   onClick={() => setView('list')}
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"
@@ -2027,7 +2022,7 @@ export default function TasksPage() {
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <div className="min-w-0">
             <StatCard
-              label="Total"
+              label={t('donutTotal')}
               value={tasks.length}
               icon={<LayoutGrid size={18} />}
               color="blue"
@@ -2051,7 +2046,7 @@ export default function TasksPage() {
           </div>
           <div className="min-w-0">
             <StatCard
-              label="Today"
+              label={t('today')}
               value={dueBuckets.dueToday}
               icon={<Clock size={18} />}
               color="amber"
@@ -2059,7 +2054,7 @@ export default function TasksPage() {
           </div>
           <div className="min-w-0">
             <StatCard
-              label="Upcoming"
+              label={t('upcoming')}
               value={dueBuckets.upcoming}
               icon={<Calendar size={18} />}
               color="violet"
@@ -2074,7 +2069,7 @@ export default function TasksPage() {
             <div className="relative min-w-[220px] flex-1">
               <Search
                 size={15}
-                className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+                className="pointer-events-none absolute start-3 top-1/2 z-[1] -translate-y-1/2"
                 style={{ color: 'var(--text-secondary)' }}
               />
               <Input
@@ -2082,7 +2077,7 @@ export default function TasksPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('searchTasks')}
-                className="pl-9"
+                className="ps-9"
               />
             </div>
             <Button
@@ -2090,12 +2085,12 @@ export default function TasksPage() {
               variant="secondary"
               className="h-11 shrink-0 px-3"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              aria-label="Toggle filters"
+              aria-label={t('toggleFiltersAria')}
               aria-expanded={filtersOpen}
             >
               <SlidersHorizontal size={16} />
               <span className="hidden text-xs sm:inline">
-                {activeFilterCount} {t('active')}
+                {t('activeFilterCountLabel', { count: activeFilterCount })}
               </span>
             </Button>
           </div>
@@ -2255,7 +2250,7 @@ export default function TasksPage() {
         <div
           className="space-y-3"
           role="table"
-          aria-label="Tasks list"
+          aria-label={t('tasksListAriaLabel')}
           aria-rowcount={filtered.length}
           aria-colcount={6}
           id="tasks-list-panel"
@@ -2271,8 +2266,8 @@ export default function TasksPage() {
                 borderColor: 'var(--border)',
               }}
             >
-              <span role="columnheader">Task</span>
-              <span role="columnheader">Client / Project</span>
+              <span role="columnheader">{t('tasksListColTask')}</span>
+              <span role="columnheader">{t('tasksListColClientProject')}</span>
               <span role="columnheader">{t('status')}</span>
               <span role="columnheader">{t('priority')}</span>
               <span role="columnheader">{t('deadline')}</span>
@@ -2337,14 +2332,14 @@ export default function TasksPage() {
                       <button
                         onClick={() => setViewTask(task)}
                         className="btn-ghost p-1.5"
-                        aria-label={`View ${task.title}`}
+                        aria-label={t('viewTaskNamed', { name: task.title })}
                       >
                         <Eye size={14} />
                       </button>
                       <button
                         onClick={() => openEdit(task)}
                         className="btn-ghost p-1.5"
-                        aria-label={`Edit ${task.title}`}
+                        aria-label={t('editTaskNamed', { name: task.title })}
                       >
                         <Pencil size={14} />
                       </button>
@@ -2352,7 +2347,7 @@ export default function TasksPage() {
                         onClick={() => setDeleteTask(task)}
                         className="btn-ghost p-1.5"
                         style={{ color: 'var(--color-danger)' }}
-                        aria-label={`Delete ${task.title}`}
+                        aria-label={t('deleteTaskNamed', { name: task.title })}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -2380,13 +2375,13 @@ export default function TasksPage() {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-200 active:scale-95 sm:bottom-7 sm:right-7"
+          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] end-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-200 active:scale-95 sm:bottom-7 sm:end-7"
           style={{
             background: 'var(--accent)',
             boxShadow: 'var(--shadow-md)',
             border: '1px solid transparent',
           }}
-          aria-label="Create new task"
+          aria-label={t('createNewTaskAria')}
         >
           <Plus size={20} />
         </button>

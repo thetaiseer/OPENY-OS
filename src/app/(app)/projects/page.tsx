@@ -31,13 +31,15 @@ import { useAuth } from '@/context/auth-context';
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
 
-const STATUS_LABEL: Record<ProjectStatus, string> = {
-  planning: 'Planning',
-  active: 'Active',
-  on_hold: 'On hold',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
+function statusLabels(t: (key: string) => string): Record<ProjectStatus, string> {
+  return {
+    planning: t('projectPlanning'),
+    active: t('active'),
+    on_hold: t('projectOnHold'),
+    completed: t('projectCompleted'),
+    cancelled: t('taskStatusCancelled'),
+  };
+}
 
 function statusVariant(s: string) {
   if (s === 'active') return 'success' as const;
@@ -56,16 +58,19 @@ function formatDate(d: string | null | undefined) {
   });
 }
 
-function formatRelativeDate(d: string | null | undefined) {
-  if (!d) return 'No activity yet';
+function formatRelativeDate(
+  d: string | null | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
+  if (!d) return t('noRecentActivity');
   const diff = Date.now() - new Date(d).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('relativeJustNow');
+  if (mins < 60) return t('relativeMinutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('relativeHoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t('relativeDaysAgo', { n: days });
   return formatDate(d);
 }
 
@@ -103,6 +108,7 @@ function tabMatches(tab: ProjectTab, status: ProjectStatus): boolean {
 
 export default function ProjectsPage() {
   const { t } = useLang();
+  const STATUS_LABEL = useMemo(() => statusLabels(t), [t]);
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const canManage =
@@ -318,7 +324,7 @@ export default function ProjectsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.client_id) {
-      setSaveErr('Please select a client.');
+      setSaveErr(t('projectsSelectClient'));
       return;
     }
     setSaving(true);
@@ -340,19 +346,19 @@ export default function ProjectsPage() {
         }),
       });
       const json = (await res.json()) as { success: boolean; project?: Project; error?: string };
-      if (!json.success) throw new Error(json.error ?? 'Save failed');
+      if (!json.success) throw new Error(json.error ?? t('projectsSaveFailed'));
       setModalOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['projects-all'] });
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
     } catch (err) {
-      setSaveErr(err instanceof Error ? err.message : 'Save failed');
+      setSaveErr(err instanceof Error ? err.message : t('projectsSaveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this project?')) return;
+    if (!confirm(t('projectsDeleteConfirm'))) return;
     await fetch(`/api/projects/${id}`, { method: 'DELETE' });
     void queryClient.invalidateQueries({ queryKey: ['projects-all'] });
     void queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -362,19 +368,19 @@ export default function ProjectsPage() {
     { id: 'all', label: t('all') },
     { id: 'active', label: t('active') },
     { id: 'completed', label: t('done') },
-    { id: 'archived', label: 'Archived' },
+    { id: 'archived', label: t('projectsArchived') },
   ];
 
   return (
     <PageShell>
       <PageHeader
         title={t('projects')}
-        subtitle={`All workspace projects · ${metrics.total} total`}
+        subtitle={t('projectsSubtitleTotal', { total: metrics.total })}
         actions={
           canManage ? (
             <Button type="button" variant="primary" onClick={openCreate}>
               <Plus size={18} />
-              New project
+              {t('newProject')}
             </Button>
           ) : undefined
         }
@@ -382,25 +388,25 @@ export default function ProjectsPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total projects"
+          label={t('statTotalProjects')}
           value={metrics.total}
           icon={<FolderKanban size={18} />}
           color="blue"
         />
         <StatCard
-          label="Active"
+          label={t('active')}
           value={metrics.active}
           icon={<LayoutGrid size={18} />}
           color="mint"
         />
         <StatCard
-          label="Completed"
+          label={t('projectCompleted')}
           value={metrics.completed}
           icon={<Calendar size={18} />}
           color="green"
         />
         <StatCard
-          label="Archived"
+          label={t('projectsArchived')}
           value={metrics.archived}
           icon={<FolderKanban size={18} />}
           color="violet"
@@ -422,15 +428,15 @@ export default function ProjectsPage() {
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
             <Search
               size={16}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2"
+              className="pointer-events-none absolute start-3 top-1/2 z-[1] -translate-y-1/2"
               style={{ color: 'var(--text-tertiary)' }}
             />
             <Input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search projects…"
-              className="pl-10"
+              placeholder={t('projectsSearchPlaceholder')}
+              className="ps-10"
             />
           </div>
         </CardContent>
@@ -451,10 +457,10 @@ export default function ProjectsPage() {
               <FolderKanban size={34} style={{ color: 'var(--text-secondary)' }} />
             </div>
             <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
-              Loading projects…
+              {t('projectsLoading')}
             </h3>
             <p className="max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Fetching your workspace.
+              {t('projectsFetchingWorkspace')}
             </p>
           </CardContent>
         </Card>
@@ -473,15 +479,15 @@ export default function ProjectsPage() {
               <FolderKanban size={34} style={{ color: 'var(--text-secondary)' }} />
             </div>
             <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
-              No projects yet
+              {t('noProjectsYet')}
             </h3>
             <p className="mb-6 max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Create a project to organize work for your clients.
+              {t('projectsNoProjectsDesc')}
             </p>
             {canManage ? (
               <Button type="button" variant="primary" onClick={openCreate}>
                 <Plus size={16} />
-                Create Project
+                {t('projectsCreateProject')}
               </Button>
             ) : null}
           </CardContent>
@@ -489,16 +495,12 @@ export default function ProjectsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={FolderKanban}
-          title="No projects found"
-          description={
-            tab === 'all'
-              ? 'Create a project to organize work for your clients.'
-              : 'Try another filter or clear search.'
-          }
+          title={t('projectsNoProjectsFound')}
+          description={tab === 'all' ? t('projectsNoProjectsDesc') : t('projectsEmptyFilterHint')}
           action={
             canManage && tab === 'all' && !search ? (
               <Button type="button" variant="primary" onClick={openCreate}>
-                + New project
+                {t('projectsNewProjectPlus')}
               </Button>
             ) : null
           }
@@ -560,34 +562,48 @@ export default function ProjectsPage() {
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge variant={priorityVariant(meta?.priority ?? 'none')}>
-                    Priority: {meta?.priority === 'none' ? 'n/a' : meta?.priority}
+                    {t('projectsPriority', {
+                      value:
+                        meta?.priority === 'none'
+                          ? t('projectsPriorityNa')
+                          : (meta?.priority ?? ''),
+                    })}
                   </Badge>
-                  <Badge variant="info">Progress: {meta?.progress ?? 0}%</Badge>
+                  <Badge variant="info">
+                    {t('projectsProgress', { value: meta?.progress ?? 0 })}
+                  </Badge>
                   <Badge variant="default">
-                    Tasks: {meta?.openTasks ?? 0} open / {meta?.totalTasks ?? 0}
+                    {t('projectsTasksOpenTotal', {
+                      open: meta?.openTasks ?? 0,
+                      total: meta?.totalTasks ?? 0,
+                    })}
                   </Badge>
-                  <Badge variant="default">Assigned: {meta?.assignedNames.length ?? 0}</Badge>
+                  <Badge variant="default">
+                    {t('projectsAssignedCount', { count: meta?.assignedNames.length ?? 0 })}
+                  </Badge>
                 </div>
                 <div
                   className="mt-auto flex flex-wrap gap-3 text-xs"
                   style={{ color: 'var(--text-tertiary)' }}
                 >
-                  <span>Start {formatDate(project.start_date)}</span>
+                  <span>{t('projectsStart', { date: formatDate(project.start_date) })}</span>
                   <span>·</span>
-                  <span>Due {formatDate(meta?.nextDue ?? project.end_date)}</span>
+                  <span>
+                    {t('projectsDue', { date: formatDate(meta?.nextDue ?? project.end_date) })}
+                  </span>
                 </div>
                 <p className="mt-2 line-clamp-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Activity:{' '}
+                  {t('projectsActivity')}{' '}
                   {meta?.activity?.description
-                    ? `${meta.activity.description} · ${formatRelativeDate(meta.activity.created_at)}`
-                    : 'No project activity yet'}
+                    ? `${meta.activity.description} · ${formatRelativeDate(meta.activity.created_at, t)}`
+                    : t('projectsNoProjectActivity')}
                 </p>
                 {meta?.assignedNames && meta.assignedNames.length > 0 && (
                   <p
                     className="mt-1 line-clamp-1 text-xs"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    Team: {meta.assignedNames.slice(0, 3).join(', ')}
+                    {t('projectsTeam')} {meta.assignedNames.slice(0, 3).join(', ')}
                     {meta.assignedNames.length > 3 ? ` +${meta.assignedNames.length - 3}` : ''}
                   </p>
                 )}
@@ -602,7 +618,7 @@ export default function ProjectsPage() {
                       className="h-9 flex-1 text-xs"
                       onClick={() => openEdit(project)}
                     >
-                      <Pencil size={14} /> Edit
+                      <Pencil size={14} /> {t('editAction')}
                     </Button>
                     {canDelete && (
                       <Button
@@ -628,7 +644,7 @@ export default function ProjectsPage() {
           setModalOpen(false);
           setSaveErr(null);
         }}
-        title={editProject ? 'Edit project' : 'New project'}
+        title={editProject ? t('projectsEditProject') : t('newProject')}
         size="md"
         footer={
           <>
@@ -650,18 +666,18 @@ export default function ProjectsPage() {
               {saveErr}
             </p>
           )}
-          <Field label="Client">
+          <Field label={t('projectsFieldClient')}>
             <SelectDropdown
               fullWidth
               value={form.client_id}
               onChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
               options={[
-                { value: '', label: 'Select client' },
+                { value: '', label: t('projectsSelectClientPlaceholder') },
                 ...clients.map((c) => ({ value: c.id, label: c.name })),
               ]}
             />
           </Field>
-          <Field label="Name" id="project-name">
+          <Field label={t('projectsFieldName')} id="project-name">
             <Input
               id="project-name"
               required
@@ -669,7 +685,7 @@ export default function ProjectsPage() {
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
           </Field>
-          <Field label="Description">
+          <Field label={t('projectsFieldDescription')}>
             <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -677,7 +693,7 @@ export default function ProjectsPage() {
             />
           </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Status">
+            <Field label={t('projectsFieldStatus')}>
               <SelectDropdown
                 fullWidth
                 value={form.status}
@@ -687,7 +703,7 @@ export default function ProjectsPage() {
                 ).map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
               />
             </Field>
-            <Field label="Color" id="project-color">
+            <Field label={t('projectsFieldColor')} id="project-color">
               <input
                 id="project-color"
                 type="color"
@@ -696,7 +712,7 @@ export default function ProjectsPage() {
                 className="h-10 w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
               />
             </Field>
-            <Field label="Start" id="project-start">
+            <Field label={t('projectsFieldStart')} id="project-start">
               <Input
                 id="project-start"
                 type="date"
@@ -704,7 +720,7 @@ export default function ProjectsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
               />
             </Field>
-            <Field label="End" id="project-end">
+            <Field label={t('projectsFieldEnd')} id="project-end">
               <Input
                 id="project-end"
                 type="date"
