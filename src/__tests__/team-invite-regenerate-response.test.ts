@@ -33,6 +33,33 @@ const { mockDb, sendInviteEmailMock, requireRoleMock, resolveWorkspaceForRequest
             error: null,
           };
         }
+        if (state.table === 'team_invitations') {
+          return {
+            data: {
+              id: 'team-invite-1',
+              team_member_id: 'member-1',
+              email: 'pat@example.com',
+              role: 'manager',
+              status: 'pending',
+              token: 'tok-1',
+              expires_at: new Date(Date.now() + 60_000).toISOString(),
+              created_at: new Date().toISOString(),
+            },
+            error: null,
+          };
+        }
+        if (state.table === 'team_members') {
+          return {
+            data: {
+              id: 'member-1',
+              full_name: 'Pat Lee',
+              email: 'pat@example.com',
+              role: 'manager',
+              status: 'invited',
+            },
+            error: null,
+          };
+        }
         return { data: null, error: null };
       };
 
