@@ -1,10 +1,17 @@
-import { Suspense } from 'react';
-import OfficialAuthLanding from '@/components/auth/OfficialAuthLanding';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
 
-export default function Home() {
+export default async function Page() {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+
+  const { data: todos } = await supabase.from('todos').select();
+
   return (
-    <Suspense fallback={<div className="min-h-screen" style={{ background: 'var(--bg)' }} />}>
-      <OfficialAuthLanding />
-    </Suspense>
+    <ul>
+      {todos?.map((todo) => (
+        <li key={todo.id}>{todo.name}</li>
+      ))}
+    </ul>
   );
 }

@@ -129,6 +129,7 @@ function docsModuleLabel(mod: DocsModule, t: TranslateFn) {
 
 const ACTIVE_INVITE_STATUSES = new Set(['pending', 'invited']);
 const CANCELLATION_STATUSES = new Set(['revoked', 'cancelled']);
+const SIMPLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ── Marketing roles list (job titles) ────────────────────────────────────────
 // Stored in team_members.job_title — separate from the access role.
@@ -155,6 +156,21 @@ const JOB_TITLE_OPTION_DEFS = [
 
 function getJobTitleOptions(t: TranslateFn) {
   return JOB_TITLE_OPTION_DEFS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
+}
+
+function normalizeInviteJobTitle(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (
+    lowered === 'select role' ||
+    lowered === 'select role…' ||
+    lowered === 'اختر الدور' ||
+    lowered === 'اختر الدور…'
+  ) {
+    return null;
+  }
+  return trimmed;
 }
 
 // Returns the job title to display on a MemberCard.
@@ -1272,6 +1288,10 @@ export default function TeamPage() {
       setActionError(t('teamInviteRequiredFields'));
       return;
     }
+    if (!SIMPLE_EMAIL_RE.test(inviteForm.email.trim())) {
+      setActionError('Please enter a valid email address.');
+      return;
+    }
     if (!inviteForm.os_access && !inviteForm.docs_access) {
       setActionError(t('teamInviteWorkspaceRequired'));
       return;
@@ -1285,7 +1305,7 @@ export default function TeamPage() {
           full_name: inviteForm.full_name,
           email: inviteForm.email,
           access_role: inviteForm.access_role,
-          job_title: inviteForm.job_title,
+          job_title: normalizeInviteJobTitle(inviteForm.job_title),
           workspace_access: [
             ...(inviteForm.os_access ? ['os'] : []),
             ...(inviteForm.docs_access ? ['docs'] : []),
@@ -1799,7 +1819,7 @@ export default function TeamPage() {
         title={t('teamInviteModalTitle')}
         size="sm"
       >
-        <form onSubmit={handleInvite} className="space-y-4">
+        <form onSubmit={handleInvite} className="space-y-4" noValidate>
           <InviteForm f={inviteForm} setF={setInviteForm} />
           {actionError && (
             <div className="space-y-2">

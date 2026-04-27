@@ -27,6 +27,25 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 const INVITE_EXPIRY_DAYS = 7;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
 
+function normalizeJobTitle(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const lowered = trimmed.toLowerCase();
+  // Guard against placeholder text being sent as a value from UI dropdowns.
+  if (
+    lowered === 'select role' ||
+    lowered === 'select role…' ||
+    lowered === 'اختر الدور' ||
+    lowered === 'اختر الدور…'
+  ) {
+    return null;
+  }
+
+  return trimmed;
+}
+
 function normalizeInviteRole(input: string): 'admin' | 'manager' | 'team_member' | 'viewer' | null {
   if (input === 'admin' || input === 'manager' || input === 'viewer') return input;
   if (input === 'member' || input === 'team_member') return 'team_member';
@@ -171,13 +190,20 @@ export async function POST(request: NextRequest) {
   }
 
   // body.name is accepted as a fallback for older clients; prefer body.full_name
-  const full_name = (body.full_name ?? body.name ?? '').trim();
-  const email = (body.email ?? '').trim().toLowerCase();
+  const fullNameRaw =
+    typeof body.full_name === 'string'
+      ? body.full_name
+      : typeof body.name === 'string'
+        ? body.name
+        : '';
+  const emailRaw = typeof body.email === 'string' ? body.email : '';
+  const full_name = fullNameRaw.trim();
+  const email = emailRaw.trim().toLowerCase();
   // access_role: the system permission level (admin|manager|team|viewer)
   const access_role_raw = (body.access_role ?? body.role ?? '').trim().toLowerCase();
   const access_role = normalizeInviteRole(access_role_raw);
   // job_title: the human-readable job description (Graphic Designer, etc.)
-  const job_title = (body.job_title ?? '').trim();
+  const job_title = normalizeJobTitle(body.job_title);
   const requestedWorkspaceAccess = Array.isArray(body.workspace_access)
     ? body.workspace_access
     : ['os'];
@@ -374,7 +400,7 @@ export async function POST(request: NextRequest) {
       full_name,
       email,
       role: access_role,
-      job_title: job_title || null,
+      job_title,
       status: MEMBER_STATUS.INVITED,
     })
     .select()

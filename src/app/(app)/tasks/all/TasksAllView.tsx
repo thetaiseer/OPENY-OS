@@ -74,6 +74,9 @@ import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
 import { canDelete as canDeleteEntity, canEdit as canEditEntity } from '@/lib/permissions';
 import { useDeleteTask } from '@/hooks/mutations/useDeleteTask';
+import { DayPicker, type DateRange } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { addDays, endOfWeek, format, startOfWeek } from 'date-fns';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -133,6 +136,129 @@ function fmtDate(d?: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function parseDateOnly(value?: string | null): Date | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day)
+    return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function toYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+type TaskDateFilter =
+  | 'today'
+  | 'tomorrow'
+  | 'this_week'
+  | 'next_7_days'
+  | 'overdue'
+  | 'no_due_date'
+  | 'custom';
+type TaskQuickFilter = 'all' | 'mine' | 'overdue' | 'due_today' | 'no_assignee';
+
+const TASK_DATE_OPTIONS: Array<{ value: TaskDateFilter; label: string }> = [
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'this_week', label: 'This week' },
+  { value: 'next_7_days', label: 'Next 7 days' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'no_due_date', label: 'No due date' },
+  { value: 'custom', label: 'Custom range' },
+];
+
+function TaskDateFilterPill({
+  selected,
+  customLabel,
+  onSelect,
+}: {
+  selected: TaskDateFilter;
+  customLabel: string | null;
+  onSelect: (next: TaskDateFilter) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  const selectedLabel =
+    selected === 'custom'
+      ? (customLabel ?? 'Custom range')
+      : (TASK_DATE_OPTIONS.find((opt) => opt.value === selected)?.label ?? 'This week');
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex h-10 items-center gap-2 rounded-full border bg-white px-3 text-sm font-medium shadow-sm transition-all hover:bg-gray-50"
+        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
+        <span className="max-w-[9rem] truncate">{selectedLabel}</span>
+        <ChevronDown size={14} style={{ color: 'var(--text-secondary)' }} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="animate-openy-fade-in absolute end-0 top-full z-30 mt-2 w-[240px] rounded-xl border bg-white p-1.5 shadow-lg"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          {TASK_DATE_OPTIONS.map((option) => {
+            const active = selected === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                onClick={() => {
+                  onSelect(option.value);
+                  setOpen(false);
+                }}
+                className="flex h-9 w-full items-center rounded-lg px-2.5 text-sm transition-colors"
+                style={{
+                  background: active ? 'var(--accent-soft)' : 'transparent',
+                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function avatarInitials(name?: string | null) {
@@ -1393,7 +1519,7 @@ const INVALIDATION_DELAY_MS = 120;
 
 export default function TasksPage() {
   const { t } = useLang();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { toast } = useToast();
   const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
@@ -1527,7 +1653,11 @@ export default function TasksPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'overdue' | 'today' | 'upcoming'>('all');
+  const [dateFilter, setDateFilter] = useState<TaskDateFilter>('this_week');
+  const [quickFilter, setQuickFilter] = useState<TaskQuickFilter>('all');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customRangeOpen, setCustomRangeOpen] = useState(false);
+  const [draftCustomRange, setDraftCustomRange] = useState<DateRange | undefined>();
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
@@ -1541,7 +1671,9 @@ export default function TasksPage() {
         clientFilter?: string;
         assignedFilter?: string;
         priorityFilter?: string;
-        dateFilter?: 'all' | 'overdue' | 'today' | 'upcoming';
+        dateFilter?: TaskDateFilter;
+        quickFilter?: TaskQuickFilter;
+        customRange?: { from: string; to: string } | null;
         searchQuery?: string;
       };
       if (savedFilters.statusFilter) setStatusFilter(savedFilters.statusFilter);
@@ -1549,6 +1681,8 @@ export default function TasksPage() {
       if (savedFilters.assignedFilter) setAssignedFilter(savedFilters.assignedFilter);
       if (savedFilters.priorityFilter) setPriorityFilter(savedFilters.priorityFilter);
       if (savedFilters.dateFilter) setDateFilter(savedFilters.dateFilter);
+      if (savedFilters.quickFilter) setQuickFilter(savedFilters.quickFilter);
+      if (savedFilters.customRange) setCustomRange(savedFilters.customRange);
       if (savedFilters.searchQuery) setSearchQuery(savedFilters.searchQuery);
     } catch {
       // ignore invalid saved filters
@@ -1568,36 +1702,71 @@ export default function TasksPage() {
         assignedFilter,
         priorityFilter,
         dateFilter,
+        quickFilter,
+        customRange,
         searchQuery,
       }),
     );
-  }, [statusFilter, clientFilter, assignedFilter, priorityFilter, dateFilter, searchQuery]);
+  }, [
+    statusFilter,
+    clientFilter,
+    assignedFilter,
+    priorityFilter,
+    dateFilter,
+    quickFilter,
+    customRange,
+    searchQuery,
+  ]);
 
   // Forms
   const [createForm, setCreateForm] = useState({ ...blankForm });
   const [editForm, setEditForm] = useState({ ...blankForm });
 
   // ── filtered tasks ───────────────────────────────────────────────────────
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const todayIso = toYmd(todayDate);
   const filtered = useMemo(
     () =>
       tasks.filter((task) => {
         const dueDate = task.due_date ?? null;
+        const dueDateObj = parseDateOnly(dueDate);
         if (statusFilter !== 'all' && task.status !== statusFilter) return false;
         if (clientFilter && task.client_id !== clientFilter) return false;
         if (assignedFilter && task.assigned_to !== assignedFilter) return false;
         if (priorityFilter && task.priority !== priorityFilter) return false;
+        const tomorrowDate = addDays(todayDate, 1);
+        const thisWeekStart = startOfWeek(todayDate, { weekStartsOn: 1 });
+        const thisWeekEnd = endOfWeek(todayDate, { weekStartsOn: 1 });
+        const nextWeekDate = addDays(todayDate, 7);
+
+        if (dateFilter === 'today' && !(dueDateObj && toYmd(dueDateObj) === todayIso)) return false;
+        if (dateFilter === 'tomorrow' && !(dueDateObj && toYmd(dueDateObj) === toYmd(tomorrowDate)))
+          return false;
+        if (dateFilter === 'this_week') {
+          if (!dueDateObj || dueDateObj < thisWeekStart || dueDateObj > thisWeekEnd) return false;
+        }
+        if (dateFilter === 'next_7_days') {
+          if (!dueDateObj || dueDateObj < todayDate || dueDateObj > nextWeekDate) return false;
+        }
         if (dateFilter === 'overdue' && !isOverdue(dueDate ?? undefined, task.status)) return false;
-        if (
-          dateFilter === 'today' &&
-          !(dueDate === todayIso && !COMPLETED_STATUSES.has(task.status))
-        )
+        if (dateFilter === 'no_due_date' && dueDateObj) return false;
+        if (dateFilter === 'custom') {
+          const from = parseDateOnly(customRange?.from);
+          const to = parseDateOnly(customRange?.to);
+          if (!from || !to || !dueDateObj || dueDateObj < from || dueDateObj > to) return false;
+        }
+
+        if (quickFilter === 'mine' && task.assigned_to !== user.id) return false;
+        if (quickFilter === 'overdue' && !isOverdue(dueDate ?? undefined, task.status))
           return false;
-        if (
-          dateFilter === 'upcoming' &&
-          !(dueDate !== null && dueDate > todayIso && !COMPLETED_STATUSES.has(task.status))
-        )
+        if (quickFilter === 'due_today' && !(dueDateObj && toYmd(dueDateObj) === todayIso))
           return false;
+        if (quickFilter === 'no_assignee' && task.assigned_to) return false;
+
         if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()))
           return false;
         return true;
@@ -1609,8 +1778,12 @@ export default function TasksPage() {
       assignedFilter,
       priorityFilter,
       dateFilter,
+      quickFilter,
+      customRange,
       searchQuery,
       todayIso,
+      todayDate,
+      user.id,
     ],
   );
 
@@ -1917,7 +2090,6 @@ export default function TasksPage() {
     [invalidateTaskRelatedQueries, setTasks, toast, t],
   );
 
-  const statuses = ['all', 'todo', 'in_progress', 'in_review', 'done', 'delivered', 'overdue'];
   const totalOverdue = useMemo(
     () => tasks.filter((task) => isOverdue(task.due_date, task.status)).length,
     [tasks],
@@ -1943,7 +2115,8 @@ export default function TasksPage() {
     clientFilter,
     assignedFilter,
     priorityFilter,
-    dateFilter !== 'all',
+    dateFilter !== 'this_week',
+    quickFilter !== 'all',
     searchQuery,
   ].filter(Boolean).length;
 
@@ -2068,6 +2241,26 @@ export default function TasksPage() {
                 className="ps-9"
               />
             </div>
+            <TaskDateFilterPill
+              selected={dateFilter}
+              customLabel={
+                customRange?.from && customRange?.to
+                  ? `${format(parseDateOnly(customRange.from) ?? new Date(), 'MMM d')} - ${format(
+                      parseDateOnly(customRange.to) ?? new Date(),
+                      'MMM d',
+                    )}`
+                  : null
+              }
+              onSelect={(next) => {
+                setDateFilter(next);
+                if (next === 'custom') {
+                  const fallbackFrom = parseDateOnly(customRange?.from) ?? todayDate;
+                  const fallbackTo = parseDateOnly(customRange?.to) ?? addDays(todayDate, 6);
+                  setDraftCustomRange({ from: fallbackFrom, to: fallbackTo });
+                  setCustomRangeOpen(true);
+                }
+              }}
+            />
             <Button
               type="button"
               variant="secondary"
@@ -2118,57 +2311,38 @@ export default function TasksPage() {
                 { value: 'low', label: t('low') },
               ]}
             />
-            <SelectDropdown
-              value={dateFilter}
-              onChange={(v) => setDateFilter(v as 'all' | 'overdue' | 'today' | 'upcoming')}
-              className="!h-10 min-w-[132px] rounded-lg !px-3"
-              placeholder={t('date')}
-              options={[
-                { value: 'all', label: `${t('date')}: ${t('all')}` },
-                { value: 'overdue', label: `${t('date')}: ${t('overdue')}` },
-                { value: 'today', label: `${t('date')}: ${t('today')}` },
-                { value: 'upcoming', label: `${t('date')}: ${t('upcoming')}` },
-              ]}
-            />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {statuses.map((s) => {
-              const isActive = statusFilter === s;
-              const count =
-                s === 'all'
-                  ? tasks.length
-                  : s === 'overdue'
-                    ? tasks.filter((tk) => isOverdue(tk.due_date, tk.status)).length
-                    : tasks.filter((tk) => tk.status === s).length;
+            {[
+              { value: 'all' as const, label: 'All' },
+              { value: 'mine' as const, label: 'My tasks' },
+              { value: 'overdue' as const, label: 'Overdue' },
+              { value: 'due_today' as const, label: 'Due today' },
+              { value: 'no_assignee' as const, label: 'No assignee' },
+            ].map((chip) => {
+              const isActive = quickFilter === chip.value;
               return (
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-xs font-semibold transition-colors"
+                  key={chip.value}
+                  type="button"
+                  onClick={() => setQuickFilter(chip.value)}
+                  className="inline-flex h-8 items-center rounded-full border bg-white px-3 text-xs font-medium transition-colors"
                   style={{
-                    background: isActive ? 'var(--accent)' : 'var(--surface-2)',
-                    color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                    border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                    borderColor: isActive ? 'var(--accent)' : 'var(--border)',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
                   }}
                 >
-                  {s === 'all' ? t('all') : statusLabel(s, t)}
-                  <span
-                    className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold"
-                    style={{
-                      background: isActive ? 'rgba(255,255,255,0.22)' : 'var(--surface-3)',
-                      color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {count}
-                  </span>
+                  {chip.label}
                 </button>
               );
             })}
             {(clientFilter ||
               assignedFilter ||
               priorityFilter ||
-              dateFilter !== 'all' ||
+              dateFilter !== 'this_week' ||
+              quickFilter !== 'all' ||
               searchQuery ||
               statusFilter !== 'all') && (
               <Button
@@ -2179,7 +2353,9 @@ export default function TasksPage() {
                   setClientFilter('');
                   setAssignedFilter('');
                   setPriorityFilter('');
-                  setDateFilter('all');
+                  setDateFilter('this_week');
+                  setQuickFilter('all');
+                  setCustomRange(null);
                   setSearchQuery('');
                   setStatusFilter('all');
                 }}
@@ -2190,6 +2366,76 @@ export default function TasksPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Modal
+        open={customRangeOpen}
+        onClose={() => {
+          setCustomRangeOpen(false);
+        }}
+        title="Custom range"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
+            <DayPicker
+              mode="range"
+              numberOfMonths={1}
+              selected={draftCustomRange}
+              onSelect={setDraftCustomRange}
+              defaultMonth={draftCustomRange?.from ?? todayDate}
+              classNames={{
+                months: 'flex flex-col',
+                month: 'space-y-2',
+                caption:
+                  'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text)]',
+                nav: 'absolute inset-x-0 top-0.5 flex items-center justify-between px-1',
+                button_previous:
+                  'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                button_next:
+                  'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                table: 'w-full border-collapse',
+                head_cell:
+                  'h-8 w-8 text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
+                cell: 'h-8 w-8 p-0 text-center align-middle',
+                day: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-[color:var(--text)] hover:bg-[color:var(--surface-soft)]',
+                today: 'border border-[color:var(--accent)] text-[color:var(--accent)]',
+                selected:
+                  'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
+                range_start: 'bg-[color:var(--accent)] text-white',
+                range_end: 'bg-[color:var(--accent)] text-white',
+                range_middle: 'bg-[color:var(--accent-soft)] text-[color:var(--text)]',
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setCustomRangeOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!draftCustomRange?.from || !draftCustomRange?.to}
+              onClick={() => {
+                if (!draftCustomRange?.from || !draftCustomRange?.to) return;
+                setCustomRange({
+                  from: toYmd(draftCustomRange.from),
+                  to: toYmd(draftCustomRange.to),
+                });
+                setDateFilter('custom');
+                setCustomRangeOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Task list / kanban */}
       {loading ? (
