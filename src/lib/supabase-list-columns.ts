@@ -1,3 +1,10 @@
+import {
+  CONTENT_ITEMS_WITH_CLIENT_SELECT,
+  CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK,
+  CONTENT_ITEMS_BASE_SELECT,
+  CONTENT_ITEMS_BASE_SELECT_FALLBACK,
+} from '@/lib/queries/content-items';
+
 /**
  * Narrow PostgREST column lists for list views — smaller payloads than select('*').
  * Keep in sync with `Client`, `Task`, `Asset`, and `Notification` in `lib/types`.
@@ -40,12 +47,15 @@ export const TASK_LIST_COLUMNS = [
 export const ASSET_LIST_COLUMNS = [
   'id',
   'name',
+  'display_name',
+  'original_name',
   'file_path',
   'file_url',
   'view_url',
   'download_url',
   'file_type',
   'file_size',
+  'size_bytes',
   'bucket_name',
   'storage_provider',
   'client_folder_name',
@@ -63,6 +73,7 @@ export const ASSET_LIST_COLUMNS = [
   'main_category',
   'sub_category',
   'storage_key',
+  'public_url',
   'is_deleted',
   'deleted_at',
   'sync_status',
@@ -205,17 +216,21 @@ export const SAVED_VIEW_COLUMNS =
   'id,workspace_id,user_id,entity_type,name,view_type,filters,sort_config,group_by,columns,is_default,is_shared,created_at';
 
 export const AUTOMATION_RULE_COLUMNS =
-  'id,workspace_id,name,description,trigger_type,condition_json,action_type,action_config,enabled,created_by,created_at,run_count,last_run_at,error_count';
+  'id,workspace_id,name,description,is_active,trigger_type,trigger_config,conditions,actions,created_by,created_at,updated_at,run_count,last_run_at,error_count';
 
 export const PROJECT_LIST_COLUMNS =
   'id,workspace_id,client_id,name,description,status,start_date,end_date,color,created_by,created_at,updated_at';
 
 export const PROJECT_WITH_CLIENT = `${PROJECT_LIST_COLUMNS},client:clients(id, name, slug)`;
 
-export const CONTENT_ITEM_LIST_COLUMNS =
-  'id,workspace_id,title,description,platform,platform_targets,post_types,purpose,caption,status,schedule_date,client_id,task_id,approval_id,created_by,created_at,updated_at';
+export const CONTENT_ITEM_LIST_COLUMNS = CONTENT_ITEMS_BASE_SELECT;
 
-export const CONTENT_ITEM_WITH_CLIENT = `${CONTENT_ITEM_LIST_COLUMNS},client:clients(id, name)`;
+export const CONTENT_ITEM_WITH_CLIENT = CONTENT_ITEMS_WITH_CLIENT_SELECT;
+
+// Fallback projection for environments that have not fully applied v2 content migrations.
+export const CONTENT_ITEM_LIST_COLUMNS_FALLBACK = CONTENT_ITEMS_BASE_SELECT_FALLBACK;
+
+export const CONTENT_ITEM_WITH_CLIENT_FALLBACK = CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK;
 
 export const CALENDAR_EVENT_COLUMNS =
   'id,workspace_id,title,client_id,task_id,publishing_schedule_id,event_type,starts_at,ends_at,status,notes,created_at,updated_at';

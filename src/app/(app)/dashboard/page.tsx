@@ -46,6 +46,8 @@ import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
+import Dashboard from '@/components/dashboard/Dashboard';
+import DashboardQuickActionFab from '@/components/dashboard/DashboardQuickActionFab';
 
 const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
@@ -533,34 +535,44 @@ export default function DashboardPage() {
   });
 
   const { data: trendsData } = useQuery<{ date: string; completed: number }[]>({
-    queryKey: ['dashboard-trends', periodStart, periodEnd],
+    queryKey: ['dashboard-trends', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/dashboard/trends?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
-      );
-      if (!res.ok) return [];
-      const json = (await res.json()) as {
-        success: boolean;
-        trends?: { date: string; completed: number }[];
-      };
-      return json.trends ?? [];
+      try {
+        const res = await fetch(
+          `/api/dashboard/trends?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
+        );
+        if (!res.ok) return [];
+        const json = (await res.json()) as {
+          success: boolean;
+          trends?: { date: string; completed: number }[];
+        };
+        return json.trends ?? [];
+      } catch (error) {
+        console.error('[dashboard] trends fetch failed', error);
+        return [];
+      }
     },
     staleTime: 120_000,
     retry: 1,
   });
 
   const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
-    queryKey: ['dashboard-team-performance', periodStart, periodEnd],
+    queryKey: ['dashboard-team-performance', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/dashboard/team-performance?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
-      );
-      if (!res.ok) return [];
-      const json = (await res.json()) as {
-        success: boolean;
-        performance?: { id: string; name: string; completed: number }[];
-      };
-      return json.performance ?? [];
+      try {
+        const res = await fetch(
+          `/api/dashboard/team-performance?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
+        );
+        if (!res.ok) return [];
+        const json = (await res.json()) as {
+          success: boolean;
+          performance?: { id: string; name: string; completed: number }[];
+        };
+        return json.performance ?? [];
+      } catch (error) {
+        console.error('[dashboard] team-performance fetch failed', error);
+        return [];
+      }
     },
     staleTime: 120_000,
     retry: 1,
@@ -780,38 +792,13 @@ export default function DashboardPage() {
       <PageHeader
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => triggerQuickAction('add-client')}
-            >
-              + {t('newClient')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-task')}
-            >
-              {t('newTask')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-project')}
-            >
-              {t('newProject')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-asset')}
-            >
-              {t('uploadAsset')}
-            </Button>
-          </div>
-        }
+      />
+
+      <Dashboard
+        onCreateClient={() => triggerQuickAction('add-client')}
+        onCreateTask={() => triggerQuickAction('add-task')}
+        onCreateProject={() => triggerQuickAction('add-project')}
+        onUploadAsset={() => triggerQuickAction('add-asset')}
       />
 
       {statsLoading ? (
@@ -1402,6 +1389,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DashboardQuickActionFab />
     </PageShell>
   );
 }

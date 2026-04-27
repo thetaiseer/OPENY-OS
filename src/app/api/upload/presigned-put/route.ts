@@ -15,12 +15,8 @@ import {
   getMultipartThresholdBytes,
   uploadSizeExceededMessage,
 } from '@/lib/upload-limits';
-import {
-  buildStorageKey,
-  MAIN_CATEGORIES,
-  SUBCATEGORIES,
-  type MainCategorySlug,
-} from '@/lib/asset-utils';
+import { allocateWorkspaceAssetStorageKey } from '@/lib/assets/allocate-workspace-asset-key';
+import { MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -166,27 +162,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sanitizedFile = sanitizeFileName(fileName);
-  const timestamp = Date.now();
-
-  const storageKey = buildStorageKey({
-    clientName,
-    clientId,
-    mainCategory,
-    subCategory: subCategory || 'general',
-    monthKey,
-    fileName: sanitizedFile,
-    timestamp,
-  });
-
-  let displayName: string;
+  const originalName = fileName.trim();
+  let displayName: string = originalName;
   if (customName) {
     const base = sanitizeFileName(customName);
     const dotExt = ext ? `.${ext}` : '';
     displayName =
       dotExt && base.toLowerCase().endsWith(dotExt.toLowerCase()) ? base : `${base}${dotExt}`;
-  } else {
-    displayName = `${timestamp}-${sanitizedFile}`;
+  }
+
+  let storageKey: string;
+  try {
+    ({ storageKey } = await allocateWorkspaceAssetStorageKey(
+      workspaceId,
+      clientId,
+      monthKey,
+      originalName,
+    ));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const bucketName = getStorageBucketName();
@@ -195,7 +190,7 @@ export async function POST(req: NextRequest) {
   try {
     const putUrl = await getPresignedPutObjectUploadUrl(storageKey, contentType, 3600);
     const publicUrl = getFileUrl(storageKey);
-    return NextResponse.json({ putUrl, storageKey, publicUrl, displayName });
+    return NextResponse.json({ putUrl, storageKey, publicUrl, displayName, originalName });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;

@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
-import FloatingDock from '@/components/layout/FloatingDock';
+import FloatingUploadDock from '@/components/layout/FloatingUploadDock';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
 import GlobalQuickCreate from '@/components/layout/GlobalQuickCreate';
 import Breadcrumbs from '@/components/ui/navigation/Breadcrumbs';
 import RouteTitle from '@/components/ui/navigation/RouteTitle';
+import { useAuth } from '@/context/auth-context';
+import { workspaceKey } from '@/hooks/workspace-query';
 
 function routePermissionTarget(
   pathname: string,
@@ -57,6 +60,8 @@ function routePermissionTarget(
 export default function AppShellLayout({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { defaultWorkspaceId } = useAuth();
   const { canView, loading } = usePermissions();
   const permissionTarget = useMemo(() => routePermissionTarget(pathname), [pathname]);
   const isAllowed = useMemo(() => {
@@ -69,6 +74,31 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     router.replace(`/access-denied?workspace=${permissionTarget.workspace}`);
   }, [isAllowed, loading, permissionTarget, router]);
 
+  useEffect(() => {
+    if (!defaultWorkspaceId) return;
+    void Promise.allSettled([
+      queryClient.prefetchQuery({
+        queryKey: workspaceKey(defaultWorkspaceId, 'dashboard-stats'),
+        queryFn: async () => {
+          const response = await fetch('/api/reports/overview', { cache: 'no-store' });
+          if (!response.ok) return null;
+          return response.json();
+        },
+        staleTime: 45_000,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: workspaceKey(defaultWorkspaceId, 'tasks-all', 'prefetch'),
+        queryFn: async () => {
+          const response = await fetch('/api/tasks?limit=40', { cache: 'no-store' });
+          if (!response.ok) return [];
+          const json = (await response.json()) as { tasks?: unknown[] };
+          return json.tasks ?? [];
+        },
+        staleTime: 45_000,
+      }),
+    ]);
+  }, [defaultWorkspaceId, queryClient]);
+
   if (!isAllowed && permissionTarget) {
     return null;
   }
@@ -77,7 +107,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     <div className="min-h-screen min-h-screen-dynamic bg-base text-primary">
       <Sidebar />
       <Header />
-      <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[240px] md:pb-6 md:pt-10">
+      <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[var(--openy-sidebar-width)] md:pb-6 md:pt-10">
         <PageShellProvider>
           <PageShell>
             <div className="sr-only">
@@ -91,7 +121,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
         </PageShellProvider>
       </main>
       <MobileBottomNav />
-      <FloatingDock />
+      <FloatingUploadDock />
       <GlobalQuickCreate />
     </div>
   );

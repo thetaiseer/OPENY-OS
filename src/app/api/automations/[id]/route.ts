@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { AUTOMATION_RULE_COLUMNS } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -15,10 +16,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (workspaceError || !workspaceId) {
+    return NextResponse.json(
+      { success: false, error: workspaceError ?? 'Workspace not found' },
+      { status: 400 },
+    );
+  }
   const { data, error } = await db
     .from('automation_rules')
     .select(AUTOMATION_RULE_COLUMNS)
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
   return NextResponse.json({ success: true, rule: data });
@@ -46,10 +59,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   allowed.updated_at = new Date().toISOString();
 
   const db = getServiceClient();
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (workspaceError || !workspaceId) {
+    return NextResponse.json(
+      { success: false, error: workspaceError ?? 'Workspace not found' },
+      { status: 400 },
+    );
+  }
   const { data, error } = await db
     .from('automation_rules')
     .update(allowed)
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .select()
     .single();
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -62,7 +87,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const db = getServiceClient();
-  const { error } = await db.from('automation_rules').delete().eq('id', id);
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    db,
+    auth.profile.id,
+  );
+  if (workspaceError || !workspaceId) {
+    return NextResponse.json(
+      { success: false, error: workspaceError ?? 'Workspace not found' },
+      { status: 400 },
+    );
+  }
+  const { error } = await db
+    .from('automation_rules')
+    .delete()
+    .eq('id', id)
+    .eq('workspace_id', workspaceId);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

@@ -13,6 +13,8 @@ export type NavIconKey =
   | 'security'
   | 'settings';
 
+export type NavSectionKey = 'core' | 'work' | 'business' | 'system';
+
 export type RouteMeta = {
   key: string;
   label: string;
@@ -25,6 +27,7 @@ export type RouteMeta = {
   sidebar?: boolean;
   aliases?: string[];
   matchPrefixes?: string[];
+  section?: NavSectionKey;
 };
 
 export const ROUTE_META: RouteMeta[] = [
@@ -36,6 +39,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Overview of performance, tasks, and workspace activity.',
     iconKey: 'dashboard',
     sidebar: true,
+    section: 'core',
   },
   {
     key: 'clients',
@@ -45,6 +49,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Manage client accounts and related workstreams.',
     iconKey: 'clients',
     sidebar: true,
+    section: 'core',
   },
   {
     key: 'client-details',
@@ -63,6 +68,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Track project progress and delivery status.',
     iconKey: 'projects',
     sidebar: true,
+    section: 'core',
   },
   {
     key: 'project-details',
@@ -82,6 +88,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'tasks',
     sidebar: true,
     aliases: ['/tasks', '/my-tasks'],
+    section: 'core',
   },
   {
     key: 'content',
@@ -91,6 +98,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Plan, organize, and publish content assets.',
     iconKey: 'content',
     sidebar: true,
+    section: 'work',
   },
   {
     key: 'docs',
@@ -100,6 +108,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Create and manage operational business documents.',
     iconKey: 'docs',
     sidebar: true,
+    section: 'business',
   },
   {
     key: 'docs-invoice',
@@ -136,6 +145,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'View schedule, deadlines, and publishing timeline.',
     iconKey: 'calendar',
     sidebar: true,
+    section: 'work',
   },
   {
     key: 'assets',
@@ -145,6 +155,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Store, organize, and retrieve workspace files.',
     iconKey: 'assets',
     sidebar: true,
+    section: 'work',
   },
   {
     key: 'reports',
@@ -155,6 +166,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'reports',
     sidebar: true,
     aliases: ['/reports'],
+    section: 'business',
   },
   {
     key: 'team',
@@ -164,6 +176,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Manage team members, access, and invitations.',
     iconKey: 'team',
     sidebar: true,
+    section: 'system',
   },
   {
     key: 'activity',
@@ -173,6 +186,7 @@ export const ROUTE_META: RouteMeta[] = [
     description: 'Review recent workspace actions and events.',
     iconKey: 'activity',
     sidebar: true,
+    section: 'system',
   },
   {
     key: 'security',
@@ -183,6 +197,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'security',
     sidebar: true,
     aliases: ['/security'],
+    section: 'system',
   },
   {
     key: 'settings',
@@ -193,6 +208,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'settings',
     sidebar: true,
     aliases: ['/settings'],
+    section: 'system',
   },
 ];
 

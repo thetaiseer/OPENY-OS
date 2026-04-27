@@ -10,7 +10,7 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 import UserAccountMenu from '@/components/layout/UserAccountMenu';
 import NotificationDropdown from '@/components/features/notifications/NotificationDropdown';
-import DateRangePicker from '@/components/ui/DateRangePicker';
+import PeriodDateRangePicker from '@/components/ui/date-range/PeriodDateRangePicker';
 
 type TopbarProps = {
   className?: string;
@@ -24,7 +24,7 @@ export default function Topbar({ className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'openy-glass fixed end-0 start-0 top-0 z-30 border-b pt-[env(safe-area-inset-top,0px)] md:end-0 md:start-[240px]',
+        'openy-glass fixed end-0 start-0 top-0 z-30 border-b pt-[env(safe-area-inset-top,0px)] md:end-0 md:start-[var(--openy-sidebar-width)]',
         className,
       )}
       style={{ borderColor: 'var(--border)' }}
@@ -48,7 +48,7 @@ export default function Topbar({ className }: TopbarProps) {
             className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
-        <DateRangePicker
+        <PeriodDateRangePicker
           from={periodFrom}
           to={periodTo}
           onChange={setPeriodRange}

@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { createNotification } from '@/lib/notification-service';
 import { sendEmail, deadlineAlertEmail, logEmailSent } from '@/lib/email';
+import { runAutomationsAcrossWorkspaces } from '@/lib/automations/runner';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'published', 'delivered'];
 const MS_PER_DAY = 86_400_000;
@@ -110,6 +111,7 @@ export async function GET(req: NextRequest) {
   let publishCount = 0;
   let staleCount = 0;
   let errors = 0;
+  let automationActions = 0;
 
   try {
     // ── 1. Tasks due within the next 24 hours ─────────────────────────────────
@@ -390,12 +392,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 
+  try {
+    const automationResults = await runAutomationsAcrossWorkspaces();
+    automationActions = automationResults.reduce((sum, row) => sum + row.actions, 0);
+  } catch (err) {
+    console.error('[reminders/cron] automations error:', err);
+    errors++;
+  }
+
   return NextResponse.json({
     success: true,
     dueSoonCount,
     overdueCount,
     publishCount,
     staleCount,
+    automationActions,
     errors,
   });
 }

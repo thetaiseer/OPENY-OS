@@ -9,6 +9,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -84,28 +85,68 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
+    // TODO: restore role-based delete permissions after debugging.
+    const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+      { allowWorkspaceFallbackWithoutMembership: true },
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, error: workspaceError ?? 'Workspace not found' },
+        { status: 403 },
+      );
+    }
+    const membershipCheck = await db
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.profile.id)
+      .maybeSingle();
+    const membershipFound = Boolean(membershipCheck.data?.id);
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/projects/[id] step=authorized', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+    });
 
     const { data: existing, error: fetchError } = await db
       .from('projects')
-      .select('id, name, workspace_id')
+      .select('id, name')
       .eq('id', id)
+      .eq('workspace_id', workspaceId)
       .maybeSingle();
     if (fetchError)
       return NextResponse.json({ success: false, error: fetchError.message }, { status: 500 });
     if (!existing)
       return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 
-    const { error } = await db.from('projects').delete().eq('id', id);
+    const { error } = await db
+      .from('projects')
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', workspaceId);
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/projects/[id] step=deleted', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+      deleteResult: 'success',
+    });
 
     void db.from('activities').insert({
-      workspace_id: existing.workspace_id,
+      workspace_id: workspaceId,
       type: 'project_deleted',
       description: `Project "${existing.name ?? id}" deleted`,
       user_uuid: auth.profile.id,

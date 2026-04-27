@@ -149,6 +149,12 @@ const translations: Record<string, Record<string, string>> = {
     signingOut: 'Signing out…',
     open: 'Open',
     quickActions: 'Quick actions',
+    quickActionCreateDoc: 'Create {{label}}',
+    quickActionSchedulePost: 'Schedule post',
+    quickActionSectionCore: 'Core',
+    quickActionSectionContent: 'Content',
+    quickActionSectionDocs: 'Docs',
+    quickActionSectionTeam: 'Team',
     quickAdd: 'Quick add',
     openRightPageToAdd: 'Open the right page to add your item — the form will open automatically.',
     openTasks: 'Open Tasks',
@@ -546,6 +552,8 @@ const translations: Record<string, Record<string, string>> = {
     teamInviteSentTo: 'Invitation sent to {{email}}',
     teamInviteCreatedNoEmail:
       'Invitation created for {{email}} — email was not sent. Use Copy invite link on the Team page.',
+    teamInviteCreatedEmailFailed:
+      'Invitation created, but email could not be sent. Use Copy invite link on the Team page.',
     teamNetworkErrorRetry: 'Network error. Please try again.',
     teamMemberUpdated: 'Member updated successfully',
     teamFailedUpdateMember: 'Failed to update member',
@@ -1426,6 +1434,12 @@ const translations: Record<string, Record<string, string>> = {
     signingOut: 'جاري تسجيل الخروج…',
     open: 'فتح',
     quickActions: 'إجراءات سريعة',
+    quickActionCreateDoc: 'إنشاء {{label}}',
+    quickActionSchedulePost: 'جدولة منشور',
+    quickActionSectionCore: 'أساسي',
+    quickActionSectionContent: 'المحتوى',
+    quickActionSectionDocs: 'المستندات',
+    quickActionSectionTeam: 'الفريق',
     quickAdd: 'إضافة سريعة',
     openRightPageToAdd: 'افتح الصفحة المناسبة للإضافة — سيتم فتح النموذج تلقائيًا.',
     openTasks: 'فتح المهام',
@@ -1818,6 +1832,8 @@ const translations: Record<string, Record<string, string>> = {
     teamInviteSentTo: 'أُرسلت الدعوة إلى {{email}}',
     teamInviteCreatedNoEmail:
       'أُنشئت الدعوة لـ {{email}} — لم يُرسل البريد. استخدم «نسخ رابط الدعوة» في صفحة الفريق.',
+    teamInviteCreatedEmailFailed:
+      'أُنشئت الدعوة لكن تعذّر إرسال البريد. استخدم «نسخ رابط الدعوة» في صفحة الفريق.',
     teamNetworkErrorRetry: 'خطأ في الشبكة. حاول مرة أخرى.',
     teamMemberUpdated: 'تم تحديث العضو بنجاح',
     teamFailedUpdateMember: 'تعذّر تحديث العضو',

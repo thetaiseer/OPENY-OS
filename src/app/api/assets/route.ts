@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build query with optional filters
+    // Build query with optional filters (hide soft-deleted + R2-missing rows when columns exist)
     let query = supabase
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     let result = await query.range(from, to);
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #1: drop newer soft-delete filters that may not exist yet.
+      // Retry #1: lifecycle columns not migrated — drop soft-delete filters that may not exist yet.
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)

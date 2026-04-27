@@ -56,6 +56,7 @@ export interface R2Config {
   secretAccessKey: string;
   bucketName: string;
   publicUrl: string;
+  endpoint: string;
 }
 
 /**
@@ -70,6 +71,8 @@ export function getR2Config(): R2Config {
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY ?? '';
   const bucketName = process.env.R2_BUCKET_NAME ?? 'client-assets';
   const publicUrl = process.env.R2_PUBLIC_URL ?? '';
+  const endpoint =
+    (process.env.R2_ENDPOINT ?? '').trim() || `https://${accountId}.r2.cloudflarestorage.com`;
 
   if (!accountId) missing.push('R2_ACCOUNT_ID');
   if (!accessKeyId) missing.push('R2_ACCESS_KEY_ID');
@@ -80,7 +83,7 @@ export function getR2Config(): R2Config {
     throw new R2ConfigError(`Missing environment variable(s): ${missing.join(', ')}`);
   }
 
-  return { accountId, accessKeyId, secretAccessKey, bucketName, publicUrl };
+  return { accountId, accessKeyId, secretAccessKey, bucketName, publicUrl, endpoint };
 }
 
 /**
@@ -101,7 +104,7 @@ export function checkR2Config(): { configured: boolean; missingVars: string[] } 
 function buildS3Client(config: R2Config): S3Client {
   return new S3Client({
     region: 'auto',
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+    endpoint: config.endpoint,
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,

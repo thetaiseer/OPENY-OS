@@ -207,9 +207,9 @@ export interface ContentItem {
   title: string;
   description?: string | null;
   /** @deprecated use platform_targets (array) */
-  platform?: string;
+  platform?: string | null;
   /** Array of target platforms */
-  platform_targets?: string[];
+  platform_targets?: string[] | null;
   post_types?: string[];
   purpose?: ContentPurpose | null;
   caption?: string | null;
@@ -281,6 +281,11 @@ export interface Asset {
   sub_category?: string | null;
   /** Canonical storage key: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-{file} */
   storage_key?: string | null;
+  display_name?: string | null;
+  original_name?: string | null;
+  public_url?: string | null;
+  size_bytes?: number | null;
+  checksum?: string | null;
   created_at: string;
 }
 
@@ -545,6 +550,7 @@ export interface Project {
   start_date?: string | null;
   end_date?: string | null;
   color?: string | null;
+  health_status?: 'healthy' | 'at_risk' | 'critical';
   created_by?: string | null;
   created_at: string;
   updated_at: string;

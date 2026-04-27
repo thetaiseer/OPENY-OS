@@ -9,6 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { replaceHistoryWithPeriod } from '@/lib/period-url-history';
+import { getDefaultWeekRange, parseDate, toYmd } from '@/lib/url-date';
 
 export function calendarMonthNow(): string {
   return new Date().toISOString().slice(0, 7);
@@ -39,10 +41,8 @@ function parseYmd(s: string): Date | null {
 }
 
 function getCurrentMonthRange(): { from: string; to: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from: formatYmd(start), to: formatYmd(end) };
+  const defaults = getDefaultWeekRange();
+  return { from: toYmd(defaults.from), to: toYmd(defaults.to) };
 }
 
 /** First / last calendar day of `YYYY-MM` as `YYYY-MM-DD` (local). */
@@ -98,28 +98,16 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
     currentMonthRange,
   );
 
-  const updateUrlParams = useCallback((from: string, to: string) => {
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('from') === from && url.searchParams.get('to') === to) return;
-    url.searchParams.set('from', from);
-    url.searchParams.set('to', to);
-    window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`);
+  const setPeriodRange = useCallback((from: string, to: string) => {
+    const parsedFrom = parseYmd(from);
+    const parsedTo = parseYmd(to);
+    if (!parsedFrom || !parsedTo) return;
+    const start = parsedFrom <= parsedTo ? parsedFrom : parsedTo;
+    const end = parsedFrom <= parsedTo ? parsedTo : parsedFrom;
+    const next = { from: formatYmd(start), to: formatYmd(end) };
+    setPeriodRangeState(next);
+    replaceHistoryWithPeriod(next.from, next.to);
   }, []);
-
-  const setPeriodRange = useCallback(
-    (from: string, to: string) => {
-      const parsedFrom = parseYmd(from);
-      const parsedTo = parseYmd(to);
-      if (!parsedFrom || !parsedTo) return;
-      const start = parsedFrom <= parsedTo ? parsedFrom : parsedTo;
-      const end = parsedFrom <= parsedTo ? parsedTo : parsedFrom;
-      const next = { from: formatYmd(start), to: formatYmd(end) };
-      setPeriodRangeState(next);
-      updateUrlParams(next.from, next.to);
-    },
-    [updateUrlParams],
-  );
 
   const setPeriodYm = useCallback(
     (v: string) => {
@@ -137,25 +125,22 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
       const url = new URL(window.location.href);
       const fromQuery = url.searchParams.get('from');
       const toQuery = url.searchParams.get('to');
-      if (fromQuery && toQuery && isValidYmd(fromQuery) && isValidYmd(toQuery)) {
-        const start = parseYmd(fromQuery);
-        const end = parseYmd(toQuery);
-        if (start && end) {
-          const normalized =
-            start <= end
-              ? { from: formatYmd(start), to: formatYmd(end) }
-              : { from: formatYmd(end), to: formatYmd(start) };
-          setPeriodRangeState(normalized);
-          return;
-        }
+      const start = parseDate(fromQuery);
+      const end = parseDate(toQuery);
+      if (start && end) {
+        const normalized =
+          start <= end
+            ? { from: formatYmd(start), to: formatYmd(end) }
+            : { from: formatYmd(end), to: formatYmd(start) };
+        setPeriodRangeState(normalized);
+        return;
       }
       setPeriodRangeState(currentMonthRange);
-      updateUrlParams(currentMonthRange.from, currentMonthRange.to);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [currentMonthRange, updateUrlParams]);
+  }, [currentMonthRange]);
 
   const { periodYm, periodStart, periodEnd, inputMinYm, inputMaxYm } = useMemo(() => {
     const periodStart = periodRange.from;

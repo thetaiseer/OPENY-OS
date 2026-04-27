@@ -9,6 +9,7 @@ import AiImproveButton from '@/components/ui/AiImproveButton';
 import { useClientWorkspace } from '../client-context';
 import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus } from '@/lib/types';
+import { CONTENT_ITEMS_BASE_SELECT, resolvePlatformTargets } from '@/lib/queries/content-items';
 import { Plus, FileText, Calendar } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ export default function ClientContentPage() {
   const { toast: addToast } = useToast();
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Create modal state
   const [createOpen, setCreateOpen] = useState(false);
@@ -62,15 +64,29 @@ export default function ClientContentPage() {
 
   const load = useCallback(async () => {
     if (!clientId) return;
-    const { data } = await supabase
-      .from('content_items')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setContent((data ?? []) as ContentItem[]);
-    setLoading(false);
-  }, [clientId]);
+    try {
+      const { data, error } = await supabase
+        .from('content_items')
+        .select(CONTENT_ITEMS_BASE_SELECT)
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error('[ClientContentPage] content_items_load_failed', {
+          code: error.code,
+          message: error.message,
+          clientId,
+        });
+        setLoadError('Content could not be loaded. Please retry.');
+        addToast('Content could not be loaded. Please retry.', 'error');
+        return;
+      }
+      setContent((data ?? []) as ContentItem[]);
+      setLoadError(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, clientId]);
 
   useEffect(() => {
     void load();
@@ -156,16 +172,24 @@ export default function ClientContentPage() {
       </div>
 
       {content.length === 0 ? (
-        <div className="space-y-2 py-16 text-center">
-          <FileText
-            size={32}
-            className="mx-auto opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No content yet. Create your first content item.
-          </p>
-        </div>
+        loadError ? (
+          <div className="space-y-2 py-16 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {loadError}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2 py-16 text-center">
+            <FileText
+              size={32}
+              className="mx-auto opacity-30"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              No content yet. Create your first content item.
+            </p>
+          </div>
+        )
       ) : (
         <div className="space-y-3">
           {content.map((item) => (
@@ -187,9 +211,9 @@ export default function ClientContentPage() {
                       {item.description}
                     </p>
                   )}
-                  {(item.platform_targets?.length ?? 0) > 0 && (
+                  {resolvePlatformTargets(item).length > 0 && (
                     <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {item.platform_targets?.join(', ')}
+                      {resolvePlatformTargets(item).join(', ')}
                     </p>
                   )}
                 </div>

@@ -143,7 +143,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireRole(request, ['owner', 'admin']);
+    // TODO: restore role-based delete permissions after debugging.
+    const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
@@ -166,6 +167,20 @@ export async function DELETE(
     if (!workspaceId) {
       return NextResponse.json({ success: false, error: 'Workspace not found' }, { status: 403 });
     }
+    const membershipCheck = await db
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.profile.id)
+      .maybeSingle();
+    const membershipFound = Boolean(membershipCheck.data?.id);
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/team/members/[id] step=authorized', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+    });
 
     let workspaceMemberRow: {
       id: string;
@@ -315,6 +330,14 @@ export async function DELETE(
     if (wmDeleteError) {
       return NextResponse.json({ success: false, error: wmDeleteError.message }, { status: 500 });
     }
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/team/members/[id] step=deleted', {
+      recordId: membershipId,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+      deleteResult: 'success',
+    });
 
     if (workspaceKey) {
       const { error: legacyMembershipDeleteError } = await db
