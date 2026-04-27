@@ -8,6 +8,8 @@ type MemberStatus = 'active' | 'invited' | 'pending' | 'inactive' | 'suspended';
 
 type TeamMemberPayload = {
   id: string;
+  membership_id: string | null;
+  user_id: string | null;
   full_name: string;
   email: string;
   role: string;
@@ -190,6 +192,8 @@ export async function GET(request: NextRequest) {
     const email = team?.email ?? profile?.email ?? '';
     return {
       id: team?.id ?? member.user_id,
+      membership_id: member.id ?? null,
+      user_id: member.user_id ?? null,
       full_name: fullName,
       email,
       role: isOwner ? 'owner' : normalizeMemberRole(team?.role ?? member.role),
@@ -225,6 +229,8 @@ export async function GET(request: NextRequest) {
 
       members.push({
         id: row.id,
+        membership_id: null,
+        user_id: row.profile_id ?? null,
         full_name: pickMemberDisplayName({
           teamFullName: row.full_name,
           profileEmail: row.email,

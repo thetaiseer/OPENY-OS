@@ -13,16 +13,18 @@ export function useRemoveTeamMember() {
     endpoint: (memberId) => `/api/team/members/${memberId}`,
     optimistic: {
       queryKey: ['team-data'],
-      remove: (old, memberId) =>
+      remove: (old, membershipId) =>
         old
           ? {
               ...old,
-              members: old.members.filter((member) => member.id !== memberId),
+              members: old.members.filter(
+                (member) => (member.membership_id ?? member.id) !== membershipId,
+              ),
             }
           : old,
     },
     invalidateKeys: [['team-data'], ['activity']],
-    successMessage: 'Member removed',
+    successMessage: 'Team member removed',
     failureMessage: 'Failed to remove member',
   });
 }

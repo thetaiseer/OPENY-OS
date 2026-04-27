@@ -1427,7 +1427,8 @@ export default function TeamPage() {
     }
     setRemovingMember(true);
     try {
-      await removeMemberMutation.mutateAsync(deleteMember.id);
+      const membershipId = deleteMember.membership_id ?? deleteMember.id;
+      await removeMemberMutation.mutateAsync(membershipId);
       setDeleteMember(null);
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err) {

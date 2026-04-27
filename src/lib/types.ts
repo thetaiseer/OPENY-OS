@@ -27,6 +27,8 @@ export interface Client {
 
 export interface TeamMember {
   id: string;
+  membership_id?: string | null;
+  user_id?: string | null;
   full_name: string;
   email: string;
   role?: string;
