@@ -8,11 +8,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
-import { teamInviteEmail, logEmailSent } from '@/lib/email';
+import { logEmailSent } from '@/lib/email';
+import { sendInviteEmail } from '@/lib/email/sendInviteEmail';
 import { notifyInvitation } from '@/lib/notification-service';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 import { processEvent } from '@/lib/event-engine';
@@ -227,12 +227,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL?.trim() ??
-    process.env.INVITE_FROM_EMAIL?.trim() ??
-    'OPENY OS <noreply@openy-os.com>';
-
   const db = getServiceClient();
+  const { data: inviterMembership } = await db
+    .from('workspace_memberships')
+    .select('workspace_id')
+    .eq('user_id', auth.profile.id)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  const workspaceId = inviterMembership?.workspace_id ?? null;
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: 'No workspace membership found for inviter.' },
+      { status: 403 },
+    );
+  }
 
   // ── 1. Check for active invite already sent to this email ────────────────
   const { data: existingInvite } = await db
@@ -251,14 +261,41 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 2. Check if an active user already exists with this email ────────────
-  const { data: existingAuthUsers } = await db.auth.admin.listUsers();
-  const existingUser = existingAuthUsers?.users?.find((u) => u.email?.toLowerCase() === email);
-  if (existingUser) {
+  const { data: existingWorkspaceInvite } = await db
+    .from('workspace_invitations')
+    .select('id, status, expires_at')
+    .eq('workspace_id', workspaceId)
+    .eq('email', email)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingWorkspaceInvite && new Date(existingWorkspaceInvite.expires_at) > new Date()) {
     return NextResponse.json(
-      { error: 'A user with this email address already exists in the system.' },
+      { error: 'An active invitation has already been sent to this email address.' },
       { status: 409 },
     );
+  }
+
+  // ── 2. Existing auth user handling (invite-only flow) ────────────────────
+  const { data: existingAuthUsers } = await db.auth.admin.listUsers();
+  const existingUser = existingAuthUsers?.users?.find((u) => u.email?.toLowerCase() === email);
+
+  // Existing auth users are allowed, but users already in a workspace are not.
+  if (existingUser?.id) {
+    const { data: existingMembership } = await db
+      .from('workspace_memberships')
+      .select('id')
+      .eq('user_id', existingUser.id)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (existingMembership?.id) {
+      return NextResponse.json(
+        { error: 'This email already belongs to a workspace member.' },
+        { status: 409 },
+      );
+    }
   }
 
   // ── 3. Create team_member record with status='invited' ──────────────────
@@ -316,75 +353,56 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 5. Send invite email (Resend SDK) ─────────────────────────────────────
-  const inviteUrl = `${INVITE_BASE_URL}/invite?token=${encodeURIComponent(token)}`;
-  const html = teamInviteEmail({
-    recipientName: full_name,
-    inviterName: auth.profile.name,
-    workspaceName:
-      effectiveWorkspaceAccess.length === 2
-        ? 'OPENY PLATFORM'
-        : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`,
-    role: access_role,
-    inviteUrl,
-    expiresInDays: INVITE_EXPIRY_DAYS,
-  });
+  const workspaceInvitePayload = {
+    workspace_id: workspaceId,
+    email,
+    role: access_role === 'viewer' ? 'team_member' : access_role,
+    token,
+    status: 'pending',
+    invited_by: auth.profile.id,
+    expires_at: expiresAt,
+  };
+  const { error: workspaceInviteInsertError } = await db
+    .from('workspace_invitations')
+    .insert(workspaceInvitePayload);
+  if (workspaceInviteInsertError) {
+    console.error(
+      '[team/invite] Failed to insert workspace_invitations row:',
+      workspaceInviteInsertError.message,
+    );
+    await db.from('team_invitations').delete().eq('id', String(invitation.id));
+    await db.from('team_members').delete().eq('id', member.id);
+    return NextResponse.json(
+      { error: workspaceInviteInsertError.message ?? 'Failed to create workspace invitation' },
+      { status: 500 },
+    );
+  }
 
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+  // ── 5. Send invite email (Resend SDK) ─────────────────────────────────────
+  const inviteUrl = `${INVITE_BASE_URL}/invite/${encodeURIComponent(token)}`;
+  const workspaceName =
+    effectiveWorkspaceAccess.length === 2
+      ? 'OPENY PLATFORM'
+      : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`;
 
   try {
-    if (resendConfigured) {
-      const apiKey = process.env.RESEND_API_KEY?.trim();
-      if (!apiKey) {
-        throw new Error('RESEND_API_KEY is missing');
-      }
-      const resend = new Resend(apiKey);
-      const { error: resendError } = await resend.emails.send({
-        from: fromEmail,
-        to: email,
-        subject: "You're invited to join OPENY OS",
-        html,
-      });
+    await sendInviteEmail({
+      to: email,
+      inviteUrl,
+      workspaceName,
+      role: access_role,
+      recipientName: full_name,
+      inviterName: auth.profile.name,
+    });
 
-      if (resendError) {
-        const msg = resendError.message ?? JSON.stringify(resendError);
-        throw new Error(msg);
-      }
-
-      await logEmailSent({
-        to: email,
-        subject: "You're invited to join OPENY OS",
-        eventType: 'team_invite',
-        entityType: 'team_invitation',
-        entityId: String(invitation.id),
-        status: 'sent',
-      });
-    } else {
-      // Fallback: use Supabase Auth built-in invite emailer when Resend is not configured.
-      // This keeps invite emails automatic in environments without RESEND_API_KEY.
-      const supabaseInvite = await db.auth.admin.inviteUserByEmail(email, {
-        data: {
-          full_name,
-          team_member_id: member.id,
-          invited_role: access_role,
-          invite_token: token,
-          invite_url: inviteUrl,
-        },
-      });
-      if (supabaseInvite.error) {
-        throw new Error(
-          `Supabase invite email failed: ${supabaseInvite.error.message ?? 'unknown error'}`,
-        );
-      }
-      await logEmailSent({
-        to: email,
-        subject: "You're invited to join OPENY OS",
-        eventType: 'team_invite',
-        entityType: 'team_invitation',
-        entityId: String(invitation.id),
-        status: 'sent',
-      });
-    }
+    await logEmailSent({
+      to: email,
+      subject: "You're invited to OPENY",
+      eventType: 'team_invite',
+      entityType: 'team_invitation',
+      entityId: String(invitation.id),
+      status: 'sent',
+    });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.error('[team/invite] Invitation email send failed (rolled back invitation)', {
@@ -395,7 +413,7 @@ export async function POST(request: NextRequest) {
     });
     await logEmailSent({
       to: email,
-      subject: "You're invited to join OPENY OS",
+      subject: "You're invited to OPENY",
       eventType: 'team_invite',
       entityType: 'team_invitation',
       entityId: String(invitation.id),
@@ -403,6 +421,7 @@ export async function POST(request: NextRequest) {
       error: errMsg,
     });
     // Roll back both records so there's no broken state
+    await db.from('workspace_invitations').delete().eq('token', token);
     await db.from('team_invitations').delete().eq('id', String(invitation.id));
     await db.from('team_members').delete().eq('id', member.id);
     return NextResponse.json(
@@ -451,7 +470,7 @@ export async function POST(request: NextRequest) {
       member,
       invitation,
       emailSent: true,
-      emailProvider: resendConfigured ? 'resend' : 'supabase-auth',
+      emailProvider: 'resend',
     },
     { status: 201 },
   );

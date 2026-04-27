@@ -1331,10 +1331,7 @@ export default function TeamPage() {
       const emailSent = (data as { emailSent?: boolean }).emailSent === true;
       const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
       if (emailSent) {
-        toast(
-          `Invite member / ${inviteForm.email}: ${t('teamInviteSentTo', { email: inviteForm.email })}`,
-          'success',
-        );
+        toast('Invitation sent', 'success');
       } else {
         toast(
           `Invite member / ${inviteForm.email}: ${skipReason ?? t('teamInviteCreatedNoEmail', { email: inviteForm.email })}`,
@@ -1509,7 +1506,7 @@ export default function TeamPage() {
       return;
     }
 
-    const inviteUrl = `${window.location.origin}/invite?token=${encodeURIComponent(invitation.token)}`;
+    const inviteUrl = `${window.location.origin}/invite/${encodeURIComponent(invitation.token)}`;
     try {
       await navigator.clipboard.writeText(inviteUrl);
       toast(`Copy invite link / ${invitation.email}: ${t('teamInviteLinkCopied')}`, 'success');

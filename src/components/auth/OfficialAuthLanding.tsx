@@ -22,7 +22,7 @@ import {
   type WorkspaceKey,
 } from '@/lib/workspace-access';
 
-const NO_WORKSPACE_MESSAGE = 'You don’t have access to any workspace yet';
+const NO_WORKSPACE_MESSAGE = 'You are not part of any workspace';
 type WorkspaceMembershipRow = { workspace_key: string | null };
 
 export default function OfficialAuthLanding() {

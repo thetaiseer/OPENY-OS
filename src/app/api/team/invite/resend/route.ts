@@ -11,7 +11,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
-import { sendEmail, teamInviteEmail, logEmailSent } from '@/lib/email';
+import { logEmailSent } from '@/lib/email';
+import { sendInviteEmail } from '@/lib/email/sendInviteEmail';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 
 const INVITE_EXPIRY_DAYS = 7;
@@ -30,11 +31,6 @@ export async function POST(request: NextRequest) {
     /\/$/,
     '',
   );
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL?.trim() ??
-    process.env.INVITE_FROM_EMAIL?.trim() ??
-    'OPENY OS <noreply@openy-os.com>';
-
   if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
     console.warn(
       '[team/invite/resend] NEXT_PUBLIC_APP_URL is not set — using default https://openy-os.com for invite links',
@@ -98,50 +94,20 @@ export async function POST(request: NextRequest) {
     .update({ status: MEMBER_STATUS.INVITED, updated_at: new Date().toISOString() })
     .eq('id', teamMemberId);
 
-  const inviteUrl = `${inviteBaseUrl}/invite?token=${encodeURIComponent(newToken)}`;
-  const html = teamInviteEmail({
-    recipientName: memberFullName,
-    inviterName: auth.profile.name,
-    workspaceName: 'OPENY OS',
-    role: memberRole,
-    inviteUrl,
-    expiresInDays: INVITE_EXPIRY_DAYS,
-  });
-
-  if (!process.env.RESEND_API_KEY?.trim()) {
-    console.warn(
-      '[team/invite/resend] RESEND_API_KEY is not set — token was rotated but no email was sent.',
-    );
-    await logEmailSent({
-      to: invitation.email,
-      subject: "You're invited to join OPENY OS",
-      eventType: 'team_invite_resend',
-      entityType: 'team_invitation',
-      entityId: invitation.id,
-      status: 'skipped',
-      error: 'RESEND_API_KEY not configured',
-    });
-    return NextResponse.json(
-      {
-        success: true,
-        emailSent: false,
-        emailSkippedReason:
-          'Email service is not configured (RESEND_API_KEY on the server). The invite link was renewed — use Copy invite link or add Resend in Vercel → Environment Variables.',
-      },
-      { status: 200 },
-    );
-  }
+  const inviteUrl = `${inviteBaseUrl}/invite/${encodeURIComponent(newToken)}`;
 
   try {
-    await sendEmail({
+    await sendInviteEmail({
       to: invitation.email,
-      subject: "You're invited to join OPENY OS",
-      html,
-      from: fromEmail,
+      inviteUrl,
+      workspaceName: 'OPENY OS',
+      role: memberRole,
+      recipientName: memberFullName,
+      inviterName: auth.profile.name,
     });
     await logEmailSent({
       to: invitation.email,
-      subject: "You're invited to join OPENY OS",
+      subject: "You're invited to OPENY",
       eventType: 'team_invite_resend',
       entityType: 'team_invitation',
       entityId: invitation.id,
@@ -157,7 +123,7 @@ export async function POST(request: NextRequest) {
     });
     await logEmailSent({
       to: invitation.email,
-      subject: "You're invited to join OPENY OS",
+      subject: "You're invited to OPENY",
       eventType: 'team_invite_resend',
       entityType: 'team_invitation',
       entityId: invitation.id,

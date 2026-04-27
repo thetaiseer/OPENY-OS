@@ -50,6 +50,11 @@ function authCookieSignature(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // OPENY is invite-only: block any manual/public signup entry points.
+  if (pathname === '/signup' || pathname.startsWith('/signup/')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   const normalizedLegacyPath = LEGACY_OS_REDIRECTS[pathname];
   const requiredWorkspaceFromPath =
     getWorkspaceFromAppPath(pathname) ?? (normalizedLegacyPath ? 'os' : null);
@@ -65,6 +70,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
     pathname === '/invite' ||
+    pathname.startsWith('/invite/') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon');
