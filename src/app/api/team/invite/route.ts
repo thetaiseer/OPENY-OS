@@ -52,6 +52,17 @@ function normalizeInviteRole(input: string): 'admin' | 'manager' | 'team_member'
   return null;
 }
 
+/** workspace_invitations.role CHECK is owner|admin|manager|team_member (viewer is stored as team_member). */
+function mapAccessRoleToWorkspaceInvitationRole(
+  accessRole: string,
+): 'owner' | 'admin' | 'manager' | 'team_member' {
+  if (accessRole === 'owner') return 'owner';
+  if (accessRole === 'admin') return 'admin';
+  if (accessRole === 'manager') return 'manager';
+  if (accessRole === 'viewer') return 'team_member';
+  return 'team_member';
+}
+
 type InsertResult = {
   invitation: Record<string, unknown> | null;
   errorMessage: string | null;
@@ -328,11 +339,18 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+    const { data: wsForMembership } = await db
+      .from('workspaces')
+      .select('slug')
+      .eq('id', workspaceId)
+      .maybeSingle();
+    const slug = ((wsForMembership?.slug as string | null) ?? '').toLowerCase();
+    const membershipWorkspaceKey: 'os' | 'docs' = slug === 'docs' ? 'docs' : 'os';
     const { data: existingMembershipLegacy } = await db
       .from('workspace_memberships')
       .select('id')
       .eq('user_id', existingUser.id)
-      .eq('workspace_id', workspaceId)
+      .eq('workspace_key', membershipWorkspaceKey)
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
@@ -357,24 +375,43 @@ export async function POST(request: NextRequest) {
       : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`;
   const inviteUrl = `${INVITE_BASE_URL}/invite/${encodeURIComponent(token)}`;
 
+  const workspaceInvitationRole = mapAccessRoleToWorkspaceInvitationRole(access_role);
+
   if (regenerateExistingInvite && existingWorkspaceInvite) {
     const { error: regenWorkspaceInviteError } = await db
       .from('workspace_invitations')
-      .update({ token, expires_at: expiresAt, status: 'pending', role: access_role })
+      .update({
+        token,
+        expires_at: expiresAt,
+        status: 'pending',
+        role: workspaceInvitationRole,
+      })
       .eq('id', existingWorkspaceInvite.id);
 
     if (regenWorkspaceInviteError) {
+      console.error('[team/invite] regenerate workspace_invitations failed:', {
+        message: regenWorkspaceInviteError.message,
+        code: regenWorkspaceInviteError.code,
+        email,
+        workspaceInviteId: existingWorkspaceInvite.id,
+      });
       return NextResponse.json(
         { error: regenWorkspaceInviteError.message ?? 'Failed to regenerate existing invitation' },
         { status: 500 },
       );
     }
 
-    await db
+    const { error: regenTeamInvitesError } = await db
       .from('team_invitations')
       .update({ token, expires_at: expiresAt, status: INVITATION_STATUS.PENDING })
       .eq('email', email)
       .in('status', [...ACTIVE_INVITATION_STATUSES]);
+    if (regenTeamInvitesError) {
+      console.error(
+        '[team/invite] regenerate team_invitations update failed:',
+        regenTeamInvitesError,
+      );
+    }
 
     try {
       await sendInviteEmail({
@@ -383,12 +420,34 @@ export async function POST(request: NextRequest) {
         workspaceName,
         role: access_role,
       });
-      return NextResponse.json({ success: true, regenerated: true }, { status: 200 });
+      return NextResponse.json(
+        { success: true, regenerated: true, emailSent: true, emailProvider: 'resend' },
+        { status: 200 },
+      );
     } catch (emailErr) {
       const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+      console.error('[team/invite] Regenerated invite DB updated but email send failed:', {
+        to: email,
+        error: errMsg,
+        inviteUrl,
+      });
+      await logEmailSent({
+        to: email,
+        subject: "You're invited to OPENY",
+        eventType: 'team_invite',
+        entityType: 'workspace_invitation',
+        entityId: String(existingWorkspaceInvite.id),
+        status: 'failed',
+        error: errMsg,
+      });
       return NextResponse.json(
-        { error: `Failed to send invitation email: ${errMsg}` },
-        { status: 502 },
+        {
+          success: true,
+          regenerated: true,
+          emailSent: false,
+          emailSkippedReason: errMsg,
+        },
+        { status: 200 },
       );
     }
   }
@@ -447,7 +506,7 @@ export async function POST(request: NextRequest) {
   const workspaceInvitePayload = {
     workspace_id: workspaceId,
     email,
-    role: access_role,
+    role: workspaceInvitationRole,
     token,
     status: 'pending',
     invited_by: auth.profile.id,
@@ -457,18 +516,26 @@ export async function POST(request: NextRequest) {
     .from('workspace_invitations')
     .insert(workspaceInvitePayload);
   if (workspaceInviteInsertError) {
-    console.error(
-      '[team/invite] Failed to insert workspace_invitations row:',
-      workspaceInviteInsertError.message,
-    );
+    console.error('[team/invite] Failed to insert workspace_invitations row:', {
+      message: workspaceInviteInsertError.message,
+      code: workspaceInviteInsertError.code,
+      details: workspaceInviteInsertError.details,
+      hint: workspaceInviteInsertError.hint,
+      payload: workspaceInvitePayload,
+    });
     await db.from('team_invitations').delete().eq('id', String(invitation.id));
     await db.from('team_members').delete().eq('id', member.id);
     return NextResponse.json(
-      { error: workspaceInviteInsertError.message ?? 'Failed to create workspace invitation' },
+      {
+        error: workspaceInviteInsertError.message ?? 'Failed to create workspace invitation',
+        code: workspaceInviteInsertError.code ?? null,
+      },
       { status: 500 },
     );
   }
 
+  let emailSent = false;
+  let emailErrorMessage: string | null = null;
   try {
     await sendInviteEmail({
       to: email,
@@ -476,7 +543,7 @@ export async function POST(request: NextRequest) {
       workspaceName,
       role: access_role,
     });
-
+    emailSent = true;
     await logEmailSent({
       to: email,
       subject: "You're invited to OPENY",
@@ -487,9 +554,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-    console.error('[team/invite] Invitation email send failed (rolled back invitation)', {
+    emailErrorMessage = errMsg;
+    console.error('[team/invite] Invitation email send failed — keeping DB invitation rows', {
       to: email,
       invitationId: invitation.id,
+      memberId: member.id,
       error: errMsg,
       inviteUrl,
     });
@@ -502,17 +571,8 @@ export async function POST(request: NextRequest) {
       status: 'failed',
       error: errMsg,
     });
-    // Roll back both records so there's no broken state
-    await db.from('workspace_invitations').delete().eq('token', token);
-    await db.from('team_invitations').delete().eq('id', String(invitation.id));
-    await db.from('team_members').delete().eq('id', member.id);
-    return NextResponse.json(
-      { error: `Invitation created but email failed to send: ${errMsg}` },
-      { status: 502 },
-    );
   }
 
-  // Notify team (best-effort — after successful email send)
   void processEvent({
     event_type: 'invite.sent',
     actor_id: auth.profile.id,
@@ -521,6 +581,7 @@ export async function POST(request: NextRequest) {
     payload: {
       inviteeName: full_name,
       role: access_role,
+      emailSent,
     },
   });
 
@@ -551,8 +612,9 @@ export async function POST(request: NextRequest) {
     {
       member,
       invitation,
-      emailSent: true,
-      emailProvider: 'resend',
+      emailSent,
+      emailProvider: emailSent ? 'resend' : null,
+      emailSkippedReason: emailSent ? null : emailErrorMessage,
     },
     { status: 201 },
   );

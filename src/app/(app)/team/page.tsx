@@ -1313,6 +1313,7 @@ export default function TeamPage() {
     try {
       const res = await fetch('/api/team/invite', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: inviteForm.full_name,
@@ -1329,24 +1330,52 @@ export default function TeamPage() {
           },
         }),
       });
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
         if (data?.code === 'ALREADY_MEMBER') {
           setInviteErrorCode('ALREADY_MEMBER');
           setActionError('This person is already in your team.');
+          toast('This person is already in your team.', 'error');
           return;
         }
-        const exactDbError =
-          process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
-        setActionError(exactDbError || data.error || t('teamInviteFailed'));
+        const errText =
+          (typeof data.error === 'string' && data.error) ||
+          (typeof data.dbError === 'string' && data.dbError) ||
+          t('teamInviteFailed');
+        setActionError(errText);
         if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
+        console.error('[team] invite API failed:', res.status, data);
+        toast(errText, 'error');
         return;
       }
+
+      if (data?.regenerated === true) {
+        setInviteOpen(false);
+        setInviteForm({ ...blankInviteForm });
+        const emailSent = data.emailSent !== false;
+        if (emailSent) {
+          toast(t('teamInviteSentTo', { email: inviteForm.email }), 'success');
+        } else {
+          toast(t('teamInviteCreatedEmailFailed'), 'warning');
+        }
+        await queryClient.invalidateQueries({ queryKey: ['team-data'] });
+        await queryClient.refetchQueries({ queryKey: ['team-data'] });
+        return;
+      }
+
       if (!hasInviteInsertResult(data)) {
         setActionError(t('teamInviteNoRowReturned'));
         console.error('[team] Missing insert result after invite:', data);
+        toast(t('teamInviteNoRowReturned'), 'error');
         return;
       }
+
+      const created = data as {
+        member: TeamMember;
+        invitation: TeamInvitation;
+        emailSent?: boolean;
+        emailSkippedReason?: string | null;
+      };
 
       queryClient.setQueryData(
         ['team-data'],
@@ -1361,7 +1390,7 @@ export default function TeamPage() {
             | undefined,
         ) => {
           const optimisticInvitation: TeamInvitation = {
-            ...data.invitation,
+            ...created.invitation,
             team_member: {
               full_name: inviteForm.full_name,
               job_title: inviteForm.job_title || null,
@@ -1371,19 +1400,19 @@ export default function TeamPage() {
           };
           if (!prev) {
             return {
-              members: [data.member],
+              members: [created.member],
               invitations: [optimisticInvitation],
               workspaceAccess: {},
               invitationsLoadFailed: false,
             };
           }
           const nextMembers = [
-            data.member,
-            ...prev.members.filter((m) => m.id !== data.member.id),
+            created.member,
+            ...prev.members.filter((m) => m.id !== created.member.id),
           ].sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
           const nextInvitations = [
             optimisticInvitation,
-            ...prev.invitations.filter((i) => i.id !== data.invitation.id),
+            ...prev.invitations.filter((i) => i.id !== created.invitation.id),
           ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return {
             ...prev,
@@ -1396,19 +1425,25 @@ export default function TeamPage() {
 
       setInviteOpen(false);
       setInviteForm({ ...blankInviteForm });
-      const emailSent = (data as { emailSent?: boolean }).emailSent === true;
-      const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
+      const emailSent = created.emailSent === true;
+      const skipReason =
+        typeof created.emailSkippedReason === 'string' ? created.emailSkippedReason : null;
       if (emailSent) {
-        toast('Invitation sent', 'success');
+        toast(t('teamInviteSentTo', { email: inviteForm.email }), 'success');
       } else {
         toast(
-          `Invite member / ${inviteForm.email}: ${skipReason ?? t('teamInviteCreatedNoEmail', { email: inviteForm.email })}`,
+          skipReason
+            ? `${t('teamInviteCreatedEmailFailed')} (${skipReason})`
+            : t('teamInviteCreatedEmailFailed'),
           'warning',
         );
       }
-      void queryClient.invalidateQueries({ queryKey: ['team-data'] });
+      await queryClient.invalidateQueries({ queryKey: ['team-data'] });
+      await queryClient.refetchQueries({ queryKey: ['team-data'] });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('teamNetworkErrorRetry'));
+      const msg = err instanceof Error ? err.message : t('teamNetworkErrorRetry');
+      setActionError(msg);
+      toast(msg, 'error');
     } finally {
       setSaving(false);
     }

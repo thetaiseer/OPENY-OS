@@ -552,6 +552,8 @@ const translations: Record<string, Record<string, string>> = {
     teamInviteSentTo: 'Invitation sent to {{email}}',
     teamInviteCreatedNoEmail:
       'Invitation created for {{email}} — email was not sent. Use Copy invite link on the Team page.',
+    teamInviteCreatedEmailFailed:
+      'Invitation created, but email could not be sent. Use Copy invite link on the Team page.',
     teamNetworkErrorRetry: 'Network error. Please try again.',
     teamMemberUpdated: 'Member updated successfully',
     teamFailedUpdateMember: 'Failed to update member',
@@ -1830,6 +1832,8 @@ const translations: Record<string, Record<string, string>> = {
     teamInviteSentTo: 'أُرسلت الدعوة إلى {{email}}',
     teamInviteCreatedNoEmail:
       'أُنشئت الدعوة لـ {{email}} — لم يُرسل البريد. استخدم «نسخ رابط الدعوة» في صفحة الفريق.',
+    teamInviteCreatedEmailFailed:
+      'أُنشئت الدعوة لكن تعذّر إرسال البريد. استخدم «نسخ رابط الدعوة» في صفحة الفريق.',
     teamNetworkErrorRetry: 'خطأ في الشبكة. حاول مرة أخرى.',
     teamMemberUpdated: 'تم تحديث العضو بنجاح',
     teamFailedUpdateMember: 'تعذّر تحديث العضو',
