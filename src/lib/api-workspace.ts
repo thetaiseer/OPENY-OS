@@ -203,6 +203,7 @@ export async function resolveWorkspaceForRequest(
   request: NextRequest,
   db: SupabaseClient,
   userId?: string | null,
+  options?: { allowWorkspaceFallbackWithoutMembership?: boolean },
 ): Promise<WorkspaceResolution> {
   const requestedKey = resolveWorkspaceKeyFromRequest(request);
   const workspaceKey = requestedKey ?? 'os';
@@ -224,6 +225,12 @@ export async function resolveWorkspaceForRequest(
         workspaceId: bySession.workspaceId,
         error: null,
       };
+    }
+    if (options?.allowWorkspaceFallbackWithoutMembership) {
+      const byKey = await resolveWorkspaceIdByKey(db, workspaceKey);
+      if (byKey) {
+        return { workspaceKey, workspaceId: byKey, error: null };
+      }
     }
     return {
       workspaceKey,

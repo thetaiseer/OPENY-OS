@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
       req,
       supabase,
       profile.id,
+      { allowWorkspaceFallbackWithoutMembership: profile.role === 'owner' },
     );
     if (!workspaceId) {
       return NextResponse.json(
