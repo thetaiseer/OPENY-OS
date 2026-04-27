@@ -14,6 +14,7 @@ import {
   TASK_LIST_COLUMNS,
 } from '@/lib/supabase-list-columns';
 import { toUtcRangeBounds } from '@/lib/date-range';
+import { OPENY_QUERY_DEFAULTS, workspaceKey } from '@/hooks/workspace-query';
 
 function supabase() {
   return createClient();
@@ -30,14 +31,15 @@ interface UseClientsOptions {
   page?: number;
   pageSize?: number;
   search?: string;
+  workspaceId?: string | null;
 }
 
 export function useClients(
-  { page = 1, pageSize = 50, search = '' }: UseClientsOptions = {},
+  { page = 1, pageSize = 50, search = '', workspaceId = null }: UseClientsOptions = {},
   options?: Partial<UseQueryOptions<ClientsPage>>,
 ) {
   return useQuery<ClientsPage>({
-    queryKey: ['clients', page, pageSize, search],
+    queryKey: workspaceKey(workspaceId, 'clients', page, pageSize, search),
     queryFn: async () => {
       const sb = supabase();
       let q = sb
@@ -49,6 +51,7 @@ export function useClients(
         const s = `%${search.trim()}%`;
         q = q.or(`name.ilike.${s},email.ilike.${s}`);
       }
+      if (workspaceId) q = q.eq('workspace_id', workspaceId);
 
       const from = (page - 1) * pageSize;
       q = q.range(from, from + pageSize - 1);
@@ -57,8 +60,7 @@ export function useClients(
       if (error) throw new Error(error.message);
       return { data: (data ?? []) as Client[], total: count ?? 0 };
     },
-    staleTime: 30_000,
-    retry: 1,
+    ...OPENY_QUERY_DEFAULTS,
     ...options,
   });
 }
@@ -76,14 +78,22 @@ interface UseTasksOptions {
   search?: string;
   status?: string;
   clientId?: string;
+  workspaceId?: string | null;
 }
 
 export function useTasks(
-  { page = 1, pageSize = 30, search = '', status = '', clientId = '' }: UseTasksOptions = {},
+  {
+    page = 1,
+    pageSize = 30,
+    search = '',
+    status = '',
+    clientId = '',
+    workspaceId = null,
+  }: UseTasksOptions = {},
   options?: Partial<UseQueryOptions<TasksPage>>,
 ) {
   return useQuery<TasksPage>({
-    queryKey: ['tasks', page, pageSize, search, status, clientId],
+    queryKey: workspaceKey(workspaceId, 'tasks', page, pageSize, search, status, clientId),
     queryFn: async () => {
       const sb = supabase();
       let q = sb
@@ -96,6 +106,7 @@ export function useTasks(
       }
       if (status) q = q.eq('status', status);
       if (clientId) q = q.eq('client_id', clientId);
+      if (workspaceId) q = q.eq('workspace_id', workspaceId);
 
       const from = (page - 1) * pageSize;
       q = q.range(from, from + pageSize - 1);
@@ -104,8 +115,7 @@ export function useTasks(
       if (error) throw new Error(error.message);
       return { data: (data ?? []) as Task[], total: count ?? 0 };
     },
-    staleTime: 15_000,
-    retry: 1,
+    ...OPENY_QUERY_DEFAULTS,
     ...options,
   });
 }
@@ -124,6 +134,7 @@ interface UseAssetsOptions {
   contentType?: string;
   clientId?: string;
   tags?: string[];
+  workspaceId?: string | null;
 }
 
 export function useAssets(
@@ -134,11 +145,21 @@ export function useAssets(
     contentType = '',
     clientId = '',
     tags = [],
+    workspaceId = null,
   }: UseAssetsOptions = {},
   options?: Partial<UseQueryOptions<AssetsPage>>,
 ) {
   return useQuery<AssetsPage>({
-    queryKey: ['assets', page, pageSize, search, contentType, clientId, tags],
+    queryKey: workspaceKey(
+      workspaceId,
+      'assets',
+      page,
+      pageSize,
+      search,
+      contentType,
+      clientId,
+      tags,
+    ),
     queryFn: async () => {
       const sb = supabase();
       let q = sb
@@ -151,6 +172,7 @@ export function useAssets(
       }
       if (contentType) q = q.eq('content_type', contentType);
       if (clientId) q = q.eq('client_id', clientId);
+      if (workspaceId) q = q.eq('workspace_id', workspaceId);
       if (tags.length)
         q = (q as unknown as { overlaps: (col: string, val: string[]) => typeof q }).overlaps(
           'tags',
@@ -164,8 +186,7 @@ export function useAssets(
       if (error) throw new Error(error.message);
       return { data: (data ?? []) as Asset[], total: count ?? 0 };
     },
-    staleTime: 15_000,
-    retry: 1,
+    ...OPENY_QUERY_DEFAULTS,
     ...options,
   });
 }
@@ -173,24 +194,29 @@ export function useAssets(
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export function useNotifications(
-  { page = 1, pageSize = 20 }: { page?: number; pageSize?: number } = {},
+  {
+    page = 1,
+    pageSize = 20,
+    workspaceId = null,
+  }: { page?: number; pageSize?: number; workspaceId?: string | null } = {},
   options?: Partial<UseQueryOptions<{ data: Notification[]; total: number }>>,
 ) {
   return useQuery<{ data: Notification[]; total: number }>({
-    queryKey: ['notifications', page, pageSize],
+    queryKey: workspaceKey(workspaceId, 'notifications', page, pageSize),
     queryFn: async () => {
       const sb = supabase();
       const from = (page - 1) * pageSize;
-      const { data, error, count } = await sb
+      let query = sb
         .from('notifications')
         .select(NOTIFICATION_LIST_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, from + pageSize - 1);
+      if (workspaceId) query = query.eq('workspace_id', workspaceId);
+      const { data, error, count } = await query;
       if (error) throw new Error(error.message);
       return { data: (data ?? []) as Notification[], total: count ?? 0 };
     },
-    staleTime: 10_000,
-    retry: 1,
+    ...OPENY_QUERY_DEFAULTS,
     ...options,
   });
 }
@@ -208,6 +234,7 @@ export interface DashboardStats {
 export function useDashboardStats(
   periodStart: string,
   periodEnd: string,
+  workspaceId?: string | null,
   options?: Partial<UseQueryOptions<DashboardStats>>,
 ) {
   const start = periodStart;
@@ -215,7 +242,7 @@ export function useDashboardStats(
   const { startIso: startTs, endIso: endTs } = toUtcRangeBounds(start, end);
 
   return useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats', periodStart, periodEnd],
+    queryKey: workspaceKey(workspaceId, 'dashboard-stats', periodStart, periodEnd),
     queryFn: async () => {
       const sb = supabase();
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -227,38 +254,78 @@ export function useDashboardStats(
       const terminalStatuses = '("done","delivered","completed","published","cancelled")';
 
       const settled = await Promise.allSettled([
-        sb.from('clients').select('id', { count: 'exact', head: true }),
+        workspaceId
+          ? sb
+              .from('clients')
+              .select('id', { count: 'exact', head: true })
+              .eq('workspace_id', workspaceId)
+          : sb.from('clients').select('id', { count: 'exact', head: true }),
         // Active tasks: touched in selected month, not terminal
-        sb
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .not('status', 'in', terminalStatuses)
-          .gte('updated_at', startTs)
-          .lte('updated_at', endTs),
+        workspaceId
+          ? sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .eq('workspace_id', workspaceId)
+              .not('status', 'in', terminalStatuses)
+              .gte('updated_at', startTs)
+              .lte('updated_at', endTs)
+          : sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .not('status', 'in', terminalStatuses)
+              .gte('updated_at', startTs)
+              .lte('updated_at', endTs),
         // Overdue within selected month window (due date in month, before today)
-        sb
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .not('status', 'in', terminalStatuses)
-          .not('due_date', 'is', null)
-          .gte('due_date', start)
-          .lte('due_date', end)
-          .lt('due_date', todayStr),
+        workspaceId
+          ? sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .eq('workspace_id', workspaceId)
+              .not('status', 'in', terminalStatuses)
+              .not('due_date', 'is', null)
+              .gte('due_date', start)
+              .lte('due_date', end)
+              .lt('due_date', todayStr)
+          : sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .not('status', 'in', terminalStatuses)
+              .not('due_date', 'is', null)
+              .gte('due_date', start)
+              .lte('due_date', end)
+              .lt('due_date', todayStr),
         // Due in the next 7 days, intersecting selected calendar month
-        sb
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .gte('due_date', todayStr)
-          .lte('due_date', weekLaterStr)
-          .gte('due_date', start)
-          .lte('due_date', end)
-          .not('status', 'in', terminalStatuses),
+        workspaceId
+          ? sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .eq('workspace_id', workspaceId)
+              .gte('due_date', todayStr)
+              .lte('due_date', weekLaterStr)
+              .gte('due_date', start)
+              .lte('due_date', end)
+              .not('status', 'in', terminalStatuses)
+          : sb
+              .from('tasks')
+              .select('id', { count: 'exact', head: true })
+              .gte('due_date', todayStr)
+              .lte('due_date', weekLaterStr)
+              .gte('due_date', start)
+              .lte('due_date', end)
+              .not('status', 'in', terminalStatuses),
         // Assets created in selected range
-        sb
-          .from('assets')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', startTs)
-          .lte('created_at', endTs),
+        workspaceId
+          ? sb
+              .from('assets')
+              .select('id', { count: 'exact', head: true })
+              .eq('workspace_id', workspaceId)
+              .gte('created_at', startTs)
+              .lte('created_at', endTs)
+          : sb
+              .from('assets')
+              .select('id', { count: 'exact', head: true })
+              .gte('created_at', startTs)
+              .lte('created_at', endTs),
       ]);
 
       const [clients, tasks, overdue, dueThisWeek, assets] = settled;
@@ -270,8 +337,7 @@ export function useDashboardStats(
         totalAssets: assets.status === 'fulfilled' ? (assets.value.count ?? 0) : 0,
       };
     },
-    staleTime: 60_000,
-    retry: 1,
+    ...OPENY_QUERY_DEFAULTS,
     ...options,
   });
 }

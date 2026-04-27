@@ -24,7 +24,7 @@ export default function Topbar({ className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'openy-glass fixed end-0 start-0 top-0 z-30 border-b pt-[env(safe-area-inset-top,0px)] md:end-0 md:start-[240px]',
+        'openy-glass fixed end-0 start-0 top-0 z-30 border-b pt-[env(safe-area-inset-top,0px)] md:end-0 md:start-[var(--openy-sidebar-width)]',
         className,
       )}
       style={{ borderColor: 'var(--border)' }}

@@ -46,6 +46,7 @@ import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
+import Dashboard from '@/components/dashboard/Dashboard';
 
 const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
@@ -780,38 +781,13 @@ export default function DashboardPage() {
       <PageHeader
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => triggerQuickAction('add-client')}
-            >
-              + {t('newClient')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-task')}
-            >
-              {t('newTask')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-project')}
-            >
-              {t('newProject')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => triggerQuickAction('add-asset')}
-            >
-              {t('uploadAsset')}
-            </Button>
-          </div>
-        }
+      />
+
+      <Dashboard
+        onCreateClient={() => triggerQuickAction('add-client')}
+        onCreateTask={() => triggerQuickAction('add-task')}
+        onCreateProject={() => triggerQuickAction('add-project')}
+        onUploadAsset={() => triggerQuickAction('add-asset')}
       />
 
       {statsLoading ? (
