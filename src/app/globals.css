@@ -9,9 +9,9 @@
   --surface-elevated: #18263d;
 
   --text-primary: #f8fafc;
-  --text-secondary: #c8d6e5;
-  --text-muted: #8fa8c4;
-  --text-disabled: #6080a0;
+  --text-secondary: #d7e2ef;
+  --text-muted: #b8c9dc;
+  --text-disabled: #90a5be;
 
   --border: #26364f;
   --border-strong: #3b4a66;
@@ -67,9 +67,9 @@
   --surface-elevated: #ffffff;
 
   --text-primary: #0f172a;
-  --text-secondary: #374151;
-  --text-muted: #1e293b;
-  --text-disabled: #6b7280;
+  --text-secondary: #2f3d52;
+  --text-muted: #4d607a;
+  --text-disabled: #5f6f85;
 
   --border: #d8dee9;
   --border-strong: #b6c0d2;
@@ -293,6 +293,18 @@ select {
     font-size: var(--font-size-sm);
   }
 
+  .text-readable {
+    color: var(--text-primary);
+  }
+
+  .text-readable-muted {
+    color: var(--text-secondary);
+  }
+
+  .text-readable-subtle {
+    color: var(--text-muted);
+  }
+
   .openy-modal-btn-primary {
     display: inline-flex;
     min-height: 3rem;
@@ -381,7 +393,7 @@ select {
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--text-primary);
-    opacity: 0.72;
+    opacity: 0.9;
     text-decoration: none;
   }
 
@@ -413,7 +425,7 @@ select {
     font-weight: 600;
     line-height: 1.2;
     color: var(--text-primary);
-    opacity: 0.72;
+    opacity: 0.9;
     cursor: pointer;
     white-space: nowrap;
     transition:

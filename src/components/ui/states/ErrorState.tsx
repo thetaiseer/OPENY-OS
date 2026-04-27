@@ -19,8 +19,8 @@ export default function ErrorState({
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-[var(--color-danger-bg)] text-[var(--color-danger)]">
         <AlertTriangle size={18} />
       </div>
-      <p className="text-base font-semibold text-[var(--text)]">{title}</p>
-      <p className="max-w-xl text-sm text-[var(--text-secondary)]">{description}</p>
+      <p className="text-readable text-base font-semibold">{title}</p>
+      <p className="text-readable-muted max-w-xl text-sm font-medium">{description}</p>
       {actionLabel && onAction ? (
         <Button type="button" variant="danger" onClick={onAction}>
           {actionLabel}

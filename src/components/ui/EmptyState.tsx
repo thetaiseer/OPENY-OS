@@ -45,11 +45,9 @@ export default function EmptyState({
           {renderedIcon}
         </div>
       ) : null}
-      {title ? (
-        <div className="text-base font-semibold text-[color:var(--text-primary)]">{title}</div>
-      ) : null}
+      {title ? <div className="text-readable text-base font-semibold">{title}</div> : null}
       {description ? (
-        <div className="max-w-xl text-sm font-medium leading-relaxed text-[color:var(--text-secondary)]">
+        <div className="text-readable-muted max-w-xl text-sm font-medium leading-relaxed">
           {description}
         </div>
       ) : null}

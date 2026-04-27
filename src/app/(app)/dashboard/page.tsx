@@ -426,7 +426,7 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
         </LineChart>
       </ResponsiveContainer>
       {allZero ? (
-        <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+        <p className="text-readable-muted mt-2 text-center text-xs font-medium">
           {t('noCompletedTasksPeriod')}
         </p>
       ) : null}
@@ -900,7 +900,7 @@ export default function DashboardPage() {
                     {item.label}
                   </p>
                   <p className="mt-2 text-2xl font-bold text-[var(--text)]">{item.value}</p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.hint}</p>
+                  <p className="text-readable-muted mt-1 text-xs font-medium">{item.hint}</p>
                 </Link>
               ))}
             </div>
@@ -931,7 +931,7 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-[var(--text)]">
                 {t('noCompletedTasksPeriod')}
               </p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              <p className="text-readable-muted mt-1 text-xs font-medium">
                 Keep work moving to unlock performance trends.
               </p>
             </div>

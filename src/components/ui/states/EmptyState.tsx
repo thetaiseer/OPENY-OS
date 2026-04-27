@@ -19,8 +19,8 @@ export default function EmptyState({
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-[var(--accent-soft)] text-[var(--accent)]">
         <Inbox size={18} />
       </div>
-      <p className="text-base font-semibold text-[var(--text)]">{title}</p>
-      <p className="max-w-xl text-sm text-[var(--text-secondary)]">{description}</p>
+      <p className="text-readable text-base font-semibold">{title}</p>
+      <p className="text-readable-muted max-w-xl text-sm font-medium">{description}</p>
       {actionLabel && onAction ? (
         <Button type="button" variant="primary" onClick={onAction}>
           {actionLabel}
