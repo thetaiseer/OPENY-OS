@@ -241,7 +241,8 @@ function parseInviteWorkspaceRoles(raw: TeamInvitation['workspace_roles']): Reco
 }
 
 function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>, t: TranslateFn): string {
-  if (access.length === 2) return t('teamWsSummaryBoth');
+  if (access.length === 0) return '';
+  if (access.length >= 2) return t('teamWsSummaryBoth');
   if (access[0] === 'docs') return workspaceLabelUi('docs', t);
   return workspaceLabelUi('os', t);
 }
@@ -2171,9 +2172,11 @@ function PendingInvitationRow({
               </span>
             )}
           </div>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {t('teamWorkspaceAccessLabel', { summary: workspaceSummary })}
-          </p>
+          {workspaceSummary && (
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('teamWorkspaceAccessLabel', { summary: workspaceSummary })}
+            </p>
+          )}
           {invitation.expires_at && (
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
               {t('teamExpires', { date: new Date(invitation.expires_at).toLocaleDateString() })}

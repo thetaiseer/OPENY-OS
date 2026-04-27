@@ -36,23 +36,26 @@ type InvitationRow = {
     | null;
 };
 
-// Prefer flat selects first: embedded `team_member:team_members(...)` can fail if the FK
-// hint or PostgREST relationship name differs across deployments, which previously
-// caused GET to 500 and the Team page to drop pending invites after refetch.
+// Prefer flat selects with accepted_at first: on modern DBs that have the column
+// this succeeds immediately and accepted_at is preserved.  The variants without
+// accepted_at are kept as fallbacks for legacy schemas that were deployed before
+// that column was added; they will also succeed on those DBs.
 //
-// Some production DBs were created without `accepted_at` (or `updated_at` / workspace JSON);
-// try those shapes before selects that reference missing columns.
+// Embedded `team_member:team_members(...)` variants come last because the FK hint
+// or PostgREST relationship name can differ across deployments and cause 500s.
 const selectVariants = [
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
+  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
+  // Legacy schemas without accepted_at:
   'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
+  // Variants with embedded team_member join (last resort due to FK name variance):
   'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(full_name, job_title, role, status)',
   'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
