@@ -41,34 +41,6 @@ import type { ModuleAccess, OsModule, DocsModule } from './types';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// ── Profile cache ─────────────────────────────────────────────────────────────
-// Short-lived in-memory cache that avoids a redundant Supabase round-trip on
-// every API call.  The JWT is still validated on every request via getUser();
-// only the secondary team_members lookup is cached.
-// TTL: 60 s — role changes take effect within one minute.
-
-const PROFILE_CACHE_TTL_MS = 60_000;
-const MAX_PROFILE_CACHE_SIZE = 500;
-
-interface CachedProfile {
-  profile: UserProfile;
-  expiresAt: number;
-}
-
-const profileCache = new Map<string, CachedProfile>();
-
-function setCachedProfile(userId: string, profile: UserProfile): void {
-  const now = Date.now();
-  for (const [key, entry] of profileCache) {
-    if (entry.expiresAt <= now) profileCache.delete(key);
-  }
-  if (profileCache.size >= MAX_PROFILE_CACHE_SIZE) {
-    const oldestKey = profileCache.keys().next().value;
-    if (oldestKey) profileCache.delete(oldestKey);
-  }
-  profileCache.set(userId, { profile, expiresAt: now + PROFILE_CACHE_TTL_MS });
-}
-
 export interface UserProfile {
   id: string;
   name: string;
@@ -119,7 +91,6 @@ export async function getApiUser(request: NextRequest): Promise<{ profile: UserP
       email,
       role: 'owner',
     };
-    setCachedProfile(user.id, ownerProfile);
     return { profile: ownerProfile };
   }
 
@@ -206,7 +177,6 @@ export async function getApiUser(request: NextRequest): Promise<{ profile: UserP
     );
   }
 
-  setCachedProfile(resolved.id, resolved);
   return { profile: resolved };
 }
 
