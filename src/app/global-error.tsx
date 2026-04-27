@@ -18,9 +18,7 @@ export default function GlobalError({
       <body>
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center font-sans">
           <h1 className="text-2xl font-bold text-[color:var(--text-primary)]">Application Error</h1>
-          <p className="text-[color:var(--text-secondary)]">
-            {error.message || 'A critical error occurred. Please refresh the page.'}
-          </p>
+          <p className="text-[color:var(--text-secondary)]">Something went wrong. Please retry.</p>
           {error.digest && (
             <p className="text-[color:var(--text-secondary)]/80 font-mono text-xs">
               Error ID: {error.digest}

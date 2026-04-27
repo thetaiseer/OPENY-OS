@@ -30,7 +30,7 @@ export default function AppError({
           Something went wrong
         </h2>
         <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
-          {error.message || 'An unexpected error occurred. Please try again.'}
+          Something went wrong. Please retry.
         </p>
         {error.digest && (
           <p className="text-[color:var(--text-secondary)]/80 mt-1 font-mono text-xs">
