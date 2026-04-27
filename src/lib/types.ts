@@ -275,6 +275,14 @@ export interface Asset {
   sub_category?: string | null;
   /** Canonical storage key: clients/{slug}/{mainCat}/{year}/{month}/{subCat}/{ts}-{file} */
   storage_key?: string | null;
+  display_name?: string | null;
+  original_name?: string | null;
+  public_url?: string | null;
+  size_bytes?: number | null;
+  checksum?: string | null;
+  sync_status?: string | null;
+  missing_in_storage?: boolean | null;
+  deleted_at?: string | null;
   created_at: string;
 }
 

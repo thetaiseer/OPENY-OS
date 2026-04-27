@@ -47,12 +47,15 @@ export const TASK_LIST_COLUMNS = [
 export const ASSET_LIST_COLUMNS = [
   'id',
   'name',
+  'display_name',
+  'original_name',
   'file_path',
   'file_url',
   'view_url',
   'download_url',
   'file_type',
   'file_size',
+  'size_bytes',
   'bucket_name',
   'storage_provider',
   'client_folder_name',
@@ -70,6 +73,10 @@ export const ASSET_LIST_COLUMNS = [
   'main_category',
   'sub_category',
   'storage_key',
+  'public_url',
+  'sync_status',
+  'missing_in_storage',
+  'deleted_at',
   'created_at',
 ].join(',');
 

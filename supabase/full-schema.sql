@@ -1,6 +1,6 @@
 -- =============================================================================
 -- OPENY OS — consolidated database schema
--- Generated: 2026-04-27T18:08:51.321Z
+-- Generated: 2026-04-27T18:11:32.357Z
 -- Source: 70 files under supabase/migrations/ (lexicographic order = Supabase CLI migration order)
 --
 -- Run on a new Supabase project at your own risk: review RLS, grants, and storage

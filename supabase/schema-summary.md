@@ -1,6 +1,6 @@
 # OPENY OS — schema summary (generated)
 
-- **Generated at:** 2026-04-27T18:08:51.349Z
+- **Generated at:** 2026-04-27T18:11:32.379Z
 - **Migration files merged:** 70
 - **Output:** `supabase/full-schema.sql`
 

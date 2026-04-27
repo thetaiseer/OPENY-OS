@@ -1202,6 +1202,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     const completePayload = {
       storageKey,
       displayName,
+      originalName: item.file.name,
       publicUrl,
       storageBucket,
       storageProvider: 'r2',

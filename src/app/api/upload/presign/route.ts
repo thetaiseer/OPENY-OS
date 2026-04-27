@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { getServiceClient } from '@/lib/supabase/service-client';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { resolveUploadClientDisplayName } from '@/lib/upload-resolve-client-name';
+import { allocateWorkspaceAssetStorageKey } from '@/lib/assets/allocate-workspace-asset-key';
 import { uploadFile, getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import {
   checkUploadHourlyLimit,
@@ -7,12 +11,7 @@ import {
   getMultipartThresholdBytes,
   uploadSizeExceededMessage,
 } from '@/lib/upload-limits';
-import {
-  buildStorageKey,
-  MAIN_CATEGORIES,
-  SUBCATEGORIES,
-  type MainCategorySlug,
-} from '@/lib/asset-utils';
+import { MAIN_CATEGORIES, SUBCATEGORIES, type MainCategorySlug } from '@/lib/asset-utils';
 
 export const dynamic = 'force-dynamic';
 /** Keep within Vercel Hobby function duration limits. */
@@ -140,29 +139,58 @@ export async function POST(req: NextRequest) {
 
   if (!fileSize || fileSize <= 0) return fail('fileSize must be a positive number');
 
-  // Build the storage key and display name.
-  const sanitizedFile = sanitizeFileName(fileName);
-  const timestamp = Date.now();
+  let supabase: ReturnType<typeof getServiceClient>;
+  try {
+    supabase = getServiceClient();
+  } catch {
+    return fail('Supabase configuration error', 500);
+  }
 
-  const storageKey = buildStorageKey({
-    clientName,
+  const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+    req,
+    supabase,
+    auth.profile.id,
+  );
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: workspaceError ?? 'Unable to resolve workspace from session' },
+      { status: 403 },
+    );
+  }
+
+  let resolvedClientName = clientName;
+  resolvedClientName = await resolveUploadClientDisplayName(
+    supabase,
+    workspaceId,
+    resolvedClientName,
     clientId,
-    mainCategory,
-    subCategory: subCategory || 'general',
-    monthKey,
-    fileName: sanitizedFile,
-    timestamp,
-  });
+  );
+  if (!resolvedClientName) {
+    return fail(
+      'clientName is required, or pass a valid clientId in this workspace so the name can be resolved.',
+    );
+  }
 
-  let displayName: string;
+  const originalName = fileName.trim();
+  let displayName = originalName;
   if (customName) {
     const base = sanitizeFileName(customName);
     const dotExt = ext ? `.${ext}` : '';
     const baseLower = base.toLowerCase();
     const extLower = dotExt.toLowerCase();
     displayName = dotExt && baseLower.endsWith(extLower) ? base : `${base}${dotExt}`;
-  } else {
-    displayName = `${timestamp}-${sanitizedFile}`;
+  }
+
+  let storageKey: string;
+  try {
+    ({ storageKey } = await allocateWorkspaceAssetStorageKey(
+      workspaceId,
+      clientId,
+      monthKey,
+      originalName,
+    ));
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e), 500);
   }
 
   const bucketName = getStorageBucketName();
@@ -192,7 +220,12 @@ export async function POST(req: NextRequest) {
 
     const publicUrl = getFileUrl(storageKey);
 
-    return NextResponse.json({ storageKey, publicUrl, displayName });
+    return NextResponse.json({
+      storageKey,
+      publicUrl,
+      displayName,
+      originalName,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const isConfigErr = err instanceof R2ConfigError;

@@ -1,9 +1,51 @@
-import { deleteFile, R2ConfigError, R2NotFoundError } from '@/lib/storage';
-
 /**
- * Delete one object from Cloudflare R2 by key.
- * Server-side only. Never call from client components.
+ * Central R2 (S3-compatible) helpers for OPENY OS.
+ * Re-exports low-level primitives from `@/lib/r2` and `@/lib/storage/service`.
+ * Prefer importing from here in app code so storage behavior stays in one place.
+ *
+ * Server-only — never import from client components.
  */
+
+import {
+  uploadToR2,
+  deleteFromR2,
+  objectExistsInR2,
+  buildR2Url,
+  getR2Config,
+  checkR2Config,
+  R2ConfigError,
+  R2NotFoundError,
+} from '@/lib/r2';
+import { listFilesByPrefix } from '@/lib/storage/service';
+import type { StorageListedFile } from '@/lib/storage/types';
+
+export { R2ConfigError, R2NotFoundError, getR2Config, checkR2Config };
+
+export async function uploadObject(
+  key: string,
+  body: Buffer,
+  contentType: string,
+): ReturnType<typeof uploadToR2> {
+  return uploadToR2(key, body, contentType);
+}
+
+export async function deleteObject(key: string): Promise<void> {
+  await deleteFromR2(key);
+}
+
+export async function objectExists(key: string): Promise<boolean> {
+  return objectExistsInR2(key);
+}
+
+export async function listObjects(prefix: string, maxKeys = 1000): Promise<StorageListedFile[]> {
+  return listFilesByPrefix(prefix, maxKeys);
+}
+
+export function getPublicUrl(key: string): string {
+  return buildR2Url(key);
+}
+
+/** @deprecated use deleteObject — kept for existing imports */
 export async function deleteR2Object(key: string): Promise<{
   success: boolean;
   missing?: boolean;
@@ -17,7 +59,7 @@ export async function deleteR2Object(key: string): Promise<{
   }
 
   try {
-    await deleteFile(trimmedKey);
+    await deleteFromR2(trimmedKey);
     return { success: true };
   } catch (error) {
     if (error instanceof R2NotFoundError) {
@@ -37,9 +79,6 @@ export async function deleteR2Object(key: string): Promise<{
     ) {
       return { success: false, configInvalid: true, error: message };
     }
-    return {
-      success: false,
-      error: message,
-    };
+    return { success: false, error: message };
   }
 }

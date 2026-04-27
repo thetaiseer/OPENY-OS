@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/api-auth';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { insertWithColumnFallback, serializeDbError } from '@/lib/asset-db';
 import { notifyAssetUploaded } from '@/lib/notification-service';
-import { getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
+import { deleteFile, getFileUrl, getStorageBucketName, R2ConfigError } from '@/lib/storage';
 import { saveStoredFileMetadata } from '@/lib/storage/metadata';
 import { processEvent } from '@/lib/event-engine';
 import { resolveUploadClientDisplayName } from '@/lib/upload-resolve-client-name';
@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
 
   const storageKey = (body.storageKey as string | undefined)?.trim() ?? '';
   const displayName = (body.displayName as string | undefined)?.trim() ?? '';
+  const originalName =
+    (body.originalName as string | undefined)?.trim() || displayName || 'uploaded-file';
   let resolvedClientName = (body.clientName as string | undefined)?.trim() ?? '';
   const clientId = (body.clientId as string | undefined)?.trim() || null;
   const fileType = (body.fileType as string | undefined)?.trim() ?? 'application/octet-stream';
@@ -233,8 +235,9 @@ export async function POST(req: NextRequest) {
     workspace_id: workspaceId,
     name: displayName,
     file_name: displayName,
-    original_name: displayName,
-    original_filename: displayName,
+    display_name: displayName,
+    original_name: originalName,
+    original_filename: originalName,
     ...(fileExtension ? { file_extension: fileExtension } : {}),
     file_path: storageKey,
     storage_path: storageKey,
@@ -242,6 +245,7 @@ export async function POST(req: NextRequest) {
     file_key: storageKey,
     file_url: publicUrl,
     public_url: publicUrl,
+    size_bytes: fileSize,
     view_url: publicUrl,
     download_url: publicUrl,
     file_type: fileType,
@@ -250,6 +254,9 @@ export async function POST(req: NextRequest) {
     bucket_name: bucketName,
     storage_bucket: bucketName,
     storage_provider: storageProvider,
+    sync_status: 'synced',
+    missing_in_storage: false,
+    deleted_at: null,
     client_name: resolvedClientName,
     client_folder_name: resolvedClientName,
     month_key: monthKey,
@@ -279,6 +286,11 @@ export async function POST(req: NextRequest) {
   );
 
   if (dbError) {
+    try {
+      await deleteFile(storageKey);
+    } catch (rbErr) {
+      console.warn('[upload/complete] R2 rollback after DB insert failure:', rbErr);
+    }
     console.error(
       '[upload/complete] DB insert failed:',
       serializeDbError(dbError),

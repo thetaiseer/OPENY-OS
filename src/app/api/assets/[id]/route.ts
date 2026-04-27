@@ -17,32 +17,10 @@ type AssetRow = {
   download_url?: string | null;
 };
 
-function extractR2Key(asset: AssetRow): string | null {
-  const direct = (asset.storage_key ?? asset.file_path ?? '').trim();
-  if (direct) return direct.replace(/^\/+/, '');
-
-  const candidates = [asset.file_url, asset.preview_url, asset.download_url].filter(
-    (value): value is string => Boolean(value),
-  );
-  if (candidates.length === 0) return null;
-
-  const base = (process.env.R2_PUBLIC_URL ?? '').trim().replace(/\/+$/, '');
-  for (const candidate of candidates) {
-    const url = candidate.trim();
-    if (!url) continue;
-    if (base && url.startsWith(base + '/')) {
-      const key = url.slice(base.length + 1).replace(/^\/+/, '');
-      return key ? decodeURIComponent(key) : null;
-    }
-    try {
-      const parsed = new URL(url);
-      const pathKey = parsed.pathname.replace(/^\/+/, '');
-      if (pathKey) return decodeURIComponent(pathKey);
-    } catch {
-      // Ignore malformed URL strings and continue trying.
-    }
-  }
-  return null;
+/** Canonical R2 key for delete — never derive from public URLs. */
+function extractStorageKey(asset: AssetRow): string | null {
+  const direct = (asset.storage_key ?? '').trim() || (asset.file_path ?? '').trim();
+  return direct ? direct.replace(/^\/+/, '') : null;
 }
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
@@ -57,9 +35,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ success: false, error: 'Missing asset id' }, { status: 400 });
     }
 
-    // ── Soft delete mode ──────────────────────────────────────────────────────
-    // Pass ?soft=true to mark the asset as deleted without removing it from
-    // storage or the database.  Useful when you want a recycle-bin workflow.
     const { searchParams } = new URL(req.url);
     const softDelete = searchParams.get('soft') === 'true';
 
@@ -123,7 +98,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    // ── 2a. Soft delete — mark as deleted without touching storage ────────────
     if (softDelete) {
       const { error: dbError } = await supabase
         .from('assets')
@@ -144,65 +118,54 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
     }
 
-    // ── 2. Delete R2 object first (key-only, no download) ────────────────────
-    const r2Key = extractR2Key(asset as AssetRow);
-    if (!r2Key) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'R2 deletion failed. Check R2 configuration.',
-          code: 'R2_KEY_MISSING',
-        },
-        { status: 500 },
-      );
-    }
-
-    const r2Delete = await deleteR2Object(r2Key);
-    if (!r2Delete.success) {
-      if (r2Delete.configMissing || r2Delete.configInvalid) {
+    const storageKey = extractStorageKey(asset as AssetRow);
+    let r2Warning: string | undefined;
+    if (storageKey && (asset.storage_provider ?? 'r2') === 'r2') {
+      const r2Delete = await deleteR2Object(storageKey);
+      if (!r2Delete.success) {
+        if (r2Delete.configMissing || r2Delete.configInvalid) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'R2 deletion failed. Check R2 configuration.',
+              code: 'R2_DELETE_FAILED',
+            },
+            { status: 500 },
+          );
+        }
         return NextResponse.json(
           {
             success: false,
-            error: 'R2 deletion failed. Check R2 configuration.',
+            error: r2Delete.error ?? 'R2 deletion failed.',
             code: 'R2_DELETE_FAILED',
           },
           { status: 500 },
         );
       }
-      return NextResponse.json(
-        {
-          success: false,
-          error: r2Delete.error ?? 'R2 deletion failed. Check R2 configuration.',
-          code: 'R2_DELETE_FAILED',
-        },
-        { status: 500 },
-      );
+      if (r2Delete.missing) {
+        console.warn('[asset-delete] R2 object already missing; continuing with soft-delete', {
+          storageKey,
+        });
+        r2Warning = 'Object was already missing from storage.';
+      }
+    } else if (!storageKey) {
+      console.warn('[asset-delete] No storage_key/file_path; skipping R2 delete', { id });
+      r2Warning = 'No storage key on record; skipped R2 delete.';
     }
 
-    // ── 3. Delete dependent rows first (workspace-scoped when possible) ─────
-    const deletePublishingSchedules = await supabase
+    const clearPublishing = await supabase
       .from('publishing_schedules')
-      .delete()
+      .update({ asset_id: null })
       .eq('asset_id', asset.id)
       .eq('workspace_id', workspaceId);
-    if (deletePublishingSchedules.error?.code === '42703') {
-      const legacyDelete = await supabase
+    if (clearPublishing.error?.code === '42703') {
+      await supabase
         .from('publishing_schedules')
-        .delete()
+        .update({ asset_id: null })
         .eq('asset_id', asset.id);
-      if (legacyDelete.error) {
-        return NextResponse.json(
-          { success: false, error: legacyDelete.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-          { status: 500 },
-        );
-      }
-    } else if (deletePublishingSchedules.error) {
+    } else if (clearPublishing.error && clearPublishing.error.code !== '42P01') {
       return NextResponse.json(
-        {
-          success: false,
-          error: deletePublishingSchedules.error.message,
-          code: 'DEPENDENCY_DELETE_FAILED',
-        },
+        { success: false, error: clearPublishing.error.message, code: 'DEPENDENCY_UPDATE_FAILED' },
         { status: 500 },
       );
     }
@@ -228,82 +191,65 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .eq('asset_id', asset.id)
       .eq('workspace_id', workspaceId);
     if (clearTaskAssetRefs.error?.code === '42703') {
-      const legacyClear = await supabase
-        .from('tasks')
-        .update({ asset_id: null })
-        .eq('asset_id', asset.id);
-      if (legacyClear.error && legacyClear.error.code !== '42703') {
-        return NextResponse.json(
-          { success: false, error: legacyClear.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-          { status: 500 },
-        );
-      }
+      await supabase.from('tasks').update({ asset_id: null }).eq('asset_id', asset.id);
     } else if (clearTaskAssetRefs.error) {
       return NextResponse.json(
         {
           success: false,
           error: clearTaskAssetRefs.error.message,
-          code: 'DEPENDENCY_DELETE_FAILED',
+          code: 'DEPENDENCY_UPDATE_FAILED',
         },
         { status: 500 },
       );
     }
 
-    const deleteComments = await supabase.from('comments').delete().eq('asset_id', asset.id);
-    if (deleteComments.error && deleteComments.error.code !== '42P01') {
-      return NextResponse.json(
-        { success: false, error: deleteComments.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-        { status: 500 },
-      );
-    }
+    const nowIso = new Date().toISOString();
+    const softPayloadFull = {
+      is_deleted: true,
+      deleted_at: nowIso,
+      missing_in_storage: false,
+      sync_status: 'synced',
+      updated_at: nowIso,
+    };
+    const softPayloadLegacy = { is_deleted: true, updated_at: nowIso };
 
-    const deleteActivities = await supabase
-      .from('activities')
-      .delete()
-      .eq('workspace_id', workspaceId)
-      .eq('entity_type', 'asset')
-      .eq('entity_id', asset.id);
-    if (deleteActivities.error && deleteActivities.error.code !== '42703') {
-      return NextResponse.json(
-        { success: false, error: deleteActivities.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-        { status: 500 },
-      );
-    }
-
-    let warning: string | undefined;
-    if (r2Delete.missing) {
-      warning = 'Asset deleted. R2 object was already missing.';
-    }
-
-    // ── 4. Delete asset row ──────────────────────────────────────────────────
-    const { error: dbError } = await supabase
+    let { error: dbError } = await supabase
       .from('assets')
-      .delete()
+      .update(softPayloadFull)
       .eq('id', id)
       .eq('workspace_id', workspaceId);
+
+    if (dbError?.code === '42703' || dbError?.code === 'PGRST204') {
+      ({ error: dbError } = await supabase
+        .from('assets')
+        .update(softPayloadLegacy)
+        .eq('id', id)
+        .eq('workspace_id', workspaceId));
+    }
+
     if (dbError) {
-      console.error('[asset-delete] DB delete failed', {
+      console.error('[asset-delete] DB soft-delete failed', {
         assetId: asset.id,
         error: dbError.message,
       });
       return NextResponse.json(
-        { success: false, error: `Database delete failed: ${dbError.message}` },
+        { success: false, error: `Database update failed: ${dbError.message}` },
         { status: 500 },
       );
     }
+
     // eslint-disable-next-line no-console
-    console.info('[debug-delete] route=/api/assets/[id] step=deleted', {
+    console.info('[debug-delete] route=/api/assets/[id] step=soft-deleted', {
       recordId: id,
       workspaceId,
       requesterUserId: auth.profile.id,
       membershipFound,
-      deleteResult: 'success',
     });
 
     void supabase.from('activities').insert({
       workspace_id: workspaceId,
       type: 'asset_deleted',
-      description: `Asset "${asset.name}" deleted`,
+      description: `Asset "${asset.name}" removed (R2 + soft delete)`,
       user_uuid: auth.profile.id,
       entity_type: 'asset',
       entity_id: id,
@@ -311,8 +257,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({
       success: true,
-      message: warning ?? 'Asset deleted',
-      ...(warning ? { warning } : {}),
+      message: r2Warning ? `Asset hidden. ${r2Warning}` : 'Asset deleted',
+      ...(r2Warning ? { warning: r2Warning } : {}),
     });
   } catch (err) {
     return NextResponse.json(

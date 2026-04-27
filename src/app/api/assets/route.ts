@@ -75,12 +75,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build query with optional filters
+    // Build query with optional filters (hide soft-deleted + R2-missing rows when columns exist)
     let query = supabase
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
       .eq('workspace_id', workspaceId)
       .neq('is_deleted', true)
+      .is('deleted_at', null)
+      .eq('missing_in_storage', false)
+      .eq('sync_status', 'synced')
       .order('created_at', { ascending: false });
 
     if (clientId) query = query.eq('client_id', clientId);
@@ -95,11 +98,12 @@ export async function GET(req: NextRequest) {
     let result = await query.range(from, to);
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #1: same projection without `is_deleted` filter (older schemas).
+      // Retry #1: lifecycle columns not migrated — keep is_deleted filter only
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
         .eq('workspace_id', workspaceId)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);
