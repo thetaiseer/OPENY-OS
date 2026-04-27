@@ -290,7 +290,7 @@ function FolderCard({
           onClick();
         }
       }}
-      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
+      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
       style={{
         background: 'var(--surface)',
         borderColor: allSelected
@@ -466,7 +466,7 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-6"
+      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
       style={{
         background: 'var(--surface)',
         borderColor: allSelected
@@ -1675,7 +1675,7 @@ function AssetsPage() {
         )}
 
         {/* ── Filter bar ───────────────────────────────────────────────────── */}
-        <Card padding="sm" className="sm:p-6">
+        <Card padding="sm" className="sm:p-5">
           <CardContent className="space-y-3 !p-0">
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-48 flex-1">

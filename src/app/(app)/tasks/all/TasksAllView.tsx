@@ -2007,7 +2007,7 @@ export default function TasksPage() {
             </div>
           }
         />
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <div className="min-w-0">
             <StatCard
               label={t('donutTotal')}
@@ -2071,7 +2071,7 @@ export default function TasksPage() {
             <Button
               type="button"
               variant="secondary"
-              className="h-11 shrink-0 px-3"
+              className="h-10 shrink-0 px-3"
               onClick={() => setFiltersOpen((prev) => !prev)}
               aria-label={t('toggleFiltersAria')}
               aria-expanded={filtersOpen}

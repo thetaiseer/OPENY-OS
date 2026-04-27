@@ -29,7 +29,7 @@ export const PageShell = forwardRef<HTMLDivElement, DivProps>(function PageShell
         ref={ref}
         {...props}
         className={cn(
-          'mx-auto w-full max-w-shell space-y-4 py-3 pe-[max(0.875rem,env(safe-area-inset-right,0px))] ps-[max(0.875rem,env(safe-area-inset-left,0px))] sm:space-y-6 sm:py-4 sm:pe-[max(1.25rem,env(safe-area-inset-right,0px))] sm:ps-[max(1.25rem,env(safe-area-inset-left,0px))] md:py-5 md:pe-[max(1.5rem,env(safe-area-inset-right,0px))] md:ps-[max(1.5rem,env(safe-area-inset-left,0px))]',
+          'mx-auto w-full max-w-shell space-y-6 pb-4 pe-[max(1.5rem,env(safe-area-inset-right,0px))] ps-[max(1.5rem,env(safe-area-inset-left,0px))] pt-6 sm:pb-5 md:pb-6',
           className,
         )}
       >
@@ -42,7 +42,7 @@ export const PageShell = forwardRef<HTMLDivElement, DivProps>(function PageShell
     <div
       ref={ref}
       {...props}
-      className={cn('mx-auto w-full max-w-shell space-y-6 px-4 py-4 md:px-6', className)}
+      className={cn('mx-auto w-full max-w-shell space-y-6 px-6 pb-4 pt-6 md:pb-6', className)}
     >
       {children}
     </div>
@@ -62,7 +62,9 @@ export function PageHeader({
     >
       <div className="space-y-1">
         {title ? <h1 className="openy-heading-1">{title}</h1> : null}
-        {subtitle ? <p className="text-sm text-[color:var(--text-secondary)]">{subtitle}</p> : null}
+        {subtitle ? (
+          <p className="text-sm leading-tight text-[color:var(--text-secondary)]">{subtitle}</p>
+        ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>

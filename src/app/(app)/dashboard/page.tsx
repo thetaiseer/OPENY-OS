@@ -776,7 +776,7 @@ export default function DashboardPage() {
       : 76;
 
   return (
-    <PageShell className="space-y-8">
+    <PageShell className="space-y-6">
       <PageHeader
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}
@@ -1150,7 +1150,7 @@ export default function DashboardPage() {
                 key={action.id}
                 type="button"
                 variant="secondary"
-                className="h-auto min-h-0 justify-start py-3 text-left"
+                className="h-auto min-h-0 justify-start py-2 text-left"
                 onClick={() => triggerQuickAction(action.id)}
               >
                 <span
