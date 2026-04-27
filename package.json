@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "smoke": "node scripts/smoke-routes.js",
+    "predeploy": "npm run lint && npm run build && npm run smoke",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
