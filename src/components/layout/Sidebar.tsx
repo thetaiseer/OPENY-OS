@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import {
   Activity,
   BarChart3,
@@ -16,32 +15,33 @@ import {
   Settings,
   Users,
   UserSquare2,
+  type LucideIcon,
 } from 'lucide-react';
-import { cn } from '@/lib/cn';
 import { useLang } from '@/context/lang-context';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
+import SidebarItem from '@/components/ui/navigation/SidebarItem';
+import { getSidebarRoutes, type NavIconKey } from '@/lib/navigation/routes';
 
-/** Single unified nav: operations + Docs hub + document tools in one shell. */
-const primaryNavItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Gauge },
-  { href: '/clients', label: 'Clients', icon: Users },
-  { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/tasks/all', label: 'Tasks', icon: ClipboardList },
-  { href: '/content', label: 'Content', icon: FileText },
-  { href: '/docs', label: 'Docs', icon: LayoutDashboard },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/assets', label: 'Assets', icon: ImageIcon },
-  { href: '/reports/overview', label: 'Reports', icon: BarChart3 },
-  { href: '/team', label: 'Team', icon: UserSquare2 },
-  { href: '/activity', label: 'Activity', icon: Activity },
-  { href: '/security/sessions', label: 'Security', icon: Shield },
-  { href: '/settings/profile', label: 'Settings', icon: Settings },
-] as const;
+const ICON_MAP: Record<NavIconKey, LucideIcon> = {
+  dashboard: Gauge,
+  clients: Users,
+  projects: FolderKanban,
+  tasks: ClipboardList,
+  content: FileText,
+  docs: LayoutDashboard,
+  calendar: CalendarDays,
+  assets: ImageIcon,
+  reports: BarChart3,
+  team: UserSquare2,
+  activity: Activity,
+  security: Shield,
+  settings: Settings,
+};
 
 export default function Sidebar() {
-  const pathname = usePathname();
   const { t } = useLang();
+  const primaryNavItems = getSidebarRoutes();
 
   return (
     <aside className="openy-glass fixed inset-y-0 start-0 z-40 hidden w-[240px] overflow-y-auto border-e md:block">
@@ -56,30 +56,17 @@ export default function Sidebar() {
       </div>
       <nav className="space-y-1.5 p-3 pb-8 pt-4">
         {primaryNavItems.map((item) => {
-          const Icon = item.icon;
-          const isDocsHome = item.href === '/docs';
-          const active = isDocsHome
-            ? pathname === '/docs' || pathname === '/docs/' || pathname.startsWith('/docs/')
-            : pathname === item.href ||
-              pathname.startsWith(`${item.href}/`) ||
-              (item.href === '/reports/overview' && pathname === '/reports') ||
-              (item.href === '/security/sessions' && pathname === '/security');
+          if (!item.iconKey) return null;
+          const icon = ICON_MAP[item.iconKey];
+          if (!icon) return null;
           return (
-            <Link
+            <SidebarItem
               key={item.href}
               href={item.href}
-              className={cn(
-                'flex items-center gap-2 rounded-control border px-3 py-2.5 text-sm leading-normal transition-colors',
-                active
-                  ? 'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-soft'
-                  : 'border-transparent text-secondary hover:border-border hover:bg-[color:var(--surface-elevated)] hover:text-primary',
-              )}
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                <Icon className="h-4 w-4" />
-              </span>
-              <span>{t(item.label.toLowerCase())}</span>
-            </Link>
+              label={t(item.label.toLowerCase()) || item.label}
+              icon={icon}
+              aliases={item.aliases ? [...item.aliases] : []}
+            />
           );
         })}
       </nav>

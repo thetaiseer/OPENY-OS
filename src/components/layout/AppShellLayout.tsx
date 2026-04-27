@@ -9,6 +9,8 @@ import FloatingDock from '@/components/layout/FloatingDock';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
 import GlobalQuickCreate from '@/components/layout/GlobalQuickCreate';
+import Breadcrumbs from '@/components/ui/navigation/Breadcrumbs';
+import RouteTitle from '@/components/ui/navigation/RouteTitle';
 
 function routePermissionTarget(
   pathname: string,
@@ -77,7 +79,18 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
       <Header />
       <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(4rem+env(safe-area-inset-top,0px))] md:ms-[240px] md:pb-6 md:pt-16">
         <PageShellProvider>
-          <PageShell>{children}</PageShell>
+          <PageShell>
+            <div className="sr-only">
+              <RouteTitle />
+            </div>
+            <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
+              <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
+              <div className="hidden max-w-[40%] md:block">
+                <RouteTitle />
+              </div>
+            </div>
+            {children}
+          </PageShell>
         </PageShellProvider>
       </main>
       <MobileBottomNav />
