@@ -46,6 +46,7 @@ import type {
 import { normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
+import { hasInviteInsertResult, isInviteRegeneratedResult } from '@/lib/team-invite-response';
 import { useRemoveTeamMember } from '@/hooks/mutations/useRemoveTeamMember';
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
@@ -244,21 +245,6 @@ function formatWorkspaceAccessSummary(access: Array<'os' | 'docs'>, t: Translate
   if (access.length === 2) return t('teamWsSummaryBoth');
   if (access[0] === 'docs') return workspaceLabelUi('docs', t);
   return workspaceLabelUi('os', t);
-}
-
-function hasInviteInsertResult(
-  data: unknown,
-): data is { member: TeamMember; invitation: TeamInvitation } {
-  if (!data || typeof data !== 'object') return false;
-  const payload = data as { member?: Partial<TeamMember>; invitation?: Partial<TeamInvitation> };
-  return Boolean(
-    payload.member?.id &&
-    payload.member?.full_name &&
-    payload.member?.email &&
-    payload.invitation?.id &&
-    payload.invitation?.team_member_id &&
-    payload.invitation?.email,
-  );
 }
 
 /** Fallback row when a team_member is invited but invitations API failed or is out of sync. */
@@ -1307,6 +1293,13 @@ export default function TeamPage() {
           process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
         setActionError(exactDbError || data.error || t('teamInviteFailed'));
         if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
+        return;
+      }
+      if (isInviteRegeneratedResult(data)) {
+        setInviteOpen(false);
+        setInviteForm({ ...blankInviteForm });
+        toast(t('teamInviteResentTo', { email: inviteForm.email }), 'success');
+        void queryClient.invalidateQueries({ queryKey: ['team-data'] });
         return;
       }
       if (!hasInviteInsertResult(data)) {
