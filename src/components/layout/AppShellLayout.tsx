@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
-import FloatingDock from '@/components/layout/FloatingDock';
+import FloatingUploadDock from '@/components/layout/FloatingUploadDock';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageShell, PageShellProvider } from '@/components/layout/PageLayout';
 import GlobalQuickCreate from '@/components/layout/GlobalQuickCreate';
@@ -121,7 +121,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
         </PageShellProvider>
       </main>
       <MobileBottomNav />
-      <FloatingDock />
+      <FloatingUploadDock />
       <GlobalQuickCreate />
     </div>
   );

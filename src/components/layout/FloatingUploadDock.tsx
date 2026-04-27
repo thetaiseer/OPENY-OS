@@ -1,14 +1,12 @@
 'use client';
 
 import GlobalUploadQueue from '@/components/features/upload/GlobalUploadQueue';
-import FloatingActionButton from '@/components/ui/FloatingActionButton';
 import { cn } from '@/lib/cn';
 
 /**
- * Pins the quick-action FAB and the upload queue trigger together so the
- * upload UI never stacks on top of the FAB — same bottom offset, horizontal gap.
+ * Upload queue only (fixed bottom-end). Quick-action FAB lives on the dashboard page only.
  */
-export default function FloatingDock() {
+export default function FloatingUploadDock() {
   return (
     <div
       className={cn(
@@ -19,7 +17,6 @@ export default function FloatingDock() {
     >
       <div className="pointer-events-auto flex flex-row items-end gap-3">
         <GlobalUploadQueue />
-        <FloatingActionButton />
       </div>
     </div>
   );

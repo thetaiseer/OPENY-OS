@@ -47,6 +47,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 import Dashboard from '@/components/dashboard/Dashboard';
+import DashboardQuickActionFab from '@/components/dashboard/DashboardQuickActionFab';
 
 const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
@@ -1388,6 +1389,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DashboardQuickActionFab />
     </PageShell>
   );
 }

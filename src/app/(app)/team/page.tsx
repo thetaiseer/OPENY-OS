@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -1072,6 +1073,9 @@ function MemberSidePanel({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function TeamPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { t } = useLang();
   const { role: myRole, user } = useAuth();
   const { toast } = useToast();
@@ -1194,6 +1198,15 @@ export default function TeamPage() {
       void supabase.removeChannel(channel);
     };
   }, [queryClient]);
+
+  useEffect(() => {
+    if (searchParams.get('invite') !== '1') return;
+    setInviteOpen(true);
+    const q = new URLSearchParams(searchParams.toString());
+    q.delete('invite');
+    const qs = q.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const invitationByMember = useMemo(() => {
     const map = new Map<string, TeamInvitation>();

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * GlobalUploadQueue — Upload queue UI (rendered inside FloatingDock next to the FAB).
+ * GlobalUploadQueue — Upload queue UI (rendered inside FloatingUploadDock).
  *
  * Collapsed: circular trigger (same 3.5rem size as the quick-action button) with ring progress.
  * Expanded: popover panel above the trigger with per-file rows.
@@ -583,7 +583,7 @@ export default function GlobalUploadQueue() {
         </div>
       )}
 
-      {/* Circular trigger — h/w match FloatingActionButton (3.5rem) */}
+      {/* Circular trigger — h/w match dashboard quick-action FAB (3.5rem) */}
       <button
         type="button"
         onClick={() => setPanelOpen((o) => !o)}
