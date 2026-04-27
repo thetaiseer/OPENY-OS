@@ -409,7 +409,7 @@ export default function MyTasksPage() {
 
   function handleTaskCreated(task: Task) {
     setTasks((prev) => [task, ...prev]);
-    toast(t('taskCreatedSuccess'), 'success');
+    toast(`Create task / ${task.title}: ${t('taskCreatedSuccess')}`, 'success');
   }
 
   async function duplicateTask(task: Task) {
@@ -446,12 +446,12 @@ export default function MyTasksPage() {
       const json = (await res.json()) as { success: boolean; task?: Task; error?: string };
       if (json.success && json.task) {
         setTasks((prev) => [json.task as Task, ...prev]);
-        toast(t('taskDuplicated'), 'success');
+        toast(`Duplicate task / ${task.title}: ${t('taskDuplicated')}`, 'success');
       } else {
-        toast(json.error ?? t('failedDuplicateTask'), 'error');
+        toast(`Duplicate task / ${task.title}: ${json.error ?? t('failedDuplicateTask')}`, 'error');
       }
     } catch (err) {
-      toast(t('failedDuplicateTask'), 'error');
+      toast(`Duplicate task / ${task.title}: ${t('failedDuplicateTask')}`, 'error');
       console.error('[duplicateTask] error:', err);
     }
   }

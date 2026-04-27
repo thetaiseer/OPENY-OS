@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   Home,
   Download,
+  Trash2,
   Square,
   CheckSquare,
   Users2,
@@ -401,7 +402,10 @@ function ClientFolderCard({
   logoUrl,
   onView,
   onDownload,
+  onDelete,
   isDownloading,
+  isDeleting = false,
+  canDelete = false,
   selectionMode = false,
   folderAssetIds = [],
   selectedIds,
@@ -416,7 +420,10 @@ function ClientFolderCard({
   logoUrl?: string | null;
   onView: () => void;
   onDownload: () => void;
+  onDelete?: () => void;
   isDownloading: boolean;
+  isDeleting?: boolean;
+  canDelete?: boolean;
   selectionMode?: boolean;
   folderAssetIds?: string[];
   selectedIds?: Set<string>;
@@ -563,6 +570,23 @@ function ClientFolderCard({
             {isDownloading ? '…' : t('assetsDownload')}
           </button>
         )}
+        {canDelete && onDelete ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="flex h-9 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+            style={{
+              background: 'var(--color-danger-bg)',
+              color: 'var(--color-danger)',
+              border: '1px solid var(--color-danger-border)',
+            }}
+            title={t('deleteAction')}
+          >
+            <Trash2 size={13} />
+            {isDeleting ? t('loading') : t('deleteAction')}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -700,6 +724,16 @@ function AssetsPage() {
   const clientLogoByClientId = useMemo(() => {
     const m: Record<string, string | null | undefined> = {};
     for (const c of clients) m[c.id] = c.logo ?? null;
+    return m;
+  }, [clients]);
+  const clientNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of clients) m[c.id] = c.name;
+    return m;
+  }, [clients]);
+  const clientByName = useMemo(() => {
+    const m = new Map<string, Client>();
+    for (const c of clients) m.set(c.name, c);
     return m;
   }, [clients]);
   const [scheduleCounts, setScheduleCounts] = useState<
@@ -871,7 +905,7 @@ function AssetsPage() {
 
     // Folder path filters
     if (folderPath.client)
-      result = result.filter((a) => (a.client_name ?? 'No Client') === folderPath.client);
+      result = result.filter((a) => getAssetClientFolderName(a) === folderPath.client);
     if (folderPath.mainCategory)
       result = result.filter((a) => (a.main_category ?? 'other') === folderPath.mainCategory);
     if (folderPath.year) result = result.filter((a) => getAssetYear(a) === folderPath.year);
@@ -901,7 +935,14 @@ function AssetsPage() {
     else result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return result;
-  }, [deferredAssets, deferredSearchQuery, folderPath, filterFileType, sortBy]);
+  }, [
+    deferredAssets,
+    deferredSearchQuery,
+    folderPath,
+    filterFileType,
+    sortBy,
+    getAssetClientFolderName,
+  ]);
 
   // ── Folder entries for next level ─────────────────────────────────────────
 
@@ -911,7 +952,7 @@ function AssetsPage() {
     const map = new Map<string, Agg>();
     for (const asset of filteredAssets) {
       let key: string | undefined;
-      if (pathDepth === 0) key = asset.client_name ?? 'No Client';
+      if (pathDepth === 0) key = getAssetClientFolderName(asset) ?? undefined;
       else if (pathDepth === 1) key = asset.main_category ?? 'other';
       else if (pathDepth === 2) key = getAssetYear(asset);
       else if (pathDepth === 3) key = asset.month_key ?? '';
@@ -937,7 +978,7 @@ function AssetsPage() {
         if (pathDepth === 2 || pathDepth === 3) return b.key.localeCompare(a.key);
         return a.key.localeCompare(b.key);
       });
-  }, [filteredAssets, pathDepth, t]);
+  }, [filteredAssets, pathDepth, t, getAssetClientFolderName]);
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────
 
@@ -1207,6 +1248,18 @@ function AssetsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
+  const [deletingClientFolder, setDeletingClientFolder] = useState<string | null>(null);
+
+  const getAssetClientFolderName = useCallback(
+    (asset: Asset): string | null => {
+      const byId = asset.client_id ? clientNameById[asset.client_id] : '';
+      if (byId) return byId;
+      const byName = asset.client_name?.trim() ?? '';
+      if (byName) return byName;
+      return null;
+    },
+    [clientNameById],
+  );
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -1316,22 +1369,74 @@ function AssetsPage() {
     await downloadZip(ids, `assets-selected-${ids.length}.zip`);
   }, [selectedIds, filteredAssets, downloadZip]);
 
+  const handleDeleteClientFolder = useCallback(
+    async (clientLabel: string, ids: string[]) => {
+      if (!ids.length) return;
+      if (!confirm(t('assetsDeleteConfirm', { name: clientLabel }))) return;
+      setDeletingClientFolder(clientLabel);
+      const actionLabel = `${t('deleteAction')} / ${clientLabel}`;
+      try {
+        const results = await Promise.allSettled(
+          ids.map(async (id) => {
+            const res = await fetch(`/api/assets/${id}?${workspaceQs}`, { method: 'DELETE' });
+            if (!res.ok) {
+              const j = (await res.json().catch(() => ({}))) as { error?: string };
+              throw new Error(j.error ?? `HTTP ${res.status}`);
+            }
+            return id;
+          }),
+        );
+        const deletedIds = results
+          .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+          .map((r) => r.value);
+        const failedCount = results.length - deletedIds.length;
+        if (deletedIds.length > 0) {
+          const deletedSet = new Set(deletedIds);
+          setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
+          setSelectedIds((prev) => {
+            const next = new Set(prev);
+            deletedIds.forEach((id) => next.delete(id));
+            return next;
+          });
+        }
+        if (failedCount > 0) {
+          toast(`${actionLabel}: ${failedCount} failed, ${deletedIds.length} deleted`, 'error');
+          return;
+        }
+        toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
+      } catch (err: unknown) {
+        toast(
+          `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
+          'error',
+        );
+      } finally {
+        setDeletingClientFolder(null);
+      }
+    },
+    [t, toast, workspaceQs],
+  );
+
   const handleDelete = async (asset: Asset) => {
     if (!confirm(t('assetsDeleteConfirm', { name: asset.name }))) return;
+    const actionLabel = `${t('deleteAction')} / ${asset.name}`;
     const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
     const json = await res.json();
     if (!res.ok) {
       toast(
-        t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) }),
+        `${actionLabel}: ${t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
         'error',
       );
       return;
     }
     setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-    toast(String(json.message ?? json.warning ?? t('assetsDeletedSuccess')), 'success');
+    toast(
+      `${actionLabel}: ${String(json.message ?? json.warning ?? t('assetsDeletedSuccess'))}`,
+      'success',
+    );
   };
 
   const handleRename = async (asset: Asset, newName: string) => {
+    const actionLabel = `Rename / ${asset.name}`;
     const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1340,7 +1445,7 @@ function AssetsPage() {
     const json = (await res.json()) as { success?: boolean; error?: string; name?: string };
     if (!res.ok) {
       toast(
-        t('assetsRenameFailed', { error: String(json.error ?? `HTTP ${res.status}`) }),
+        `${actionLabel}: ${t('assetsRenameFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
         'error',
       );
       throw new Error(json.error ?? `HTTP ${res.status}`);
@@ -1348,7 +1453,7 @@ function AssetsPage() {
     setAssets((prev) =>
       prev.map((a) => (a.id === asset.id ? { ...a, name: json.name ?? newName } : a)),
     );
-    toast(t('assetsRenamedSuccess'), 'success');
+    toast(`${actionLabel}: ${t('assetsRenamedSuccess')}`, 'success');
   };
 
   const handleView = (asset: Asset) => {
@@ -1649,7 +1754,12 @@ function AssetsPage() {
             ) : null}
             <div className="min-[440px]:grid-cols-2 grid grid-cols-1 gap-4 xl:grid-cols-3">
               {folderEntries.map(({ key, count, totalBytes, kindSummary }) => {
-                const folderIds = assetIdsForFolderEntry(filteredAssets, pathDepth, key);
+                const folderIds =
+                  pathDepth === 0
+                    ? filteredAssets
+                        .filter((a) => getAssetClientFolderName(a) === key)
+                        .map((a) => a.id)
+                    : assetIdsForFolderEntry(filteredAssets, pathDepth, key);
                 return pathDepth === 0 ? (
                   <ClientFolderCard
                     key={key}
@@ -1657,11 +1767,14 @@ function AssetsPage() {
                     count={count}
                     totalBytes={totalBytes}
                     kindSummary={kindSummary}
-                    slug={clients.find((c) => c.name === key)?.slug}
-                    logoUrl={clients.find((c) => c.name === key)?.logo}
+                    slug={clientByName.get(key)?.slug}
+                    logoUrl={clientByName.get(key)?.logo}
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
+                    onDelete={() => void handleDeleteClientFolder(key, folderIds)}
                     isDownloading={downloadingClient === key}
+                    isDeleting={deletingClientFolder === key}
+                    canDelete={canDeleteFiles}
                     selectionMode={selectionMode}
                     folderAssetIds={folderIds}
                     selectedIds={selectedIds}

@@ -64,6 +64,9 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   });
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
   const loadClient = useCallback(async () => {
@@ -224,17 +227,26 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
 
   const handleDelete = async () => {
     if (!client) return;
-    if (!confirm(t('clientDeleteConfirm', { name: client.name }))) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const actionLabel = `${t('deleteAction')} ${t('clients')}`;
     try {
       const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' });
       const json = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || !json.success) {
-        toast(json.error ?? t('clientDeleteFailed'), 'error');
+        const message = json.error ?? t('clientDeleteFailed');
+        setDeleteError(message);
+        toast(`${actionLabel}: ${message}`, 'error');
         return;
       }
+      setDeleteOpen(false);
+      toast(`${actionLabel}: done`, 'success');
       router.push('/clients');
     } catch {
-      toast(t('clientDeleteFailed'), 'error');
+      setDeleteError(t('clientDeleteFailed'));
+      toast(`${actionLabel}: ${t('clientDeleteFailed')}`, 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -343,7 +355,14 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
                 <Pencil size={14} /> Edit
               </Button>
               {role === 'owner' || role === 'admin' ? (
-                <Button type="button" variant="danger" onClick={() => void handleDelete()}>
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteOpen(true);
+                  }}
+                >
                   <Trash2 size={14} /> {t('deleteAction')}
                 </Button>
               ) : null}
@@ -475,6 +494,57 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Delete Client Modal */}
+        <Modal
+          open={deleteOpen}
+          onClose={() => {
+            if (deleting) return;
+            setDeleteOpen(false);
+            setDeleteError(null);
+          }}
+          title={t('deleteAction')}
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: 'var(--text)' }}>
+              {t('clientDeleteConfirm', { name: client.name })}
+            </p>
+            {deleteError ? (
+              <div
+                className="rounded-lg border px-3 py-2 text-sm"
+                style={{
+                  color: 'var(--color-danger)',
+                  borderColor: 'var(--color-danger-border)',
+                  background: 'var(--color-danger-bg)',
+                }}
+              >
+                {deleteError}
+              </div>
+            ) : null}
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeleteError(null);
+                }}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleting}
+                onClick={() => void handleDelete()}
+              >
+                {t('deleteAction')}
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </ClientWorkspaceContext.Provider>

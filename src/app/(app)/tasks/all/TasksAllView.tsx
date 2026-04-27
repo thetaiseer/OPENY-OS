@@ -1712,7 +1712,7 @@ export default function TasksPage() {
       // — SUCCESS PATH —
       setCreateOpen(false);
       setCreateForm({ ...blankForm });
-      toast(t('taskCreatedToast', { title: createForm.title }), 'success');
+      toast(`Create task / ${createForm.title}: done`, 'success');
 
       if (result.task) {
         const createdTask = result.task;
@@ -1737,6 +1737,7 @@ export default function TasksPage() {
           ? err.message
           : ((err as { message?: string })?.message ?? t('failedCreateTask'));
       setCreateError(message);
+      toast(`Create task / ${createForm.title || 'untitled'}: ${message}`, 'error');
     } finally {
       clearTimeout(timeoutHandle);
       setSaving(false);
@@ -1819,7 +1820,7 @@ export default function TasksPage() {
       }
 
       setEditTask(null);
-      toast(t('taskUpdatedToast', { title: editForm.title }), 'success');
+      toast(`Update task / ${editForm.title}: done`, 'success');
 
       // Background refresh via React Query cache invalidation
       void queryClient.invalidateQueries({ queryKey: ['tasks-all'] });
@@ -1830,6 +1831,7 @@ export default function TasksPage() {
           ? err.message
           : ((err as { message?: string })?.message ?? t('failedUpdateTask'));
       setEditError(message);
+      toast(`Update task / ${editForm.title || 'untitled'}: ${message}`, 'error');
     } finally {
       clearTimeout(timeoutHandle);
       setSaving(false);
@@ -1872,7 +1874,7 @@ export default function TasksPage() {
       const deletedTitle = deleteTask.title;
       setTasks((prev) => prev.filter((t) => t.id !== deleteTask.id));
       setDeleteTask(null);
-      toast(t('taskDeletedToast', { title: deletedTitle }), 'success');
+      toast(`Delete task / ${deletedTitle}: done`, 'success');
     } catch (err: unknown) {
       console.error('[task delete] error:', err);
       const message =
@@ -1880,6 +1882,7 @@ export default function TasksPage() {
           ? err.message
           : ((err as { message?: string })?.message ?? t('failedDeleteTask'));
       setDeleteError(message);
+      toast(`Delete task / ${deleteTask?.title || 'task'}: ${message}`, 'error');
     } finally {
       clearTimeout(timeoutHandle);
     }
@@ -1925,14 +1928,18 @@ export default function TasksPage() {
       if (!result.success) {
         console.error('[task status] update failed:', result.error);
         revertStatus();
-        toast(t('failedUpdateStatusWarn', { error: result.error ?? t('unknownError') }), 'warning');
+        toast(
+          `Update task status / ${task.title}: ${result.error ?? t('unknownError')}`,
+          'warning',
+        );
       } else {
         invalidateTaskRelatedQueries();
+        toast(`Update task status / ${task.title}: done`, 'success');
       }
     } catch (err) {
       console.error('[task status] network error:', err);
       revertStatus();
-      toast(t('failedUpdateTaskStatusRetry'), 'warning');
+      toast(`Update task status / ${task.title}: ${t('failedUpdateTaskStatusRetry')}`, 'warning');
     }
   };
 
@@ -1954,9 +1961,13 @@ export default function TasksPage() {
         const failed = results.find((r) => !r.ok);
         if (failed) throw new Error(failed.error ?? t('failedUpdateTaskOrder'));
         invalidateTaskRelatedQueries();
+        toast(`Reorder tasks: done (${updates.length})`, 'success');
       } catch (err) {
         setTasks(previousTasks);
-        toast(err instanceof Error ? err.message : t('failedMoveTaskReverted'), 'warning');
+        toast(
+          `Reorder tasks: ${err instanceof Error ? err.message : t('failedMoveTaskReverted')}`,
+          'warning',
+        );
       }
     },
     [invalidateTaskRelatedQueries, setTasks, toast, t],
@@ -2013,7 +2024,11 @@ export default function TasksPage() {
           subtitle={t('tasksPageSubtitle', { shown: filtered.length, total: tasks.length })}
           actions={
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <div role="tablist" aria-label={t('taskViewsAria')} className="openy-segmented">
+              <div
+                role="tablist"
+                aria-label={t('taskViewsAria')}
+                className="openy-segmented flex gap-2"
+              >
                 <button
                   onClick={() => setView('list')}
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-sm font-medium transition-colors"

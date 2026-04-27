@@ -1331,9 +1331,15 @@ export default function TeamPage() {
       const emailSent = (data as { emailSent?: boolean }).emailSent === true;
       const skipReason = (data as { emailSkippedReason?: string }).emailSkippedReason;
       if (emailSent) {
-        toast(t('teamInviteSentTo', { email: inviteForm.email }), 'success');
+        toast(
+          `Invite member / ${inviteForm.email}: ${t('teamInviteSentTo', { email: inviteForm.email })}`,
+          'success',
+        );
       } else {
-        toast(skipReason ?? t('teamInviteCreatedNoEmail', { email: inviteForm.email }), 'warning');
+        toast(
+          `Invite member / ${inviteForm.email}: ${skipReason ?? t('teamInviteCreatedNoEmail', { email: inviteForm.email })}`,
+          'warning',
+        );
       }
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err) {
@@ -1396,10 +1402,16 @@ export default function TeamPage() {
         }
       }
       setEditMember(null);
-      toast(t('teamMemberUpdated'), 'success');
+      toast(
+        `Update member / ${editForm.full_name || editMember.full_name}: ${t('teamMemberUpdated')}`,
+        'success',
+      );
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : t('teamFailedUpdateMember'), 'error');
+      toast(
+        `Update member / ${editForm.full_name || editMember.full_name}: ${err instanceof Error ? err.message : t('teamFailedUpdateMember')}`,
+        'error',
+      );
     } finally {
       setSaving(false);
     }
@@ -1410,7 +1422,7 @@ export default function TeamPage() {
     if (!deleteMember) return;
     // Owner is never deletable — guard at both UI and API level.
     if (deleteMember.role === 'owner') {
-      toast(t('teamOwnerCannotRemove'), 'error');
+      toast(`Remove member / ${deleteMember.full_name}: ${t('teamOwnerCannotRemove')}`, 'error');
       setDeleteMember(null);
       return;
     }
@@ -1432,14 +1444,17 @@ export default function TeamPage() {
       const data = await res.json().catch(() => ({}));
       console.log('[team/delete] response', { ok: res.ok, status: res.status, data });
       if (!res.ok) {
-        toast(data.error ?? t('teamFailedRemoveMember'), 'error');
+        toast(
+          `Remove member / ${deleteMember.full_name}: ${data.error ?? t('teamFailedRemoveMember')}`,
+          'error',
+        );
         return;
       }
       setDeleteMember(null);
-      toast(t('teamMemberRemoved'), 'info');
+      toast(`Remove member / ${deleteMember.full_name}: ${t('teamMemberRemoved')}`, 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast(t('teamNetworkErrorRetry'), 'error');
+      toast(`Remove member / ${deleteMember.full_name}: ${t('teamNetworkErrorRetry')}`, 'error');
     } finally {
       setRemovingMember(false);
     }
@@ -1459,21 +1474,27 @@ export default function TeamPage() {
         emailSkippedReason?: string;
       };
       if (!res.ok) {
-        toast(data.error ?? t('teamFailedResendInvite'), 'error');
+        toast(
+          `Resend invite / ${invitation.email}: ${data.error ?? t('teamFailedResendInvite')}`,
+          'error',
+        );
         return;
       }
       if (data.emailSent === false) {
         toast(
-          data.emailSkippedReason ?? t('teamInviteRenewedNoEmail', { email: invitation.email }),
+          `Resend invite / ${invitation.email}: ${data.emailSkippedReason ?? t('teamInviteRenewedNoEmail', { email: invitation.email })}`,
           'warning',
         );
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
         return;
       }
-      toast(t('teamInviteResentTo', { email: invitation.email }), 'success');
+      toast(
+        `Resend invite / ${invitation.email}: ${t('teamInviteResentTo', { email: invitation.email })}`,
+        'success',
+      );
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast(t('teamNetworkErrorRetry'), 'error');
+      toast(`Resend invite / ${invitation.email}: ${t('teamNetworkErrorRetry')}`, 'error');
     }
   };
 
@@ -1488,28 +1509,31 @@ export default function TeamPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast(data.error ?? t('teamFailedRevokeInvite'), 'error');
+        toast(
+          `Cancel invite / ${invitation.email}: ${data.error ?? t('teamFailedRevokeInvite')}`,
+          'error',
+        );
         return;
       }
-      toast(t('teamInvitationCancelled'), 'info');
+      toast(`Cancel invite / ${invitation.email}: ${t('teamInvitationCancelled')}`, 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast(t('teamNetworkErrorRetry'), 'error');
+      toast(`Cancel invite / ${invitation.email}: ${t('teamNetworkErrorRetry')}`, 'error');
     }
   };
 
   const handleCopyInviteLink = async (invitation: TeamInvitation) => {
     if (!invitation.token) {
-      toast(t('teamInviteLinkUnavailable'), 'error');
+      toast(`Copy invite link / ${invitation.email}: ${t('teamInviteLinkUnavailable')}`, 'error');
       return;
     }
 
     const inviteUrl = `${window.location.origin}/invite?token=${encodeURIComponent(invitation.token)}`;
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      toast(t('teamInviteLinkCopied'), 'success');
+      toast(`Copy invite link / ${invitation.email}: ${t('teamInviteLinkCopied')}`, 'success');
     } catch {
-      toast(t('teamFailedCopyInvite'), 'error');
+      toast(`Copy invite link / ${invitation.email}: ${t('teamFailedCopyInvite')}`, 'error');
     }
   };
 

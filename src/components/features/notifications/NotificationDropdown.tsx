@@ -165,10 +165,13 @@ export default function NotificationDropdown() {
     <div ref={ref} className="relative">
       {/* Bell button */}
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-lg p-2 transition-colors hover:bg-[var(--surface-2)]"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface p-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
         style={{ color: 'var(--text-secondary)' }}
         aria-label="Notifications"
+        aria-expanded={open}
+        aria-haspopup="menu"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -184,10 +187,13 @@ export default function NotificationDropdown() {
       {/* Dropdown */}
       {open && (
         <div
-          className={`absolute right-0 top-full z-[200] mt-2 overflow-hidden ${OPENY_MENU_PANEL_CLASS}`}
+          role="menu"
+          className={`absolute end-0 top-full z-[220] mt-2 w-[min(calc(100vw-1.5rem),360px)] overflow-hidden rounded-2xl border p-1.5 shadow-lg ${OPENY_MENU_PANEL_CLASS}`}
           style={{
-            width: 360,
-            padding: '0.45rem',
+            background: 'color-mix(in srgb, var(--surface) 94%, white 6%)',
+            borderColor: 'var(--border)',
+            boxShadow: '0 16px 40px rgba(15,23,42,0.16)',
+            backdropFilter: 'blur(10px)',
           }}
         >
           {/* Header */}
