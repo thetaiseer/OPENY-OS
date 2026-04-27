@@ -146,6 +146,12 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  console.log('[team/members/delete] request received', {
+    id,
+    path: request.nextUrl.pathname,
+    workspaceQuery: request.nextUrl.searchParams.get('workspace'),
+    workspaceIdQuery: request.nextUrl.searchParams.get('workspace_id'),
+  });
   if (!id) {
     return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
   }
@@ -164,13 +170,44 @@ export async function DELETE(
   if (!workspaceId) {
     return NextResponse.json({ error: 'Workspace not found' }, { status: 500 });
   }
+  console.log('[team/members/delete] workspace resolved', { workspaceId });
 
-  // Resolve row by team_members.id, or by profile_id when the UI sent workspace user_id (GET uses team?.id ?? user_id).
+  const { data: workspaceUsers, error: workspaceUsersError } = await db
+    .from('workspace_members')
+    .select('user_id')
+    .eq('workspace_id', workspaceId);
+  if (workspaceUsersError) {
+    console.error('[team/members/delete] Failed to load workspace members:', workspaceUsersError);
+    return NextResponse.json({ error: workspaceUsersError.message }, { status: 500 });
+  }
+  const workspaceUserIds = [
+    ...new Set((workspaceUsers ?? []).map((row) => row.user_id).filter(Boolean)),
+  ] as string[];
+  console.log('[team/members/delete] workspace membership loaded', {
+    workspaceId,
+    count: workspaceUserIds.length,
+  });
+  if (workspaceUserIds.length === 0) {
+    return NextResponse.json(
+      { error: 'Workspace has no members to match against' },
+      { status: 404 },
+    );
+  }
+
+  // Resolve row by team_members.id, or by profile_id when the UI sent workspace user_id.
+  // Keep the operation scoped to this workspace via workspace_members membership.
   const byId = await db
     .from('team_members')
     .select('id, full_name, role, profile_id, email')
     .eq('id', id)
+    .in('profile_id', workspaceUserIds)
     .maybeSingle();
+  console.log('[team/members/delete] query team_members by id executed', {
+    id,
+    workspaceId,
+    found: Boolean(byId.data),
+    error: byId.error?.message ?? null,
+  });
 
   if (byId.error) {
     console.error('[team/members/delete] Fetch error:', byId.error.message);
@@ -183,7 +220,14 @@ export async function DELETE(
       .from('team_members')
       .select('id, full_name, role, profile_id, email')
       .eq('profile_id', id)
+      .in('profile_id', workspaceUserIds)
       .maybeSingle();
+    console.log('[team/members/delete] query team_members by profile_id executed', {
+      profileId: id,
+      workspaceId,
+      found: Boolean(byProfile.data),
+      error: byProfile.error?.message ?? null,
+    });
     if (byProfile.error) {
       console.error('[team/members/delete] Fetch by profile_id error:', byProfile.error.message);
       return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
@@ -195,6 +239,12 @@ export async function DELETE(
     console.warn('[team/members/delete] No team_members row for id (tried id + profile_id):', id);
     return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
   }
+  console.log('[team/members/delete] member resolved', {
+    teamMemberId: member.id,
+    profileId: member.profile_id ?? null,
+    email: member.email ?? null,
+    role: member.role ?? null,
+  });
 
   const memberId = member.id as string;
 
@@ -219,6 +269,7 @@ export async function DELETE(
   }
 
   let workspaceUserId = (member.profile_id as string | null) ?? null;
+  if (!workspaceUserId && UUID_RE.test(id)) workspaceUserId = id;
   if (!workspaceUserId && member.email) {
     const emailLower = String(member.email).toLowerCase();
     const { data: profile } = await db
@@ -227,14 +278,39 @@ export async function DELETE(
       .eq('email', emailLower)
       .maybeSingle();
     workspaceUserId = (profile as { id?: string } | null)?.id ?? null;
-    if (!workspaceUserId) {
-      const { data: list } = await db.auth.admin.listUsers();
-      workspaceUserId =
-        list?.users?.find((u) => (u.email ?? '').toLowerCase() === emailLower)?.id ?? null;
-    }
+  }
+  console.log('[team/members/delete] workspace member target resolved', {
+    workspaceId,
+    workspaceUserId,
+  });
+
+  if (!workspaceUserId) {
+    return NextResponse.json(
+      {
+        error:
+          'Could not resolve workspace member user_id for deletion. Team member was not removed.',
+      },
+      { status: 400 },
+    );
   }
 
-  if (workspaceUserId) {
+  const { data: workspaceMemberRow, error: workspaceMemberLookupError } = await db
+    .from('workspace_members')
+    .select('id, user_id')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', workspaceUserId)
+    .maybeSingle();
+  console.log('[team/members/delete] query workspace_members existence executed', {
+    workspaceId,
+    userId: workspaceUserId,
+    found: Boolean(workspaceMemberRow),
+    error: workspaceMemberLookupError?.message ?? null,
+  });
+  if (workspaceMemberLookupError) {
+    return NextResponse.json({ error: workspaceMemberLookupError.message }, { status: 500 });
+  }
+
+  if (workspaceMemberRow) {
     const { error: wmError } = await db
       .from('workspace_members')
       .delete()
@@ -247,19 +323,17 @@ export async function DELETE(
         { status: 500 },
       );
     }
-    console.warn('[team/members/delete] Removed workspace_members row', {
+    console.log('[team/members/delete] removed workspace_members row', {
       workspaceId,
       userId: workspaceUserId,
       teamMemberId: memberId,
     });
   } else {
-    console.warn(
-      '[team/members/delete] No profile/user id for workspace_members delete; continuing',
-      {
-        teamMemberId: memberId,
-        email: member.email,
-      },
-    );
+    console.log('[team/members/delete] workspace_members row not found, continuing team delete', {
+      workspaceId,
+      userId: workspaceUserId,
+      teamMemberId: memberId,
+    });
   }
 
   const { error: deleteError } = await db.from('team_members').delete().eq('id', memberId);
@@ -269,7 +343,7 @@ export async function DELETE(
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
 
-  console.warn('[team/members/delete] Removed team_members row', { teamMemberId: memberId });
+  console.log('[team/members/delete] removed team_members row', { teamMemberId: memberId });
 
   void processEvent({
     event_type: EVENT.MEMBER_REMOVED,
@@ -282,5 +356,13 @@ export async function DELETE(
     },
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    deleted: {
+      team_member_id: memberId,
+      workspace_id: workspaceId,
+      user_id: workspaceUserId,
+      workspace_member_existed: Boolean(workspaceMemberRow),
+    },
+  });
 }

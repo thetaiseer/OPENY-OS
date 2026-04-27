@@ -1416,6 +1416,11 @@ export default function TeamPage() {
     }
     setRemovingMember(true);
     try {
+      console.log('[team/delete] preparing request', {
+        idSent: deleteMember.id,
+        profileId: deleteMember.profile_id ?? null,
+        email: deleteMember.email ?? null,
+      });
       const qs =
         typeof window !== 'undefined'
           ? workspaceSearchParamFromPathname(window.location.pathname)
@@ -1425,6 +1430,7 @@ export default function TeamPage() {
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
+      console.log('[team/delete] response', { ok: res.ok, status: res.status, data });
       if (!res.ok) {
         toast(data.error ?? t('teamFailedRemoveMember'), 'error');
         return;
