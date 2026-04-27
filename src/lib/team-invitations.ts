@@ -543,6 +543,7 @@ export async function acceptInvitationToken(
 
   const membershipRowsByKey = new Map<WorkspaceKey, WorkspaceMembershipUpsertPayload>();
   for (const grant of grants) {
+    const workspaceId = workspaceIdByKey.get(grant.workspace) ?? null;
     const existing = membershipRowsByKey.get(grant.workspace);
     if (
       !existing ||
@@ -552,6 +553,7 @@ export async function acceptInvitationToken(
       membershipRowsByKey.set(grant.workspace, {
         user_id: resolvedAuthUserId,
         workspace_key: grant.workspace,
+        workspace_id: workspaceId,
         role: grant.role,
         is_active: true,
       });
