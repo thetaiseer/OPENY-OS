@@ -75,6 +75,20 @@ const monthNow = () => {
   return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 };
 
+function normalizeCampaignMonthValue(value: string | null | undefined): string {
+  const raw = String(value ?? '').trim();
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) return raw;
+  if (/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(raw)) return raw.slice(0, 7);
+  return monthNow();
+}
+
+function normalizeInvoiceDateValue(value: string | null | undefined): string {
+  const raw = String(value ?? '').trim();
+  if (/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) return `${raw}-01`;
+  return today();
+}
+
 const DEFAULT_TOTAL_BUDGET = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultTotalBudget;
 const DEFAULT_FEES = PRO_ICON_KSA_TEMPLATE_CONFIG.defaultFees;
 
@@ -248,8 +262,8 @@ function blank(invoices: DocsInvoice[], campaignMonth: string): FormState {
     invoice_template: 'manual',
     invoice_number: nextInvoiceNumber(invoices),
     client_name: '',
-    campaign_month: campaignMonth,
-    invoice_date: today(),
+    campaign_month: normalizeCampaignMonthValue(campaignMonth),
+    invoice_date: normalizeInvoiceDateValue(today()),
     currency: 'SAR',
     status: 'unpaid',
     our_fees: DEFAULT_FEES,
@@ -268,8 +282,8 @@ function toForm(invoice: DocsInvoice): FormState {
     invoice_template: asTemplateName(invoice.invoice_template ?? null),
     invoice_number: invoice.invoice_number,
     client_name: invoice.client_name,
-    campaign_month: invoice.campaign_month ?? monthNow(),
-    invoice_date: invoice.invoice_date ?? today(),
+    campaign_month: normalizeCampaignMonthValue(invoice.campaign_month),
+    invoice_date: normalizeInvoiceDateValue(invoice.invoice_date),
     currency: invoice.currency,
     status: invoice.status,
     our_fees: Math.max(0, Number(invoice.our_fees ?? 0)),
@@ -305,7 +319,7 @@ export default function InvoicePage() {
 
   useEffect(() => {
     if (!form.id) {
-      setForm((prev) => ({ ...prev, campaign_month: periodYm }));
+      setForm((prev) => ({ ...prev, campaign_month: normalizeCampaignMonthValue(periodYm) }));
     }
   }, [periodYm, form.id]);
 
