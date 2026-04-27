@@ -1496,6 +1496,7 @@ function AssetsPage() {
         throw new Error(json.error ?? `HTTP ${response.status}`);
       }
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
+      void fetchAssets(0);
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
       setPendingDeleteAsset(null);
     } catch (err) {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { checkR2Config } from '@/lib/r2';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { deleteR2Object } from '@/lib/storage/r2';
 
@@ -32,12 +31,13 @@ function extractR2Key(asset: AssetRow): string | null {
     const url = candidate.trim();
     if (!url) continue;
     if (base && url.startsWith(base + '/')) {
-      return url.slice(base.length + 1).replace(/^\/+/, '') || null;
+      const key = url.slice(base.length + 1).replace(/^\/+/, '');
+      return key ? decodeURIComponent(key) : null;
     }
     try {
       const parsed = new URL(url);
       const pathKey = parsed.pathname.replace(/^\/+/, '');
-      if (pathKey) return pathKey;
+      if (pathKey) return decodeURIComponent(pathKey);
     } catch {
       // Ignore malformed URL strings and continue trying.
     }
@@ -129,7 +129,42 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
     }
 
-    // ── 2. Delete dependent rows first (workspace-scoped when possible) ─────
+    // ── 2. Delete R2 object first (key-only, no download) ────────────────────
+    const r2Key = extractR2Key(asset as AssetRow);
+    if (!r2Key) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'R2 deletion failed. Check R2 configuration.',
+          code: 'R2_KEY_MISSING',
+        },
+        { status: 500 },
+      );
+    }
+
+    const r2Delete = await deleteR2Object(r2Key);
+    if (!r2Delete.success) {
+      if (r2Delete.configMissing || r2Delete.configInvalid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'R2 deletion failed. Check R2 configuration.',
+            code: 'R2_DELETE_FAILED',
+          },
+          { status: 500 },
+        );
+      }
+      return NextResponse.json(
+        {
+          success: false,
+          error: r2Delete.error ?? 'R2 deletion failed. Check R2 configuration.',
+          code: 'R2_DELETE_FAILED',
+        },
+        { status: 500 },
+      );
+    }
+
+    // ── 3. Delete dependent rows first (workspace-scoped when possible) ─────
     const deletePublishingSchedules = await supabase
       .from('publishing_schedules')
       .delete()
@@ -220,97 +255,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    // ── 3. Delete from remote storage ────────────────────────────────────────
     let warning: string | undefined;
-
-    const provider = asset.storage_provider as string | null;
-    const r2Key = extractR2Key(asset as AssetRow);
-
-    if (provider === 'r2') {
-      // ── Cloudflare R2 delete ────────────────────────────────────────────────
-      if (!r2Key) {
-        console.warn('[asset-delete] file_path missing for r2 asset – skipping R2 deletion', {
-          assetId: asset.id,
-        });
-      } else {
-        const r2Delete = await deleteR2Object(r2Key);
-        if (!r2Delete.success) {
-          if (r2Delete.configMissing) {
-            warning =
-              'Asset record deleted. R2 storage is not configured — remote file was not removed.';
-          } else {
-            warning = `Asset record deleted. R2 file removal failed: ${r2Delete.error ?? 'unknown error'}`;
-          }
-          console.warn('[asset-delete] non-fatal R2 cleanup issue', {
-            assetId: asset.id,
-            r2Key,
-            error: r2Delete.error ?? null,
-            configMissing: Boolean(r2Delete.configMissing),
-          });
-        } else if (r2Delete.missing) {
-          warning = 'Asset record deleted. Remote R2 file was already missing.';
-        }
-      }
-    } else if (provider === 'supabase_storage') {
-      // ── Legacy Supabase Storage delete ─────────────────────────────────────
-      const rawFilePath = asset.file_path as string | null;
-      const filePath = rawFilePath ? rawFilePath.replace(/^\/+/, '') : null;
-
-      if (!filePath) {
-        console.warn(
-          '[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion',
-          {
-            assetId: asset.id,
-          },
-        );
-      } else {
-        const bucketName = ((asset.bucket_name as string | null) ?? 'client-assets').trim();
-        const { error: storageError } = await supabase.storage.from(bucketName).remove([filePath]);
-
-        if (storageError) {
-          if (storageError.message.toLowerCase().includes('not found')) {
-            warning = 'Asset record deleted. Remote file was already missing.';
-            console.warn('[asset-delete] Storage file not found – treating as orphaned', {
-              assetId: asset.id,
-              filePath,
-              error: storageError.message,
-            });
-          } else {
-            console.error('[asset-delete] Storage delete failed', {
-              assetId: asset.id,
-              filePath,
-              error: storageError.message,
-            });
-            return NextResponse.json(
-              { success: false, error: `Storage delete failed: ${storageError.message}` },
-              { status: 502 },
-            );
-          }
-        }
-      }
-    } else {
-      const r2Ready = checkR2Config().configured;
-      if (r2Key && r2Ready) {
-        const r2Delete = await deleteR2Object(r2Key);
-        if (!r2Delete.success) {
-          warning =
-            r2Delete.configMissing || !r2Delete.error
-              ? 'Asset record deleted. R2 storage is not configured — remote file was not removed.'
-              : `Asset record deleted. R2 file removal failed: ${r2Delete.error}`;
-        } else if (r2Delete.missing) {
-          warning = 'Asset record deleted. Remote R2 file was already missing.';
-        }
-      } else {
-        console.warn('[asset-delete] unknown storage_provider — skipping remote deletion', {
-          assetId: asset.id,
-          provider,
-          hasKey: Boolean(r2Key),
-          r2Ready,
-        });
-      }
+    if (r2Delete.missing) {
+      warning = 'Asset deleted. R2 object was already missing.';
     }
 
-    // ── 4. Delete row from assets table ──────────────────────────────────────
+    // ── 4. Delete asset row ──────────────────────────────────────────────────
     const { error: dbError } = await supabase
       .from('assets')
       .delete()
@@ -338,7 +288,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({
       success: true,
-      message: warning ?? 'Asset deleted successfully.',
+      message: warning ?? 'Asset deleted',
       ...(warning ? { warning } : {}),
     });
   } catch (err) {

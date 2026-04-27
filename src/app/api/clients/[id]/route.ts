@@ -12,6 +12,31 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+async function countClientDependencies(
+  db: ReturnType<typeof getServiceClient>,
+  table: string,
+  clientId: string,
+  workspaceId: string,
+): Promise<number> {
+  const primary = await db
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .eq('workspace_id', workspaceId);
+  if (!primary.error) return primary.count ?? 0;
+  if (primary.error.code === '42703') {
+    const fallback = await db
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId);
+    if (!fallback.error) return fallback.count ?? 0;
+    if (fallback.error.code === '42P01' || fallback.error.code === '42703') return 0;
+    throw new Error(fallback.error.message);
+  }
+  if (primary.error.code === '42P01') return 0;
+  throw new Error(primary.error.message);
+}
+
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireRole(request, ['owner', 'admin', 'manager']);
@@ -50,31 +75,32 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
     }
 
-    // Defensive cleanup: if some environments still have strict FK constraints
-    // (instead of ON DELETE SET NULL), detach child rows before deleting the client.
-    const nullableClientRefs = [
-      'tasks',
+    const dependencyTables = [
       'assets',
-      'content_items',
       'projects',
+      'tasks',
+      'content_items',
       'publishing_schedules',
-      'calendar_events',
-      'time_entries',
+      'invoices',
+      'quotations',
+      'client_contracts',
       'activities',
-      'notifications',
     ] as const;
-    for (const table of nullableClientRefs) {
-      const { error } = await db.from(table).update({ client_id: null }).eq('client_id', clientId);
-      if (error) {
-        // Ignore missing-table/column schema drift; hard errors still surface on final delete.
-        const msg = error.message?.toLowerCase?.() ?? '';
-        if (!msg.includes('does not exist')) {
-          console.warn(
-            `[DELETE /api/clients/${clientId}] pre-clean failed on ${table}:`,
-            error.message,
-          );
-        }
-      }
+    const dependencyCounts: Record<string, number> = {};
+    for (const table of dependencyTables) {
+      dependencyCounts[table] = await countClientDependencies(db, table, clientId, workspaceId);
+    }
+    const hasBlockingDependencies = Object.values(dependencyCounts).some((count) => count > 0);
+    if (hasBlockingDependencies) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'CLIENT_HAS_DEPENDENCIES',
+          error: 'This client has related data. Remove related projects/tasks/assets first.',
+          dependencies: dependencyCounts,
+        },
+        { status: 409 },
+      );
     }
 
     const { error: delErr } = await db
