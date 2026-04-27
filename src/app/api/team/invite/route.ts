@@ -22,6 +22,7 @@ import {
   WORKSPACE_ROLES,
   type WorkspaceKey,
 } from '@/lib/workspace-access';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const INVITE_EXPIRY_DAYS = 7;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
@@ -235,18 +236,32 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getServiceClient();
-  const { data: inviterMembership } = await db
-    .from('workspace_memberships')
-    .select('workspace_id')
-    .eq('user_id', auth.profile.id)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle();
+  const workspaceResolution = await resolveWorkspaceForRequest(request, db, auth.profile.id, {
+    allowWorkspaceFallbackWithoutMembership: true,
+  });
+  let workspaceId = workspaceResolution.workspaceId;
 
-  const workspaceId = inviterMembership?.workspace_id ?? null;
+  if (!workspaceId) {
+    // Backward compatibility: some environments have workspace_members rows
+    // but missing/unsynced workspace_memberships rows.
+    const { data: memberRow } = await db
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', auth.profile.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    workspaceId = memberRow?.workspace_id ?? null;
+  }
+
   if (!workspaceId) {
     return NextResponse.json(
-      { error: 'No workspace membership found for inviter.' },
+      {
+        error:
+          workspaceResolution.error ??
+          'No workspace membership found for inviter. Ask an owner to restore your workspace access.',
+      },
       { status: 403 },
     );
   }
