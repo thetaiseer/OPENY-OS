@@ -248,7 +248,6 @@ export async function POST(request: NextRequest) {
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', auth.profile.id)
-      .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
