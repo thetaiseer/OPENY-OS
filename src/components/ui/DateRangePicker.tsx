@@ -3,7 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 import { DayPicker, type DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import 'react-day-picker/dist/style.css';
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subDays,
+  subMonths,
+  subWeeks,
+} from 'date-fns';
 import { cn } from '@/lib/cn';
 
 type DateRangePickerProps = {
@@ -33,6 +45,17 @@ function toYmd(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+type PresetDef = {
+  id: string;
+  label: string;
+  getRange: () => DateRange;
+};
+
+function sameRange(a?: DateRange, b?: DateRange): boolean {
+  if (!a?.from || !a?.to || !b?.from || !b?.to) return false;
+  return toYmd(a.from) === toYmd(b.from) && toYmd(a.to) === toYmd(b.to);
+}
+
 export default function DateRangePicker({
   from,
   to,
@@ -48,6 +71,84 @@ export default function DateRangePicker({
     from: fromDate,
     to: toDate,
   });
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const presets = useMemo<PresetDef[]>(() => {
+    const now = new Date();
+    const today = startOfDay(now);
+    const yesterday = startOfDay(subDays(now, 1));
+    const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const lastWeekBase = subWeeks(now, 1);
+    const lastWeekStart = startOfWeek(lastWeekBase, { weekStartsOn: 1 });
+    const lastWeekEnd = endOfWeek(lastWeekBase, { weekStartsOn: 1 });
+    const thisMonthStart = startOfMonth(now);
+    const thisMonthEnd = endOfMonth(now);
+    const lastMonthBase = subMonths(now, 1);
+    const lastMonthStart = startOfMonth(lastMonthBase);
+    const lastMonthEnd = endOfMonth(lastMonthBase);
+    // Project-wide max fallback range if inception date is unknown.
+    const projectInception = new Date(2020, 0, 1);
+
+    return [
+      { id: 'today', label: 'Today', getRange: () => ({ from: today, to: today }) },
+      {
+        id: 'yesterday',
+        label: 'Yesterday',
+        getRange: () => ({ from: yesterday, to: yesterday }),
+      },
+      {
+        id: 'today_yesterday',
+        label: 'Today and yesterday',
+        getRange: () => ({ from: yesterday, to: today }),
+      },
+      {
+        id: 'last_7_days',
+        label: 'Last 7 days',
+        getRange: () => ({ from: subDays(today, 6), to: today }),
+      },
+      {
+        id: 'last_14_days',
+        label: 'Last 14 days',
+        getRange: () => ({ from: subDays(today, 13), to: today }),
+      },
+      {
+        id: 'last_28_days',
+        label: 'Last 28 days',
+        getRange: () => ({ from: subDays(today, 27), to: today }),
+      },
+      {
+        id: 'last_30_days',
+        label: 'Last 30 days',
+        getRange: () => ({ from: subDays(today, 29), to: today }),
+      },
+      {
+        id: 'this_week',
+        label: 'This week',
+        getRange: () => ({ from: startOfDay(thisWeekStart), to: endOfDay(thisWeekEnd) }),
+      },
+      {
+        id: 'last_week',
+        label: 'Last week',
+        getRange: () => ({ from: startOfDay(lastWeekStart), to: endOfDay(lastWeekEnd) }),
+      },
+      {
+        id: 'this_month',
+        label: 'This month',
+        getRange: () => ({ from: startOfDay(thisMonthStart), to: endOfDay(thisMonthEnd) }),
+      },
+      {
+        id: 'last_month',
+        label: 'Last month',
+        getRange: () => ({ from: startOfDay(lastMonthStart), to: endOfDay(lastMonthEnd) }),
+      },
+      {
+        id: 'maximum',
+        label: 'Maximum',
+        getRange: () => ({ from: startOfDay(projectInception), to: today }),
+      },
+    ];
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -68,7 +169,17 @@ export default function DateRangePicker({
 
   useEffect(() => {
     setDraftRange({ from: fromDate, to: toDate });
+    setActivePresetId(null);
   }, [fromDate, toDate]);
+
+  useEffect(() => {
+    if (!draftRange?.from || !draftRange?.to) {
+      setActivePresetId(null);
+      return;
+    }
+    const matched = presets.find((preset) => sameRange(draftRange, preset.getRange()));
+    setActivePresetId(matched?.id ?? null);
+  }, [draftRange, presets]);
 
   const triggerText =
     fromDate && toDate
@@ -92,7 +203,7 @@ export default function DateRangePicker({
       {open ? (
         <div
           role="dialog"
-          className="absolute end-0 top-full z-[220] mt-2 w-[min(calc(100vw-1.5rem),640px)] rounded-2xl border p-3 shadow-lg"
+          className="absolute end-0 top-full z-[220] mt-2 w-[min(calc(100vw-1.5rem),920px)] rounded-2xl border p-0 shadow-lg"
           style={{
             background: 'color-mix(in srgb, var(--surface) 95%, white 5%)',
             borderColor: 'var(--border)',
@@ -100,37 +211,109 @@ export default function DateRangePicker({
             backdropFilter: 'blur(10px)',
           }}
         >
-          <DayPicker
-            mode="range"
-            numberOfMonths={2}
-            defaultMonth={fromDate}
-            selected={draftRange}
-            onSelect={setDraftRange}
-          />
-          <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
-            <button
-              type="button"
-              className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-              onClick={() => {
-                setDraftRange({ from: fromDate, to: toDate });
-                setOpen(false);
-              }}
+          <div className="flex max-h-[560px] min-h-[420px] flex-col overflow-hidden md:flex-row">
+            <aside
+              className="w-full border-b md:w-[240px] md:shrink-0 md:border-b-0 md:border-e"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-elevated)' }}
             >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-              style={{ background: 'var(--accent)' }}
-              onClick={() => {
-                if (!draftRange?.from || !draftRange?.to) return;
-                onChange(toYmd(draftRange.from), toYmd(draftRange.to));
-                setOpen(false);
-              }}
-            >
-              Apply
-            </button>
+              <div className="max-h-[240px] space-y-1 overflow-y-auto p-3 md:max-h-[560px]">
+                {presets.map((preset) => {
+                  const active = activePresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={cn(
+                        'w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors',
+                        active
+                          ? 'border-transparent text-white'
+                          : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                      )}
+                      style={active ? { background: 'var(--accent)' } : undefined}
+                      onClick={() => {
+                        const next = preset.getRange();
+                        setDraftRange(next);
+                        setActivePresetId(preset.id);
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="overflow-x-auto p-3 md:p-4">
+                <DayPicker
+                  mode="range"
+                  numberOfMonths={2}
+                  defaultMonth={draftRange?.from ?? fromDate ?? new Date()}
+                  selected={draftRange}
+                  onSelect={(next) => {
+                    setDraftRange(next);
+                    setActivePresetId(null);
+                  }}
+                  classNames={{
+                    months: 'flex flex-col gap-4 sm:flex-row sm:gap-6',
+                    month: 'space-y-3 min-w-[260px]',
+                    caption:
+                      'flex items-center justify-center text-sm font-semibold text-[color:var(--text-primary)]',
+                    nav: 'flex items-center gap-1',
+                    button_previous:
+                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                    button_next:
+                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                    table: 'w-full border-collapse',
+                    head_row: 'grid grid-cols-7 gap-1',
+                    row: 'mt-1 grid grid-cols-7 gap-1',
+                    head_cell:
+                      'h-8 rounded-md border border-[color:var(--border)] bg-[color:var(--surface-elevated)] text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
+                    cell: 'h-9 w-9',
+                    day: 'h-9 w-9 rounded-md border border-transparent p-0 text-sm font-medium text-[color:var(--text-primary)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)]',
+                    today: 'border-[color:var(--accent)] text-[color:var(--accent)]',
+                    selected:
+                      'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
+                    range_start:
+                      'bg-[color:var(--accent)] text-white rounded-md hover:bg-[color:var(--accent)]',
+                    range_end:
+                      'bg-[color:var(--accent)] text-white rounded-md hover:bg-[color:var(--accent)]',
+                    range_middle:
+                      'bg-[color:var(--accent-soft)] text-[color:var(--text-primary)] rounded-md',
+                    outside: 'text-[color:var(--text-disabled)] opacity-50',
+                    disabled: 'text-[color:var(--text-disabled)] opacity-40',
+                  }}
+                />
+              </div>
+
+              <div className="mt-auto flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+                <button
+                  type="button"
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                  onClick={() => {
+                    setDraftRange({ from: fromDate, to: toDate });
+                    setActivePresetId(null);
+                    setOpen(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ background: 'var(--accent)' }}
+                  disabled={!draftRange?.from || !draftRange?.to}
+                  onClick={() => {
+                    if (!draftRange?.from || !draftRange?.to) return;
+                    onChange(toYmd(draftRange.from), toYmd(draftRange.to));
+                    setOpen(false);
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
