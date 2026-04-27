@@ -736,6 +736,16 @@ function AssetsPage() {
     for (const c of clients) m.set(c.name, c);
     return m;
   }, [clients]);
+  const getAssetClientFolderName = useCallback(
+    (asset: Asset): string | null => {
+      const byId = asset.client_id ? clientNameById[asset.client_id] : '';
+      if (byId) return byId;
+      const byName = asset.client_name?.trim() ?? '';
+      if (byName) return byName;
+      return null;
+    },
+    [clientNameById],
+  );
   const [scheduleCounts, setScheduleCounts] = useState<
     Record<string, { count: number; nextDate: string | null }>
   >({});
@@ -1249,17 +1259,6 @@ function AssetsPage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
   const [deletingClientFolder, setDeletingClientFolder] = useState<string | null>(null);
-
-  const getAssetClientFolderName = useCallback(
-    (asset: Asset): string | null => {
-      const byId = asset.client_id ? clientNameById[asset.client_id] : '';
-      if (byId) return byId;
-      const byName = asset.client_name?.trim() ?? '';
-      if (byName) return byName;
-      return null;
-    },
-    [clientNameById],
-  );
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
