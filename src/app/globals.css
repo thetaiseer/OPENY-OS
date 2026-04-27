@@ -9,19 +9,19 @@
   --surface-elevated: #18263d;
 
   --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-disabled: #64748b;
+  --text-secondary: #c8d6e5;
+  --text-muted: #8fa8c4;
+  --text-disabled: #6080a0;
 
   --border: #26364f;
   --border-strong: #3b4a66;
   --border-subtle: #26364f;
 
-  --primary: #60a5fa;
-  --primary-foreground: #020617;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
 
   --danger: #f87171;
-  --danger-foreground: #020617;
+  --danger-foreground: #1a0000;
   --danger-soft: #3f1d1d;
   --danger-text: #fca5a5;
 
@@ -40,7 +40,7 @@
   --accent: var(--primary);
   --accent-hover: color-mix(in srgb, var(--primary) 88%, white 12%);
   --accent-soft: color-mix(in srgb, var(--primary) 22%, transparent);
-  --accent-contrast: var(--primary-foreground);
+  --accent-contrast: #ffffff;
   --border-glass: var(--border);
   --radius-card: 22px;
   --radius-control: 16px;
@@ -67,9 +67,9 @@
   --surface-elevated: #ffffff;
 
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
+  --text-secondary: #374151;
+  --text-muted: #4b6080;
+  --text-disabled: #6b7280;
 
   --border: #d8dee9;
   --border-strong: #b6c0d2;
@@ -81,10 +81,10 @@
   --danger: #dc2626;
   --danger-foreground: #ffffff;
   --danger-soft: #fee2e2;
-  --danger-text: #b91c1c;
+  --danger-text: #991b1b;
 
-  --success: #16a34a;
-  --warning: #d97706;
+  --success: #15803d;
+  --warning: #b45309;
 
   --bg-base: var(--bg);
   --bg-surface: var(--surface);
@@ -369,7 +369,8 @@ select {
     padding: 0.45rem 0.8rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    opacity: 0.72;
     text-decoration: none;
   }
 
@@ -377,6 +378,7 @@ select {
     border-color: var(--accent);
     background: var(--accent);
     color: #fff;
+    opacity: 1;
   }
 
   /* Sub-tabs inside doc editors (Invoice, etc.) — was unstyled and labels looked concatenated */
@@ -399,7 +401,8 @@ select {
     font-size: 0.8125rem;
     font-weight: 600;
     line-height: 1.2;
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    opacity: 0.72;
     cursor: pointer;
     white-space: nowrap;
     transition:
@@ -418,6 +421,7 @@ select {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated));
     color: var(--accent);
+    opacity: 1;
   }
 
   .docs-workspace-mobile-tabs {
@@ -640,5 +644,56 @@ select {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .openy-modal-btn-primary,
+  button[class*='bg-[color:var(--primary)]'],
+  button[class*='bg-[var(--accent)]'],
+  button[class*='bg-accent'] {
+    color: var(--primary-foreground) !important;
+  }
+
+  button[class*='bg-[color:var(--danger)]'],
+  button[class*='bg-danger'],
+  button[class*='danger'] {
+    color: var(--danger-foreground) !important;
+  }
+
+  .openy-modal-btn-secondary {
+    color: var(--text-primary) !important;
+  }
+
+  [role='dialog'] h1,
+  [role='dialog'] h2,
+  [role='dialog'] h3,
+  [role='dialog'] p,
+  [role='alertdialog'] h1,
+  [role='alertdialog'] h2,
+  [role='alertdialog'] h3,
+  [role='alertdialog'] p {
+    color: var(--text-primary);
+  }
+
+  .openy-surface,
+  .openy-elevated,
+  .openy-control,
+  .openy-heading-1,
+  .openy-heading-2 {
+    color: var(--text-primary);
+  }
+
+  input::placeholder,
+  textarea::placeholder,
+  .openy-control::placeholder {
+    color: var(--text-muted) !important;
+    opacity: 1;
+  }
+
+  :disabled,
+  [disabled],
+  [aria-disabled='true'] {
+    color: var(--text-disabled);
   }
 }
