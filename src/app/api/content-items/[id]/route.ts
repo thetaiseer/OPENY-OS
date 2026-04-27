@@ -7,8 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import {
+  sanitizeContentItemsApiError,
+  selectSingleContentItemWithClientFallback,
+  updateContentItemWithClientFallback,
+} from '@/lib/content-items-query';
 
 const VALID_STATUSES = [
   'draft',
@@ -29,14 +33,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
   const { id } = await params;
   try {
     const db = getServiceClient();
-    const { data, error } = await db
-      .from('content_items')
-      .select(CONTENT_ITEM_WITH_CLIENT)
-      .eq('id', id)
-      .single();
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+    const { workspaceId } = await resolveWorkspaceForRequest(req, db, auth.profile.id);
+    const { data, error } = await selectSingleContentItemWithClientFallback({
+      db,
+      id,
+      workspaceId,
+    });
+    if (error) {
+      console.error('[GET /api/content-items/[id]] query_failed', {
+        code: error.code,
+        message: error.message,
+        contentItemId: id,
+        workspaceId,
+      });
+      return NextResponse.json(
+        { success: false, error: sanitizeContentItemsApiError(error) },
+        { status: 404 },
+      );
+    }
     return NextResponse.json({ success: true, item: data });
-  } catch {
+  } catch (error) {
+    console.error('[GET /api/content-items/[id]] unhandled_error', {
+      message: error instanceof Error ? error.message : String(error),
+      contentItemId: id,
+    });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -80,13 +100,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       .eq('id', id)
       .single();
 
-    const { data, error } = await db
-      .from('content_items')
-      .update(updates)
-      .eq('id', id)
-      .select(CONTENT_ITEM_WITH_CLIENT)
-      .single();
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const { data, error } = await updateContentItemWithClientFallback({ db, id, updates });
+    if (error) {
+      console.error('[PATCH /api/content-items/[id]] query_failed', {
+        code: error.code,
+        message: error.message,
+        contentItemId: id,
+      });
+      return NextResponse.json(
+        { success: false, error: sanitizeContentItemsApiError(error) },
+        { status: 500 },
+      );
+    }
 
     // Log activity when status changes (fire-and-forget)
     if (newStatus && existing && newStatus !== existing.status) {
@@ -138,7 +163,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     }
 
     return NextResponse.json({ success: true, item: data });
-  } catch {
+  } catch (error) {
+    console.error('[PATCH /api/content-items/[id]] unhandled_error', {
+      message: error instanceof Error ? error.message : String(error),
+      contentItemId: id,
+    });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

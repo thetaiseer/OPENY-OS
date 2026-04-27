@@ -46,6 +46,7 @@ export default function ClientContentPage() {
   const { toast: addToast } = useToast();
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Create modal state
   const [createOpen, setCreateOpen] = useState(false);
@@ -62,15 +63,29 @@ export default function ClientContentPage() {
 
   const load = useCallback(async () => {
     if (!clientId) return;
-    const { data } = await supabase
-      .from('content_items')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setContent((data ?? []) as ContentItem[]);
-    setLoading(false);
-  }, [clientId]);
+    try {
+      const { data, error } = await supabase
+        .from('content_items')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error('[ClientContentPage] content_items_load_failed', {
+          code: error.code,
+          message: error.message,
+          clientId,
+        });
+        setLoadError('Could not load content items right now.');
+        addToast('Could not load content items right now.', 'error');
+        return;
+      }
+      setContent((data ?? []) as ContentItem[]);
+      setLoadError(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, clientId]);
 
   useEffect(() => {
     void load();
@@ -156,16 +171,24 @@ export default function ClientContentPage() {
       </div>
 
       {content.length === 0 ? (
-        <div className="space-y-2 py-16 text-center">
-          <FileText
-            size={32}
-            className="mx-auto opacity-30"
-            style={{ color: 'var(--text-secondary)' }}
-          />
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No content yet. Create your first content item.
-          </p>
-        </div>
+        loadError ? (
+          <div className="space-y-2 py-16 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {loadError}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2 py-16 text-center">
+            <FileText
+              size={32}
+              className="mx-auto opacity-30"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              No content yet. Create your first content item.
+            </p>
+          </div>
+        )
       ) : (
         <div className="space-y-3">
           {content.map((item) => (

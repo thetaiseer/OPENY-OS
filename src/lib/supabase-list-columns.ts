@@ -213,6 +213,12 @@ export const CONTENT_ITEM_LIST_COLUMNS =
 
 export const CONTENT_ITEM_WITH_CLIENT = `${CONTENT_ITEM_LIST_COLUMNS},client:clients(id, name)`;
 
+// Fallback projection for environments that have not fully applied v2 content migrations.
+export const CONTENT_ITEM_LIST_COLUMNS_FALLBACK =
+  'id,workspace_id,title,description,platform,post_types,purpose,caption,status,schedule_date,client_id,task_id,approval_id,created_by,created_at,updated_at';
+
+export const CONTENT_ITEM_WITH_CLIENT_FALLBACK = `${CONTENT_ITEM_LIST_COLUMNS_FALLBACK},client:clients(id, name)`;
+
 export const CALENDAR_EVENT_COLUMNS =
   'id,workspace_id,title,client_id,task_id,publishing_schedule_id,event_type,starts_at,ends_at,status,notes,created_at,updated_at';
 

@@ -11,8 +11,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import {
+  insertContentItemWithClientFallback,
+  sanitizeContentItemsApiError,
+  selectContentItemsWithClientFallback,
+} from '@/lib/content-items-query';
 
 const VALID_STATUSES = [
   'draft',
@@ -49,27 +53,32 @@ export async function GET(req: NextRequest) {
         { status: 500 },
       );
     }
-    let query = db
-      .from('content_items')
-      .select(CONTENT_ITEM_WITH_CLIENT)
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (clientId) query = query.eq('client_id', clientId);
-    if (status) query = query.eq('status', status);
-    if (platform)
-      query = (
-        query as unknown as { contains: (col: string, val: string[]) => typeof query }
-      ).contains('platform_targets', [platform]);
-
-    const { data, error } = await query;
+    const { data, error } = await selectContentItemsWithClientFallback({
+      db,
+      workspaceId,
+      clientId,
+      status,
+      platform,
+    });
     if (error) {
-      console.error('[GET /api/content-items] error:', error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error('[GET /api/content-items] query_failed', {
+        code: error.code,
+        message: error.message,
+        workspaceId,
+        clientId,
+        status,
+        platform,
+      });
+      return NextResponse.json(
+        { success: false, error: sanitizeContentItemsApiError(error) },
+        { status: 500 },
+      );
     }
     return NextResponse.json({ success: true, items: data ?? [] });
-  } catch {
+  } catch (error) {
+    console.error('[GET /api/content-items] unhandled_error', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -127,15 +136,18 @@ export async function POST(req: NextRequest) {
       );
     }
     payload.workspace_id = workspaceId;
-    const { data, error } = await db
-      .from('content_items')
-      .insert(payload)
-      .select(CONTENT_ITEM_WITH_CLIENT)
-      .single();
+    const { data, error } = await insertContentItemWithClientFallback({ db, payload });
 
     if (error) {
-      console.error('[POST /api/content-items] db error:', error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error('[POST /api/content-items] query_failed', {
+        code: error.code,
+        message: error.message,
+        workspaceId,
+      });
+      return NextResponse.json(
+        { success: false, error: sanitizeContentItemsApiError(error) },
+        { status: 500 },
+      );
     }
 
     // Activity log (best-effort)
@@ -176,7 +188,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, item: data }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error('[POST /api/content-items] unhandled_error', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
