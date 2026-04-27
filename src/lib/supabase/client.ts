@@ -2,6 +2,72 @@ import { createBrowserClient } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const missingConfigMessage =
+  'Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the dev server.';
+
+type BrowserClient = ReturnType<typeof createBrowserClient>;
+
+function createNoopQuery() {
+  const result = Promise.resolve({ data: null, error: null });
+  const query = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (prop === 'then') return result.then.bind(result);
+        if (prop === 'catch') return result.catch.bind(result);
+        if (prop === 'finally') return result.finally.bind(result);
+        return () => query;
+      },
+    },
+  );
+  return query;
+}
+
+function createMissingConfigError() {
+  return { message: missingConfigMessage, name: 'SupabaseConfigurationError' };
+}
+
+function createNoopClient(): BrowserClient {
+  const authResponse = () => Promise.resolve({ data: { user: null, session: null }, error: null });
+  const authErrorResponse = () =>
+    Promise.resolve({ data: null, error: createMissingConfigError() });
+
+  return {
+    auth: {
+      getSession: authResponse,
+      getUser: authResponse,
+      onAuthStateChange: () => ({
+        data: {
+          subscription: {
+            id: 'noop',
+            callback: () => {},
+            unsubscribe: () => {},
+          },
+        },
+      }),
+      signInWithPassword: authErrorResponse,
+      signOut: () => Promise.resolve({ error: null }),
+      resetPasswordForEmail: authErrorResponse,
+      exchangeCodeForSession: authErrorResponse,
+      updateUser: authErrorResponse,
+    },
+    from: () => createNoopQuery(),
+    channel: () => ({
+      on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
+      subscribe: () => ({ unsubscribe: () => {} }),
+      unsubscribe: () => {},
+    }),
+    removeChannel: () => Promise.resolve('ok'),
+    storage: {
+      from: () => ({
+        upload: authErrorResponse,
+        download: authErrorResponse,
+        remove: authErrorResponse,
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+      }),
+    },
+  } as unknown as BrowserClient;
+}
 
 /**
  * Returns a Supabase browser client.
@@ -14,22 +80,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
  */
 export function createClient(): ReturnType<typeof createBrowserClient> {
   if (!supabaseUrl || !supabaseAnonKey) {
-    // Build-time guard: env vars not available yet.
-    // Return a proxy that satisfies type-checking without throwing.
-    return new Proxy({} as ReturnType<typeof createBrowserClient>, {
-      get(_target, prop) {
-        // Return nested proxies so call-chains like supabase.from('x').select() don't throw.
-        if (typeof prop === 'string') {
-          return (..._args: unknown[]) =>
-            new Proxy({} as object, {
-              get(_t2, _p2) {
-                return (..._a: unknown[]) => Promise.resolve({ data: null, error: null });
-              },
-            });
-        }
-        return undefined;
-      },
-    });
+    return createNoopClient();
   }
   return createBrowserClient(supabaseUrl, supabaseAnonKey, {
     realtime: {

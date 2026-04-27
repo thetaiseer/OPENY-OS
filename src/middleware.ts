@@ -9,6 +9,8 @@ import {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+const PUBLIC_FILE_PATTERN = /\.(?:ico|json|txt|xml|svg|png|jpg|jpeg|gif|webp|css|js|map)$/i;
 const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/dashboard': '/os/dashboard',
   '/clients': '/os/clients',
@@ -73,7 +75,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/invite/') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon');
+    pathname.startsWith('/favicon') ||
+    PUBLIC_FILE_PATTERN.test(pathname);
 
   if (pathname === '/choose-workspace') {
     return NextResponse.redirect(new URL('/?switch=1', request.url));
@@ -86,6 +89,12 @@ export async function middleware(request: NextRequest) {
   // Public routes: skip Supabase client + getUser() — saves an Auth round-trip per hit.
   if (isPublicRoute) {
     return NextResponse.next({ request });
+  }
+
+  if (!hasSupabaseConfig) {
+    const loginUrl = new URL('/', request.url);
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   let supabaseResponse = NextResponse.next({ request });
