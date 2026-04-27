@@ -4,8 +4,9 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 
 /**
  * GET /api/dashboard/team-performance
- * Query: period=YYYY-MM (optional). Defaults to current calendar month.
- * Returns tasks completed per team member in that month.
+ * Query: from=YYYY-MM-DD&to=YYYY-MM-DD (optional). Falls back to period=YYYY-MM
+ * and then to current calendar month.
+ * Returns tasks completed per team member in the selected window.
  */
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -13,14 +14,30 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const raw = searchParams.get('period') ?? '';
-    const now = new Date();
-    const defaultYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const period = /^\d{4}-(0[1-9]|1[0-2])$/.test(raw) ? raw : defaultYm;
-    const [py, pm] = period.split('-').map(Number);
-    const monthStart = new Date(py, pm - 1, 1).toISOString();
-    const monthEndDay = new Date(py, pm, 0).getDate();
-    const monthEnd = `${py}-${String(pm).padStart(2, '0')}-${String(monthEndDay).padStart(2, '0')}T23:59:59.999Z`;
+    const from = searchParams.get('from') ?? '';
+    const to = searchParams.get('to') ?? '';
+    const isYmd = (v: string) => /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v);
+    const fromDate = isYmd(from) ? new Date(`${from}T00:00:00`) : null;
+    const toDate = isYmd(to) ? new Date(`${to}T00:00:00`) : null;
+    let rangeStartIso: string;
+    let rangeEndIso: string;
+    if (fromDate && toDate) {
+      const start = fromDate <= toDate ? fromDate : toDate;
+      const end = fromDate <= toDate ? toDate : fromDate;
+      rangeStartIso = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
+      rangeEndIso = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
+    } else {
+      const raw = searchParams.get('period') ?? '';
+      const now = new Date();
+      const defaultYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const period = /^\d{4}-(0[1-9]|1[0-2])$/.test(raw) ? raw : defaultYm;
+      const [py, pm] = period.split('-').map(Number);
+      const monthStart = new Date(py, pm - 1, 1).toISOString();
+      const monthEndDay = new Date(py, pm, 0).getDate();
+      const monthEnd = `${py}-${String(pm).padStart(2, '0')}-${String(monthEndDay).padStart(2, '0')}T23:59:59.999Z`;
+      rangeStartIso = monthStart;
+      rangeEndIso = monthEnd;
+    }
 
     const sb = getServiceClient();
 
@@ -28,8 +45,8 @@ export async function GET(req: NextRequest) {
       .from('tasks')
       .select('assigned_to, status, updated_at')
       .in('status', ['done', 'delivered'])
-      .gte('updated_at', monthStart)
-      .lte('updated_at', monthEnd);
+      .gte('updated_at', rangeStartIso)
+      .lte('updated_at', rangeEndIso);
 
     if (tErr) throw new Error(tErr.message);
 

@@ -10,14 +10,39 @@ import {
   type ReactNode,
 } from 'react';
 
-const STORAGE_KEY = 'openy-selected-period-ym';
-
 export function calendarMonthNow(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
 function isValidYm(s: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(s);
+}
+
+function isValidYmd(s: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s);
+}
+
+function formatYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseYmd(s: string): Date | null {
+  if (!isValidYmd(s)) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+  return date;
+}
+
+function getCurrentMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { from: formatYmd(start), to: formatYmd(end) };
 }
 
 /** First / last calendar day of `YYYY-MM` as `YYYY-MM-DD` (local). */
@@ -54,6 +79,9 @@ function clampYmToWindow(ym: string): string {
 }
 
 export type AppPeriodContextValue = {
+  periodFrom: string;
+  periodTo: string;
+  setPeriodRange: (from: string, to: string) => void;
   periodYm: string;
   setPeriodYm: (v: string) => void;
   periodStart: string;
@@ -65,46 +93,109 @@ export type AppPeriodContextValue = {
 const AppPeriodContext = createContext<AppPeriodContextValue | null>(null);
 
 export function AppPeriodProvider({ children }: { children: ReactNode }) {
-  const [periodYm, setPeriodYmState] = useState(calendarMonthNow);
+  const currentMonthRange = useMemo(getCurrentMonthRange, []);
+  const [periodRange, setPeriodRangeState] = useState<{ from: string; to: string }>(
+    currentMonthRange,
+  );
+
+  const updateUrlParams = useCallback((from: string, to: string) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('from') === from && url.searchParams.get('to') === to) return;
+    url.searchParams.set('from', from);
+    url.searchParams.set('to', to);
+    window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`);
+  }, []);
+
+  const setPeriodRange = useCallback(
+    (from: string, to: string) => {
+      const parsedFrom = parseYmd(from);
+      const parsedTo = parseYmd(to);
+      if (!parsedFrom || !parsedTo) return;
+      const start = parsedFrom <= parsedTo ? parsedFrom : parsedTo;
+      const end = parsedFrom <= parsedTo ? parsedTo : parsedFrom;
+      const next = { from: formatYmd(start), to: formatYmd(end) };
+      setPeriodRangeState(next);
+      updateUrlParams(next.from, next.to);
+    },
+    [updateUrlParams],
+  );
+
+  const setPeriodYm = useCallback(
+    (v: string) => {
+      if (!isValidYm(v)) return;
+      const nextYm = clampYmToWindow(v);
+      const { start, end } = monthDayBounds(nextYm);
+      setPeriodRange(start, end);
+    },
+    [setPeriodRange],
+  );
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw && isValidYm(raw)) {
-        setPeriodYmState(clampYmToWindow(raw));
+    if (typeof window === 'undefined') return;
+    const syncFromUrl = () => {
+      const url = new URL(window.location.href);
+      const fromQuery = url.searchParams.get('from');
+      const toQuery = url.searchParams.get('to');
+      if (fromQuery && toQuery && isValidYmd(fromQuery) && isValidYmd(toQuery)) {
+        const start = parseYmd(fromQuery);
+        const end = parseYmd(toQuery);
+        if (start && end) {
+          const normalized =
+            start <= end
+              ? { from: formatYmd(start), to: formatYmd(end) }
+              : { from: formatYmd(end), to: formatYmd(start) };
+          setPeriodRangeState(normalized);
+          return;
+        }
       }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      setPeriodRangeState(currentMonthRange);
+      updateUrlParams(currentMonthRange.from, currentMonthRange.to);
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [currentMonthRange, updateUrlParams]);
 
-  const setPeriodYm = useCallback((v: string) => {
-    if (!isValidYm(v)) return;
-    const next = clampYmToWindow(v);
-    setPeriodYmState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const { periodStart, periodEnd, inputMinYm, inputMaxYm } = useMemo(() => {
-    const { start, end } = monthDayBounds(periodYm);
+  const { periodYm, periodStart, periodEnd, inputMinYm, inputMaxYm } = useMemo(() => {
+    const periodStart = periodRange.from;
+    const periodEnd = periodRange.to;
+    const periodYm = periodStart.slice(0, 7);
     const now = new Date();
     const minY = now.getFullYear() - 10;
     const maxY = now.getFullYear() + 2;
     return {
-      periodStart: start,
-      periodEnd: end,
+      periodYm,
+      periodStart,
+      periodEnd,
       inputMinYm: `${minY}-01`,
       inputMaxYm: `${maxY}-12`,
     };
-  }, [periodYm]);
+  }, [periodRange]);
 
   const value = useMemo(
-    () => ({ periodYm, setPeriodYm, periodStart, periodEnd, inputMinYm, inputMaxYm }),
-    [periodYm, setPeriodYm, periodStart, periodEnd, inputMinYm, inputMaxYm],
+    () => ({
+      periodFrom: periodRange.from,
+      periodTo: periodRange.to,
+      setPeriodRange,
+      periodYm,
+      setPeriodYm,
+      periodStart,
+      periodEnd,
+      inputMinYm,
+      inputMaxYm,
+    }),
+    [
+      periodRange.from,
+      periodRange.to,
+      setPeriodRange,
+      periodYm,
+      setPeriodYm,
+      periodStart,
+      periodEnd,
+      inputMinYm,
+      inputMaxYm,
+    ],
   );
 
   return <AppPeriodContext.Provider value={value}>{children}</AppPeriodContext.Provider>;

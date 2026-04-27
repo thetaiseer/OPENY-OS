@@ -439,7 +439,7 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, lang } = useLang();
-  const { periodYm, periodStart, periodEnd } = useAppPeriod();
+  const { periodStart, periodEnd } = useAppPeriod();
   const { triggerQuickAction } = useQuickActions();
   const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
 
@@ -463,10 +463,10 @@ export default function DashboardPage() {
     ? (displayName.split(/\s+/)[0] ?? t('guestName'))
     : displayName;
 
-  const { data: stats, isLoading: statsLoading } = useDashboardStats(periodYm);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats(periodStart, periodEnd);
 
   const { data: activitiesData } = useQuery<ActivityType[]>({
-    queryKey: ['activities', periodYm],
+    queryKey: ['activities', periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from('activities')
@@ -481,12 +481,13 @@ export default function DashboardPage() {
   });
 
   const { data: assetRows } = useQuery<{ content_type: string | null }[]>({
-    queryKey: ['asset-content-types', periodYm],
+    queryKey: ['asset-content-types', periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from('assets')
         .select('content_type')
-        .eq('month_key', periodYm)
+        .gte('created_at', `${periodStart}T00:00:00`)
+        .lte('created_at', `${periodEnd}T23:59:59.999`)
         .limit(500);
       return (data ?? []) as { content_type: string | null }[];
     },
@@ -495,7 +496,7 @@ export default function DashboardPage() {
 
   // F2 fix: use publishing_schedules instead of deprecated assets.publish_date
   const { data: scheduled } = useQuery<PublishingSchedule[]>({
-    queryKey: ['scheduled-posts', periodYm],
+    queryKey: ['scheduled-posts', periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from('publishing_schedules')
@@ -514,9 +515,11 @@ export default function DashboardPage() {
   });
 
   const { data: trendsData } = useQuery<{ date: string; completed: number }[]>({
-    queryKey: ['dashboard-trends', periodYm],
+    queryKey: ['dashboard-trends', periodStart, periodEnd],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/trends?period=${encodeURIComponent(periodYm)}`);
+      const res = await fetch(
+        `/api/dashboard/trends?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
+      );
       if (!res.ok) return [];
       const json = (await res.json()) as {
         success: boolean;
@@ -528,10 +531,10 @@ export default function DashboardPage() {
   });
 
   const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
-    queryKey: ['dashboard-team-performance', periodYm],
+    queryKey: ['dashboard-team-performance', periodStart, periodEnd],
     queryFn: async () => {
       const res = await fetch(
-        `/api/dashboard/team-performance?period=${encodeURIComponent(periodYm)}`,
+        `/api/dashboard/team-performance?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
       );
       if (!res.ok) return [];
       const json = (await res.json()) as {
@@ -544,7 +547,7 @@ export default function DashboardPage() {
   });
 
   const { data: atRiskTasks } = useQuery({
-    queryKey: ['at-risk-tasks', periodYm],
+    queryKey: ['at-risk-tasks', periodStart, periodEnd],
     queryFn: async () => {
       const soonStr = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
       const { data } = await supabase
@@ -568,14 +571,15 @@ export default function DashboardPage() {
   });
 
   const { data: recentAssets } = useQuery<Asset[]>({
-    queryKey: ['dashboard-recent-assets', periodYm],
+    queryKey: ['dashboard-recent-assets', periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from('assets')
         .select(
           'id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id',
         )
-        .eq('month_key', periodYm)
+        .gte('created_at', `${periodStart}T00:00:00`)
+        .lte('created_at', `${periodEnd}T23:59:59.999`)
         .order('created_at', { ascending: false })
         .limit(6);
       return (data ?? []) as Asset[];
@@ -648,7 +652,7 @@ export default function DashboardPage() {
   };
 
   const { data: upcomingTasks = [] } = useQuery<TaskRow[]>({
-    queryKey: ['dashboard-upcoming-tasks', periodYm],
+    queryKey: ['dashboard-upcoming-tasks', periodStart, periodEnd],
     queryFn: async () => {
       const todayStr = new Date().toISOString().slice(0, 10);
       const weekLater = new Date();
@@ -671,7 +675,7 @@ export default function DashboardPage() {
   });
 
   const { data: overdueTasksList = [] } = useQuery<TaskRow[]>({
-    queryKey: ['dashboard-overdue-tasks', periodYm],
+    queryKey: ['dashboard-overdue-tasks', periodStart, periodEnd],
     queryFn: async () => {
       const todayStr = new Date().toISOString().slice(0, 10);
       const terminal = '("done","delivered","completed","published","cancelled")';

@@ -5,7 +5,6 @@
  */
 
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { monthDayBounds } from '@/context/app-period-context';
 import { createClient } from '@/lib/supabase/client';
 import type { Client, Task, Asset, Notification } from '@/lib/types';
 import {
@@ -202,15 +201,17 @@ export interface DashboardStats {
 }
 
 export function useDashboardStats(
-  periodYm: string,
+  periodStart: string,
+  periodEnd: string,
   options?: Partial<UseQueryOptions<DashboardStats>>,
 ) {
-  const { start, end } = monthDayBounds(periodYm);
+  const start = periodStart;
+  const end = periodEnd;
   const startTs = `${start}T00:00:00`;
   const endTs = `${end}T23:59:59.999`;
 
   return useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats', periodYm],
+    queryKey: ['dashboard-stats', periodStart, periodEnd],
     queryFn: async () => {
       const sb = supabase();
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -248,8 +249,12 @@ export function useDashboardStats(
           .gte('due_date', start)
           .lte('due_date', end)
           .not('status', 'in', terminalStatuses),
-        // Assets tagged for this month
-        sb.from('assets').select('id', { count: 'exact', head: true }).eq('month_key', periodYm),
+        // Assets created in selected range
+        sb
+          .from('assets')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', startTs)
+          .lte('created_at', endTs),
       ]);
 
       const [clients, tasks, overdue, dueThisWeek, assets] = settled;

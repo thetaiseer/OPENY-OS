@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useId } from 'react';
 import { Languages, Moon, Search, Sun } from 'lucide-react';
 import { useTheme } from '@/context/theme-context';
 import { useLang } from '@/context/lang-context';
@@ -11,6 +10,7 @@ import OpenyLogo from '@/components/branding/OpenyLogo';
 import { openyAppChromeLogoDimensions } from '@/lib/openy-brand';
 import UserAccountMenu from '@/components/layout/UserAccountMenu';
 import NotificationDropdown from '@/components/features/notifications/NotificationDropdown';
+import DateRangePicker from '@/components/ui/DateRangePicker';
 
 type TopbarProps = {
   className?: string;
@@ -19,8 +19,7 @@ type TopbarProps = {
 export default function Topbar({ className }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { t, lang, toggleLang } = useLang();
-  const { periodYm, setPeriodYm, inputMinYm, inputMaxYm } = useAppPeriod();
-  const periodInputId = useId();
+  const { periodFrom, periodTo, setPeriodRange } = useAppPeriod();
 
   return (
     <header
@@ -49,31 +48,13 @@ export default function Topbar({ className }: TopbarProps) {
             className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
-        <div className="relative flex shrink-0 items-center">
-          <label
-            htmlFor={periodInputId}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-xs text-primary transition-colors hover:bg-[color:var(--surface-elevated)]"
-            aria-label={t('appPeriodAria')}
-            title={t('appPeriodAria')}
-          >
-            <span className="hidden whitespace-nowrap text-[11px] font-medium text-secondary sm:inline">
-              {t('appPeriodMonth')}
-            </span>
-            <span className="whitespace-nowrap font-medium">{periodYm}</span>
-          </label>
-          <input
-            id={periodInputId}
-            type="month"
-            value={periodYm}
-            min={inputMinYm}
-            max={inputMaxYm}
-            onChange={(e) => setPeriodYm(e.target.value)}
-            aria-label={t('appPeriodAria')}
-            title={t('appPeriodAria')}
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
-            tabIndex={-1}
-          />
-        </div>
+        <DateRangePicker
+          from={periodFrom}
+          to={periodTo}
+          onChange={setPeriodRange}
+          label={t('appPeriodMonth')}
+          className="shrink-0"
+        />
         <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"
