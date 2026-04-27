@@ -33,14 +33,21 @@ export default function Button({
   children,
   loading = false,
   disabled,
-  variant = 'secondary',
+  variant,
   size = 'md',
   className,
   ...props
 }: ButtonProps) {
   const resolvedSize = (size in SIZE_CLASS ? size : 'md') as keyof typeof SIZE_CLASS;
+  const requestedVariant = (
+    variant && variant in VARIANT_CLASS ? variant : 'secondary'
+  ) as keyof typeof VARIANT_CLASS;
+  const possibleText = `${String(props['aria-label'] ?? '')} ${String(props.title ?? '')} ${
+    typeof children === 'string' ? children : ''
+  }`;
+  const isDeleteIntent = /(delete|remove|حذف|مسح)/i.test(possibleText);
   const resolvedVariant = (
-    variant in VARIANT_CLASS ? variant : 'secondary'
+    isDeleteIntent ? 'danger' : requestedVariant
   ) as keyof typeof VARIANT_CLASS;
 
   return (

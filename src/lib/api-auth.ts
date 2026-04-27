@@ -201,6 +201,14 @@ export async function requireRole(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // System-wide hard guard: destructive deletes are owner-only.
+  if (request.method === 'DELETE' && auth.profile.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Forbidden — only the owner can delete data from the system.' },
+      { status: 403 },
+    );
+  }
+
   // Owner has full access to all system actions — bypass all role restrictions.
   if (auth.profile.role === 'owner') {
     return auth;
@@ -257,6 +265,14 @@ export async function requireModulePermission(
 
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // System-wide hard guard: destructive deletes are owner-only.
+  if (request.method === 'DELETE' && auth.profile.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Forbidden — only the owner can delete data from the system.' },
+      { status: 403 },
+    );
   }
 
   // Owner and admin always pass module checks.

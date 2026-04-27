@@ -676,6 +676,17 @@ select {
     color: var(--text-primary) !important;
   }
 
+  button[aria-label*='delete' i],
+  button[title*='delete' i],
+  button[aria-label*='remove' i],
+  button[title*='remove' i],
+  button[aria-label*='حذف' i],
+  button[title*='حذف' i] {
+    border-color: var(--danger) !important;
+    background-color: var(--danger) !important;
+    color: var(--danger-foreground) !important;
+  }
+
   [role='dialog'] h1,
   [role='dialog'] h2,
   [role='dialog'] h3,
