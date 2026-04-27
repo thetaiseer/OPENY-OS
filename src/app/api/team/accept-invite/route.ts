@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { normalizeWorkspaceKey } from '@/lib/workspace-access';
+import { mapAccessRoleToWorkspaceRole, normalizeWorkspaceKey } from '@/lib/workspace-access';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,9 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedRole = String(invitation.role).toLowerCase();
-    const memberRole =
-      normalizedRole === 'owner' || normalizedRole === 'admin' ? normalizedRole : 'member';
+    const memberRole = mapAccessRoleToWorkspaceRole(String(invitation.role ?? '').toLowerCase());
 
     const { error: workspaceMemberError } = await db.from('workspace_members').upsert(
       {
