@@ -57,7 +57,6 @@ import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
-import { useDeleteAsset } from '@/hooks/mutations/useDeleteAsset';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1329,7 +1328,6 @@ function AssetsPage() {
     ids: string[];
   } | null>(null);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
-  const deleteAssetMutation = useDeleteAsset();
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -1489,9 +1487,17 @@ function AssetsPage() {
     const actionLabel = `${t('deleteAction')} / ${asset.name}`;
     try {
       setDeletingAssetId(asset.id);
-      await deleteAssetMutation.mutateAsync(asset.id);
+      const response = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
+      const json = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!response.ok || json.success === false) {
+        throw new Error(json.error ?? `HTTP ${response.status}`);
+      }
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
+      setPendingDeleteAsset(null);
     } catch (err) {
       toast(
         `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
@@ -1995,7 +2001,6 @@ function AssetsPage() {
         onConfirm={async () => {
           if (!pendingDeleteAsset) return;
           await handleDelete(pendingDeleteAsset);
-          setPendingDeleteAsset(null);
         }}
       />
 
