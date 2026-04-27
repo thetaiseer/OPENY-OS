@@ -77,7 +77,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     <div className="min-h-screen min-h-screen-dynamic bg-base text-primary">
       <Sidebar />
       <Header />
-      <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:ms-[240px] md:pb-6 md:pt-12">
+      <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[240px] md:pb-6 md:pt-10">
         <PageShellProvider>
           <PageShell>
             <div className="sr-only">
