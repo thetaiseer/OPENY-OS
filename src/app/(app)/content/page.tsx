@@ -19,6 +19,7 @@ import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import { useDeleteContentItem } from '@/hooks/mutations/useDeleteContentItem';
+import { resolvePlatformTargets } from '@/lib/queries/content-items';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -145,9 +146,9 @@ function ContentCard({
         </p>
       )}
 
-      {item.platform_targets && item.platform_targets.length > 0 && (
+      {resolvePlatformTargets(item).length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {item.platform_targets.map((p) => (
+          {resolvePlatformTargets(item).map((p) => (
             <span
               key={p}
               className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"

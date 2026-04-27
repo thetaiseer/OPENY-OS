@@ -150,6 +150,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const createdItem = data as { id?: string } | null;
+
     // Activity log (best-effort)
     void db.from('activities').insert({
       workspace_id: workspaceId,
@@ -159,11 +161,11 @@ export async function POST(req: NextRequest) {
       user_uuid: auth.profile.id,
       client_id: clientId || null,
       entity_type: 'content_item',
-      entity_id: data?.id ?? null,
+      entity_id: createdItem?.id ?? null,
     });
 
     // Auto-create calendar event when content has a schedule_date or scheduled status
-    if (data?.id && (scheduleDate || status === 'scheduled')) {
+    if (createdItem?.id && (scheduleDate || status === 'scheduled')) {
       const calStartsAt = scheduleDate
         ? `${scheduleDate}T09:00:00`
         : `${new Date().toISOString().slice(0, 10)}T09:00:00`;

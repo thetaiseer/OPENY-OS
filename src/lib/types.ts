@@ -207,9 +207,9 @@ export interface ContentItem {
   title: string;
   description?: string | null;
   /** @deprecated use platform_targets (array) */
-  platform?: string;
+  platform?: string | null;
   /** Array of target platforms */
-  platform_targets?: string[];
+  platform_targets?: string[] | null;
   post_types?: string[];
   purpose?: ContentPurpose | null;
   caption?: string | null;

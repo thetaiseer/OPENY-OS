@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  CONTENT_ITEM_WITH_CLIENT,
-  CONTENT_ITEM_WITH_CLIENT_FALLBACK,
-} from '@/lib/supabase-list-columns';
+  CONTENT_ITEMS_WITH_CLIENT_SELECT,
+  CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK,
+} from '@/lib/queries/content-items';
 
 type DbError = { code?: string; message?: string } | null;
 
@@ -14,9 +14,9 @@ function isPlatformTargetsMissing(error: DbError): boolean {
 
 export function sanitizeContentItemsApiError(error: DbError): string {
   if (isPlatformTargetsMissing(error)) {
-    return 'Content data is temporarily unavailable. Please sync database migrations and retry.';
+    return 'Content could not be loaded. Please retry.';
   }
-  return 'Failed to load content items.';
+  return 'Content could not be loaded. Please retry.';
 }
 
 export async function selectContentItemsWithClientFallback(params: {
@@ -30,7 +30,7 @@ export async function selectContentItemsWithClientFallback(params: {
 
   let query = db
     .from('content_items')
-    .select(CONTENT_ITEM_WITH_CLIENT)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT)
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -48,7 +48,7 @@ export async function selectContentItemsWithClientFallback(params: {
 
   let fallbackQuery = db
     .from('content_items')
-    .select(CONTENT_ITEM_WITH_CLIENT_FALLBACK)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK)
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -60,7 +60,7 @@ export async function selectContentItemsWithClientFallback(params: {
   const fallback = await fallbackQuery;
   return {
     data: (fallback.data ?? []).map((row) => ({
-      ...row,
+      ...(row as unknown as Record<string, unknown>),
       platform_targets: [],
     })),
     error: fallback.error,
@@ -74,7 +74,7 @@ export async function insertContentItemWithClientFallback(params: {
   const first = await params.db
     .from('content_items')
     .insert(params.payload)
-    .select(CONTENT_ITEM_WITH_CLIENT)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT)
     .single();
 
   if (!isPlatformTargetsMissing(first.error)) return first;
@@ -85,11 +85,13 @@ export async function insertContentItemWithClientFallback(params: {
   const fallback = await params.db
     .from('content_items')
     .insert(fallbackPayload)
-    .select(CONTENT_ITEM_WITH_CLIENT_FALLBACK)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK)
     .single();
 
   return {
-    data: fallback.data ? { ...fallback.data, platform_targets: [] } : fallback.data,
+    data: fallback.data
+      ? { ...(fallback.data as unknown as Record<string, unknown>), platform_targets: [] }
+      : fallback.data,
     error: fallback.error,
   };
 }
@@ -103,7 +105,7 @@ export async function updateContentItemWithClientFallback(params: {
     .from('content_items')
     .update(params.updates)
     .eq('id', params.id)
-    .select(CONTENT_ITEM_WITH_CLIENT)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT)
     .single();
 
   if (!isPlatformTargetsMissing(first.error)) return first;
@@ -115,11 +117,13 @@ export async function updateContentItemWithClientFallback(params: {
     .from('content_items')
     .update(fallbackUpdates)
     .eq('id', params.id)
-    .select(CONTENT_ITEM_WITH_CLIENT_FALLBACK)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK)
     .single();
 
   return {
-    data: fallback.data ? { ...fallback.data, platform_targets: [] } : fallback.data,
+    data: fallback.data
+      ? { ...(fallback.data as unknown as Record<string, unknown>), platform_targets: [] }
+      : fallback.data,
     error: fallback.error,
   };
 }
@@ -129,19 +133,24 @@ export async function selectSingleContentItemWithClientFallback(params: {
   id: string;
   workspaceId?: string | null;
 }) {
-  let query = params.db.from('content_items').select(CONTENT_ITEM_WITH_CLIENT).eq('id', params.id);
+  let query = params.db
+    .from('content_items')
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT)
+    .eq('id', params.id);
   if (params.workspaceId) query = query.eq('workspace_id', params.workspaceId);
   const first = await query.single();
   if (!isPlatformTargetsMissing(first.error)) return first;
 
   let fallbackQuery = params.db
     .from('content_items')
-    .select(CONTENT_ITEM_WITH_CLIENT_FALLBACK)
+    .select(CONTENT_ITEMS_WITH_CLIENT_SELECT_FALLBACK)
     .eq('id', params.id);
   if (params.workspaceId) fallbackQuery = fallbackQuery.eq('workspace_id', params.workspaceId);
   const fallback = await fallbackQuery.single();
   return {
-    data: fallback.data ? { ...fallback.data, platform_targets: [] } : fallback.data,
+    data: fallback.data
+      ? { ...(fallback.data as unknown as Record<string, unknown>), platform_targets: [] }
+      : fallback.data,
     error: fallback.error,
   };
 }

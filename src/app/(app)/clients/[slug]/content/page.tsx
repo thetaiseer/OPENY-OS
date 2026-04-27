@@ -9,6 +9,7 @@ import AiImproveButton from '@/components/ui/AiImproveButton';
 import { useClientWorkspace } from '../client-context';
 import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus } from '@/lib/types';
+import { CONTENT_ITEMS_BASE_SELECT, resolvePlatformTargets } from '@/lib/queries/content-items';
 import { Plus, FileText, Calendar } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ export default function ClientContentPage() {
     try {
       const { data, error } = await supabase
         .from('content_items')
-        .select('*')
+        .select(CONTENT_ITEMS_BASE_SELECT)
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -76,8 +77,8 @@ export default function ClientContentPage() {
           message: error.message,
           clientId,
         });
-        setLoadError('Could not load content items right now.');
-        addToast('Could not load content items right now.', 'error');
+        setLoadError('Content could not be loaded. Please retry.');
+        addToast('Content could not be loaded. Please retry.', 'error');
         return;
       }
       setContent((data ?? []) as ContentItem[]);
@@ -210,9 +211,9 @@ export default function ClientContentPage() {
                       {item.description}
                     </p>
                   )}
-                  {(item.platform_targets?.length ?? 0) > 0 && (
+                  {resolvePlatformTargets(item).length > 0 && (
                     <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {item.platform_targets?.join(', ')}
+                      {resolvePlatformTargets(item).join(', ')}
                     </p>
                   )}
                 </div>
