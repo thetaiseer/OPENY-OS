@@ -204,19 +204,19 @@ export default function DateRangePicker({
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const gutter = 12;
-      const desiredDesktopWidth = 920;
-      const desiredMobileWidth = 680;
+      const desiredDesktopWidth = 760;
+      const desiredMobileWidth = 360;
       const maxAllowedWidth = Math.max(280, viewportWidth - gutter * 2);
       const preferredWidth = viewportWidth >= 768 ? desiredDesktopWidth : desiredMobileWidth;
       const width = Math.min(preferredWidth, maxAllowedWidth);
 
       const triggerAlignedLeft = Math.round(rect.right - width);
       const left = Math.max(gutter, Math.min(triggerAlignedLeft, viewportWidth - width - gutter));
-      const top = Math.round(rect.bottom + 8);
-      const maxHeight = Math.max(320, viewportHeight - top - gutter);
+      const top = Math.round(rect.bottom + 6);
+      const maxHeight = Math.max(280, viewportHeight - top - gutter);
 
       // Keep 2 months only when there is enough space.
-      const twoMonthMinWidth = 860;
+      const twoMonthMinWidth = 720;
       setNumberOfMonths(width >= twoMonthMinWidth ? 2 : 1);
       setPopoverStyle({ top, left, width, maxHeight });
     };
@@ -250,17 +250,17 @@ export default function DateRangePicker({
           <div
             ref={popoverRef}
             role="dialog"
-            className="z-[220] rounded-2xl border p-0 shadow-lg"
+            className="z-[220] rounded-xl border p-0 shadow-lg"
             style={{
               position: 'fixed',
               top: `${popoverStyle.top}px`,
               left: `${popoverStyle.left}px`,
               width: `${popoverStyle.width}px`,
               maxHeight: `${popoverStyle.maxHeight}px`,
-              background: 'color-mix(in srgb, var(--surface) 95%, white 5%)',
+              background: 'color-mix(in srgb, var(--surface) 97%, white 3%)',
               borderColor: 'var(--border)',
-              boxShadow: '0 16px 40px rgba(15,23,42,0.16)',
-              backdropFilter: 'blur(10px)',
+              boxShadow: '0 14px 32px rgba(15,23,42,0.14)',
+              backdropFilter: 'blur(8px)',
             }}
           >
             <div
@@ -268,10 +268,10 @@ export default function DateRangePicker({
               style={{ maxHeight: `${popoverStyle.maxHeight}px` }}
             >
               <aside
-                className="w-full border-b md:w-[240px] md:shrink-0 md:border-b-0 md:border-e"
+                className="w-full border-b md:w-[188px] md:shrink-0 md:border-b-0 md:border-e"
                 style={{ borderColor: 'var(--border)', background: 'var(--surface-elevated)' }}
               >
-                <div className="max-h-[220px] space-y-1 overflow-y-auto p-3 md:max-h-none">
+                <div className="max-h-[150px] overflow-x-auto overflow-y-hidden p-2 md:max-h-none md:space-y-1 md:overflow-y-auto">
                   {presets.map((preset) => {
                     const active = activePresetId === preset.id;
                     return (
@@ -279,12 +279,12 @@ export default function DateRangePicker({
                         key={preset.id}
                         type="button"
                         className={cn(
-                          'w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors',
+                          'h-8 rounded-lg border px-2.5 text-left text-xs font-semibold transition-colors md:w-full',
                           active
                             ? 'border-transparent text-white'
                             : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                         )}
-                        style={active ? { background: 'var(--accent)' } : undefined}
+                        style={active ? { background: 'var(--accent)' } : { minWidth: '9.5rem' }}
                         onClick={() => {
                           const next = preset.getRange();
                           setDraftRange(next);
@@ -299,7 +299,7 @@ export default function DateRangePicker({
               </aside>
 
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="min-h-0 flex-1 overflow-auto p-3 md:p-4">
+                <div className="min-h-0 flex-1 overflow-auto p-2.5 md:p-3">
                   <DayPicker
                     mode="range"
                     numberOfMonths={numberOfMonths}
@@ -310,23 +310,23 @@ export default function DateRangePicker({
                       setActivePresetId(null);
                     }}
                     classNames={{
-                      months: 'flex flex-col gap-4 sm:flex-row sm:gap-6',
-                      month: 'min-w-[260px] space-y-3',
+                      months: 'flex flex-col gap-3 sm:flex-row sm:gap-4',
+                      month: 'min-w-[236px] space-y-2',
                       caption:
-                        'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text-primary)]',
+                        'relative flex items-center justify-center pt-0.5 text-sm font-semibold text-[color:var(--text-primary)]',
                       caption_label: 'text-sm font-semibold text-[color:var(--text-primary)]',
-                      nav: 'pointer-events-none absolute inset-x-0 top-1 flex items-center justify-between px-1',
+                      nav: 'pointer-events-none absolute inset-x-0 top-0.5 flex items-center justify-between px-0.5',
                       button_previous:
-                        'pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                        'pointer-events-auto inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                       button_next:
-                        'pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                        'pointer-events-auto inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                       table: 'w-full border-collapse',
                       head_row: '',
                       row: '',
                       head_cell:
-                        'h-9 w-9 border-b border-[color:var(--border)] text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
-                      cell: 'relative h-9 w-9 p-0 text-center align-middle',
-                      day: 'inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent p-0 text-sm font-medium text-[color:var(--text-primary)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)]',
+                        'h-8 w-8 border-b border-[color:var(--border)] text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
+                      cell: 'relative h-8 w-8 p-0 text-center align-middle',
+                      day: 'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent p-0 text-sm font-medium text-[color:var(--text-primary)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)]',
                       today: 'border-[color:var(--accent)] text-[color:var(--accent)]',
                       selected:
                         'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
@@ -342,10 +342,10 @@ export default function DateRangePicker({
                   />
                 </div>
 
-                <div className="mt-auto flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+                <div className="mt-auto flex items-center justify-end gap-2 border-t border-border px-3 py-2">
                   <button
                     type="button"
-                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                    className="h-9 rounded-lg border px-3 text-sm font-medium leading-tight"
                     style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                     onClick={() => {
                       setDraftRange({ from: fromDate, to: toDate });
@@ -357,7 +357,7 @@ export default function DateRangePicker({
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="h-9 rounded-lg px-3 text-sm font-medium leading-tight text-white disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ background: 'var(--accent)' }}
                     disabled={!draftRange?.from || !draftRange?.to}
                     onClick={() => {
