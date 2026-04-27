@@ -8,27 +8,27 @@ const ROWS_PER_PAGE_CHUNK = 12;
 const th: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   borderRight: '1px solid #fff',
+  borderBottom: '2px solid #fff',
   padding: '10px 10px',
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: 0.6,
   textTransform: 'uppercase',
-  textAlign: 'left',
+  textAlign: 'center',
   verticalAlign: 'middle',
   lineHeight: 1.25,
-  wordBreak: 'normal',
-  overflowWrap: 'break-word',
+  whiteSpace: 'nowrap',
 };
 
 const td: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   padding: '8px 10px',
   fontSize: 11,
+  textAlign: 'center',
   verticalAlign: 'middle',
   background: '#fff',
   lineHeight: 1.35,
-  wordBreak: 'break-word',
-  overflowWrap: 'break-word',
+  whiteSpace: 'nowrap',
 };
 
 function fmt(v: number, cur: string) {
@@ -68,16 +68,7 @@ export default function BranchTable({
         return (
           <div key={`${branchTable.id}-chunk-${chunkIndex}`} className="avoid-break">
             {chunkIndex > 0 ? <div className="html2pdf__page-break" /> : null}
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '17%' }} />
-                <col style={{ width: '30%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '16%' }} />
-              </colgroup>
-
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
               <thead>
                 {/* Branch name — full-width black header spanning all columns */}
                 <tr style={{ background: DOC_BLACK, color: '#fff' }}>
@@ -92,7 +83,9 @@ export default function BranchTable({
                       textTransform: 'uppercase',
                       textAlign: 'center',
                       verticalAlign: 'middle',
+                      borderBottom: '2px solid #fff',
                       lineHeight: 1.35,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {branchTable.branchName}
@@ -110,7 +103,6 @@ export default function BranchTable({
                     style={{
                       ...th,
                       borderRight: `1px solid ${DOC_BLACK}`,
-                      textAlign: 'right',
                     }}
                   >
                     COST ({currency})
@@ -121,10 +113,7 @@ export default function BranchTable({
               <tbody>
                 {chunk.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      style={{ ...td, textAlign: 'center', color: '#666', verticalAlign: 'middle' }}
-                    >
+                    <td colSpan={6} style={{ ...td, color: '#666', verticalAlign: 'middle' }}>
                       No campaign data.
                     </td>
                   </tr>
@@ -137,28 +126,21 @@ export default function BranchTable({
                       <td
                         style={{
                           ...td,
-                          textAlign: 'center',
                           fontWeight: 600,
                           verticalAlign: 'middle',
                         }}
                       >
                         {row.branch || branchTable.branchName}
                       </td>
-                      <td style={{ ...td, textAlign: 'center', verticalAlign: 'middle' }}>
-                        {row.platform || '—'}
-                      </td>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.platform || '—'}</td>
 
                       <td style={{ ...td, verticalAlign: 'middle' }}>{row.ad_name || '—'}</td>
-                      <td style={{ ...td, overflowWrap: 'anywhere', verticalAlign: 'middle' }}>
-                        {row.date || '—'}
-                      </td>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.date || '—'}</td>
                       <td style={{ ...td, verticalAlign: 'middle' }}>{row.results || '—'}</td>
                       <td
                         style={{
                           ...td,
-                          textAlign: 'right',
                           fontWeight: 600,
-                          overflowWrap: 'anywhere',
                           verticalAlign: 'middle',
                         }}
                       >
@@ -177,7 +159,6 @@ export default function BranchTable({
                         ...td,
                         background: '#E5E7EB',
                         fontWeight: 700,
-                        textAlign: 'right',
                         verticalAlign: 'middle',
                       }}
                     >
@@ -188,8 +169,6 @@ export default function BranchTable({
                         ...td,
                         background: '#E5E7EB',
                         fontWeight: 700,
-                        textAlign: 'right',
-                        overflowWrap: 'anywhere',
                         verticalAlign: 'middle',
                       }}
                     >
