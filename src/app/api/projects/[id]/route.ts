@@ -85,7 +85,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
+    // TODO: restore role-based delete permissions after debugging.
+    const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
@@ -102,6 +103,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 403 },
       );
     }
+    const membershipCheck = await db
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.profile.id)
+      .maybeSingle();
+    const membershipFound = Boolean(membershipCheck.data?.id);
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/projects/[id] step=authorized', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+    });
 
     const { data: existing, error: fetchError } = await db
       .from('projects')
@@ -121,6 +136,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .eq('workspace_id', workspaceId);
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/projects/[id] step=deleted', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+      deleteResult: 'success',
+    });
 
     void db.from('activities').insert({
       workspace_id: workspaceId,

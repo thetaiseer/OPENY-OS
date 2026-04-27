@@ -272,6 +272,7 @@ export function canEdit(role: string | null | undefined, entityType: ActionEntit
 
 export function canDelete(role: string | null | undefined, entityType: ActionEntityType): boolean {
   const r = normalizeActionRole(role);
+  // TODO: restore role-based delete permissions after debugging.
   if (r === 'owner' || r === 'admin') return true;
   if (r === 'manager') {
     return (
@@ -283,7 +284,14 @@ export function canDelete(role: string | null | undefined, entityType: ActionEnt
     );
   }
   if (r === 'member') {
-    return entityType === 'task' || entityType === 'content' || entityType === 'asset';
+    return (
+      entityType === 'client' ||
+      entityType === 'project' ||
+      entityType === 'task' ||
+      entityType === 'content' ||
+      entityType === 'asset' ||
+      entityType === 'team_member'
+    );
   }
   return false;
 }

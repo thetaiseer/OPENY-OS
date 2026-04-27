@@ -48,7 +48,8 @@ function extractR2Key(asset: AssetRow): string | null {
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
+    // TODO: restore role-based delete permissions after debugging.
+    const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
@@ -75,6 +76,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 403 },
       );
     }
+    const membershipCheck = await supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.profile.id)
+      .maybeSingle();
+    const membershipFound = Boolean(membershipCheck.data?.id);
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/assets/[id] step=authorized', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+    });
 
     let asset: AssetRow | null = null;
     let fetchError: { code?: string; message?: string } | null = null;
@@ -276,6 +291,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 500 },
       );
     }
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/assets/[id] step=deleted', {
+      recordId: id,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+      deleteResult: 'success',
+    });
 
     void supabase.from('activities').insert({
       workspace_id: workspaceId,

@@ -39,7 +39,8 @@ async function countClientDependencies(
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(request, ['owner', 'admin', 'manager']);
+    // TODO: restore role-based delete permissions after debugging.
+    const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
     const { id: clientId } = await ctx.params;
@@ -60,6 +61,20 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
         { status: 403 },
       );
     }
+    const membershipCheck = await db
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.profile.id)
+      .maybeSingle();
+    const membershipFound = Boolean(membershipCheck.data?.id);
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/clients/[id] step=authorized', {
+      recordId: clientId,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+    });
 
     const { data: existing, error: fetchErr } = await db
       .from('clients')
@@ -92,6 +107,14 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
     }
     const hasBlockingDependencies = Object.values(dependencyCounts).some((count) => count > 0);
     if (hasBlockingDependencies) {
+      // eslint-disable-next-line no-console
+      console.info('[debug-delete] route=/api/clients/[id] step=blocked_dependencies', {
+        recordId: clientId,
+        workspaceId,
+        requesterUserId: auth.profile.id,
+        membershipFound,
+        deleteResult: 'blocked',
+      });
       return NextResponse.json(
         {
           success: false,
@@ -112,6 +135,14 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
     if (delErr) {
       return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });
     }
+    // eslint-disable-next-line no-console
+    console.info('[debug-delete] route=/api/clients/[id] step=deleted', {
+      recordId: clientId,
+      workspaceId,
+      requesterUserId: auth.profile.id,
+      membershipFound,
+      deleteResult: 'success',
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
