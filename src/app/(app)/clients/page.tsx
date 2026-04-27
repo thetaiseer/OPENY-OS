@@ -31,6 +31,10 @@ import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils'
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { formatRelativeTime } from '@/lib/relative-time';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import { canDelete as canDeleteEntity } from '@/lib/permissions';
+import { useDeleteClient } from '@/hooks/mutations/useDeleteClient';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
@@ -54,6 +58,10 @@ function ClientsPage() {
   const queryClient = useQueryClient();
   const canManageClients =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
+  const canDeleteClients = canDeleteEntity(role, 'client');
+  const deleteClientMutation = useDeleteClient();
+  const [pendingDeleteClient, setPendingDeleteClient] = useState<Client | null>(null);
+  const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [industryFilter, setIndustryFilter] = useState('');
@@ -447,7 +455,22 @@ function ClientsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0 pt-0.5">
+                  <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                    {canManageClients ? (
+                      <div
+                        className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                        title={canDeleteClients ? undefined : "You don't have permission"}
+                      >
+                        <EntityActionsMenu
+                          loading={deletingClientId === client.id}
+                          onDelete={
+                            canDeleteClients ? () => setPendingDeleteClient(client) : undefined
+                          }
+                          deleteLabel={t('deleteAction')}
+                          disabled={!canDeleteClients}
+                        />
+                      </div>
+                    ) : null}
                     <Badge variant={statusVariant(client.status)}>{t(client.status)}</Badge>
                   </div>
                 </div>
@@ -624,6 +647,31 @@ function ClientsPage() {
           </Field>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteClient)}
+        title={t('deleteAction')}
+        description={
+          pendingDeleteClient
+            ? `${t('deleteAction')} "${pendingDeleteClient.name}"?`
+            : t('deleteAction')
+        }
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteClient) && deletingClientId === pendingDeleteClient?.id}
+        onCancel={() => setPendingDeleteClient(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteClient) return;
+          setDeletingClientId(pendingDeleteClient.id);
+          try {
+            await deleteClientMutation.mutateAsync(pendingDeleteClient.id);
+            setPendingDeleteClient(null);
+          } finally {
+            setDeletingClientId((current) => (current === pendingDeleteClient.id ? null : current));
+          }
+        }}
+      />
     </PageShell>
   );
 }

@@ -1,39 +1,23 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/context/toast-context';
-import { apiRequest } from '@/lib/api/request';
 import type { Client } from '@/lib/types';
+import { useDeleteEntity } from '@/hooks/mutations/useDeleteEntity';
 
 export function useDeleteClient() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (clientId: string) =>
-      apiRequest<{ success: true }>(`/api/clients/${encodeURIComponent(clientId)}`, {
-        method: 'DELETE',
-      }),
-    onMutate: async (clientId) => {
-      await queryClient.cancelQueries({ queryKey: ['clients-list'] });
-      const previous = queryClient.getQueryData<Client[]>(['clients-list']);
-      queryClient.setQueryData<Client[]>(['clients-list'], (old = []) =>
-        old.filter((client) => client.id !== clientId),
-      );
-      return { previous };
+  return useDeleteEntity<Client[]>({
+    entityLabel: 'client',
+    endpoint: (clientId) => `/api/clients/${clientId}`,
+    optimistic: {
+      queryKey: ['clients-list'],
+      remove: (old = [], clientId) => old.filter((client) => client.id !== clientId),
     },
-    onError: (error, _clientId, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['clients-list'], context.previous);
-      }
-      toast(error instanceof Error ? error.message : 'Failed to delete client', 'error');
-    },
-    onSuccess: () => toast('Client deleted', 'success'),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-projects-mini'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-overdue-tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['activity'] });
-    },
+    invalidateKeys: [
+      ['clients-list'],
+      ['dashboard-projects-mini'],
+      ['dashboard-overdue-tasks'],
+      ['activity'],
+    ],
+    successMessage: 'Client deleted',
+    failureMessage: 'Failed to delete client',
   });
 }

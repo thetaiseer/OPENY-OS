@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   Home,
   Download,
-  Trash2,
   Square,
   CheckSquare,
   Users2,
@@ -56,6 +55,9 @@ import { Input } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import { useDeleteAsset } from '@/hooks/mutations/useDeleteAsset';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -586,23 +588,14 @@ function ClientFolderCard({
             {isDownloading ? '…' : t('assetsDownload')}
           </button>
         )}
-        {canDelete && onDelete ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={isDeleting}
-            className="flex h-9 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
-            style={{
-              background: 'var(--color-danger-bg)',
-              color: 'var(--color-danger)',
-              border: '1px solid var(--color-danger-border)',
-            }}
-            title={t('deleteAction')}
-          >
-            <Trash2 size={13} />
-            {isDeleting ? t('loading') : t('deleteAction')}
-          </button>
-        ) : null}
+        <div title={canDelete ? undefined : "You don't have permission"}>
+          <EntityActionsMenu
+            loading={isDeleting}
+            onDelete={canDelete && onDelete ? onDelete : undefined}
+            deleteLabel={t('deleteAction')}
+            disabled={!canDelete}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1329,6 +1322,13 @@ function AssetsPage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingClient, setDownloadingClient] = useState<string | null>(null);
   const [deletingClientFolder, setDeletingClientFolder] = useState<string | null>(null);
+  const [pendingDeleteAsset, setPendingDeleteAsset] = useState<Asset | null>(null);
+  const [pendingDeleteFolder, setPendingDeleteFolder] = useState<{
+    clientLabel: string;
+    ids: string[];
+  } | null>(null);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+  const deleteAssetMutation = useDeleteAsset();
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -1441,7 +1441,6 @@ function AssetsPage() {
   const handleDeleteClientFolder = useCallback(
     async (clientLabel: string, ids: string[]) => {
       if (!ids.length) return;
-      if (!confirm(t('assetsDeleteConfirm', { name: clientLabel }))) return;
       setDeletingClientFolder(clientLabel);
       const actionLabel = `${t('deleteAction')} / ${clientLabel}`;
       try {
@@ -1486,32 +1485,19 @@ function AssetsPage() {
   );
 
   const handleDelete = async (asset: Asset) => {
-    if (!confirm(t('assetsDeleteConfirm', { name: asset.name }))) return;
     const actionLabel = `${t('deleteAction')} / ${asset.name}`;
     try {
-      const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        message?: string;
-        warning?: string;
-      };
-      if (!res.ok) {
-        toast(
-          `${actionLabel}: ${t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
-          'error',
-        );
-        return;
-      }
+      setDeletingAssetId(asset.id);
+      await deleteAssetMutation.mutateAsync(asset.id);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-      toast(
-        `${actionLabel}: ${String(json.message ?? json.warning ?? t('assetsDeletedSuccess'))}`,
-        'success',
-      );
+      toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
     } catch (err) {
       toast(
         `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
         'error',
       );
+    } finally {
+      setDeletingAssetId((current) => (current === asset.id ? null : current));
     }
   };
 
@@ -1844,7 +1830,7 @@ function AssetsPage() {
                     logoUrl={clientByName.get(key)?.logo}
                     onView={() => navigateInto(key)}
                     onDownload={() => void handleDownloadClient(key)}
-                    onDelete={() => void handleDeleteClientFolder(key, folderIds)}
+                    onDelete={() => setPendingDeleteFolder({ clientLabel: key, ids: folderIds })}
                     isDownloading={downloadingClient === key}
                     isDeleting={deletingClientFolder === key}
                     canDelete={canDeleteFiles}
@@ -1898,7 +1884,7 @@ function AssetsPage() {
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onView={handleView}
-              onDelete={(asset) => void handleDelete(asset)}
+              onDelete={(asset) => setPendingDeleteAsset(asset)}
               onCopyLink={(asset) => void handleCopyLink(asset)}
               onComments={(asset) => setCommentsAsset(asset)}
               onRename={(asset, name) => handleRename(asset, name)}
@@ -1991,6 +1977,48 @@ function AssetsPage() {
           <CommentsPanel assetId={commentsAsset.id} />
         </AppModal>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteAsset)}
+        title={t('deleteAction')}
+        description={
+          pendingDeleteAsset
+            ? t('assetsDeleteConfirm', { name: pendingDeleteAsset.name })
+            : t('deleteAction')
+        }
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteAsset) && deletingAssetId === pendingDeleteAsset?.id}
+        onCancel={() => setPendingDeleteAsset(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteAsset) return;
+          await handleDelete(pendingDeleteAsset);
+          setPendingDeleteAsset(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteFolder)}
+        title={t('deleteAction')}
+        description={
+          pendingDeleteFolder
+            ? t('assetsDeleteConfirm', { name: pendingDeleteFolder.clientLabel })
+            : t('deleteAction')
+        }
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={
+          Boolean(pendingDeleteFolder) && deletingClientFolder === pendingDeleteFolder?.clientLabel
+        }
+        onCancel={() => setPendingDeleteFolder(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteFolder) return;
+          await handleDeleteClientFolder(pendingDeleteFolder.clientLabel, pendingDeleteFolder.ids);
+          setPendingDeleteFolder(null);
+        }}
+      />
     </>
   );
 }

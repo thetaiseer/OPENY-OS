@@ -70,6 +70,10 @@ import type { Task, Client, TeamMember, Project } from '@/lib/types';
 import { taskStatusLabel } from '@/lib/task-status-labels';
 import { applyUtcTimestampRange } from '@/lib/date-range';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import { canDelete as canDeleteEntity, canEdit as canEditEntity } from '@/lib/permissions';
+import { useDeleteTask } from '@/hooks/mutations/useDeleteTask';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -448,10 +452,22 @@ interface TaskCardProps {
   onEdit: (t: Task) => void;
   onDelete: (t: Task) => void;
   onStatusChange: (t: Task, s: string) => void;
+  canEdit: boolean;
+  canDelete: boolean;
   t: (k: string) => string;
 }
 
-function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: TaskCardProps) {
+function TaskCard({
+  task,
+  team,
+  onView,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  canEdit,
+  canDelete,
+  t,
+}: TaskCardProps) {
   const [statusOpen, setStatusOpen] = useState(false);
   const overdue = isOverdue(task.due_date, task.status);
   const soon = isDueSoon(task.due_date, task.status);
@@ -493,22 +509,15 @@ function TaskCard({ task, team, onView, onEdit, onDelete, onStatusChange, t }: T
           >
             <Eye size={14} />
           </button>
-          <button
-            onClick={() => onEdit(task)}
-            title={t('editAction')}
-            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(task)}
-            title={t('deleteAction')}
-            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-danger-bg)]"
-            style={{ color: 'var(--color-danger)' }}
-          >
-            <Trash2 size={14} />
-          </button>
+          <div title={canDelete ? undefined : "You don't have permission"}>
+            <EntityActionsMenu
+              onEdit={canEdit ? () => onEdit(task) : undefined}
+              onDelete={canDelete ? () => onDelete(task) : undefined}
+              editLabel={t('editAction')}
+              deleteLabel={t('deleteAction')}
+              disabled={!canEdit && !canDelete}
+            />
+          </div>
         </div>
       </div>
 
@@ -1379,60 +1388,6 @@ function KanbanBoard({ tasks, team, onView, onEdit, onDelete, t, onReorder }: Ka
   );
 }
 
-// ─── DeleteConfirmModal ──────────────────────────────────────────────────────
-
-function DeleteConfirmModal({
-  task,
-  open,
-  onClose,
-  onConfirm,
-  error,
-  t,
-}: {
-  task: Task | null;
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  error: string | null;
-  t: (k: string) => string;
-}) {
-  return (
-    <Modal open={open} onClose={onClose} title={t('deleteTask')} size="sm">
-      <div className="space-y-4">
-        <p className="text-sm" style={{ color: 'var(--text)' }}>
-          {t('confirmDeleteTask')}
-        </p>
-        {task && (
-          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-            &ldquo;{task.title}&rdquo;
-          </p>
-        )}
-        {error && (
-          <div
-            className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm"
-            style={{
-              background: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              color: 'var(--color-danger)',
-            }}
-          >
-            <AlertCircle size={15} className="mt-0.5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button type="button" variant="danger" onClick={onConfirm}>
-            {t('deleteTask')}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 const MUTATION_TIMEOUT_MS = 15_000;
 const INVALIDATION_DELAY_MS = 120;
 
@@ -1448,6 +1403,10 @@ export default function TasksPage() {
   );
   const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team_member';
+  const canEditTasks = canEditEntity(role, 'task');
+  const canDeleteTasks = canDeleteEntity(role, 'task');
+  const deleteTaskMutation = useDeleteTask();
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   // ── React Query: fetch and cache tasks, clients, and team ────────────────
   // Caching across navigations means re-visiting this page within the
@@ -1556,7 +1515,6 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false);
@@ -1855,37 +1813,10 @@ export default function TasksPage() {
   // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTask) return;
-    setDeleteError(null);
-
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     try {
-      const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
-        timeoutHandle = setTimeout(
-          () => reject(new Error(t('requestTimedOut'))),
-          MUTATION_TIMEOUT_MS,
-        );
-        fetch(`/api/tasks/${deleteTask.id}`, {
-          method: 'DELETE',
-        }).then(resolve, reject);
-      });
-
-      const res = await fetchWithTimeout;
-      clearTimeout(timeoutHandle); // Clear as soon as the fetch resolves
-      let result: { success: boolean; step?: string; error?: string };
-      try {
-        result = (await res.json()) as typeof result;
-      } catch {
-        throw new Error(t('serverStatusNonJson', { status: res.status }));
-      }
-
-      if (!result.success) {
-        const step = result.step ? ` [${result.step}]` : '';
-        const msg = result.error ?? t('failedDeleteTask');
-        throw new Error(`${msg}${step}`);
-      }
-
-      // Remove from local state immediately
+      setDeletingTaskId(deleteTask.id);
       const deletedTitle = deleteTask.title;
+      await deleteTaskMutation.mutateAsync(deleteTask.id);
       setTasks((prev) => prev.filter((t) => t.id !== deleteTask.id));
       setDeleteTask(null);
       toast(`Delete task / ${deletedTitle}: done`, 'success');
@@ -1895,10 +1826,9 @@ export default function TasksPage() {
         err instanceof Error
           ? err.message
           : ((err as { message?: string })?.message ?? t('failedDeleteTask'));
-      setDeleteError(message);
       toast(`Delete task / ${deleteTask?.title || 'task'}: ${message}`, 'error');
     } finally {
-      clearTimeout(timeoutHandle);
+      setDeletingTaskId((current) => (current === deleteTask.id ? null : current));
     }
   };
 
@@ -2405,21 +2335,16 @@ export default function TasksPage() {
                       >
                         <Eye size={14} />
                       </button>
-                      <button
-                        onClick={() => openEdit(task)}
-                        className="btn-ghost p-1.5"
-                        aria-label={t('editTaskNamed', { name: task.title })}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTask(task)}
-                        className="btn-ghost p-1.5"
-                        style={{ color: 'var(--color-danger)' }}
-                        aria-label={t('deleteTaskNamed', { name: task.title })}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div title={canDeleteTasks ? undefined : "You don't have permission"}>
+                        <EntityActionsMenu
+                          loading={deletingTaskId === task.id}
+                          onEdit={canEditTasks ? () => openEdit(task) : undefined}
+                          onDelete={canDeleteTasks ? () => setDeleteTask(task) : undefined}
+                          editLabel={t('editAction')}
+                          deleteLabel={t('deleteAction')}
+                          disabled={!canEditTasks && !canDeleteTasks}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="md:hidden">
@@ -2430,6 +2355,8 @@ export default function TasksPage() {
                       onEdit={openEdit}
                       onDelete={setDeleteTask}
                       onStatusChange={handleStatusChange}
+                      canEdit={canEditTasks}
+                      canDelete={canDeleteTasks}
                       t={t}
                     />
                   </div>
@@ -2545,17 +2472,20 @@ export default function TasksPage() {
         t={t}
       />
 
-      {/* Delete Modal */}
-      <DeleteConfirmModal
-        task={deleteTask}
-        open={!!deleteTask}
-        onClose={() => {
+      <ConfirmDialog
+        open={Boolean(deleteTask)}
+        title={t('deleteTask')}
+        description={
+          deleteTask ? `${t('confirmDeleteTask')} "${deleteTask.title}"` : t('confirmDeleteTask')
+        }
+        confirmLabel={t('deleteTask')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(deleteTask) && deletingTaskId === deleteTask?.id}
+        onCancel={() => {
           setDeleteTask(null);
-          setDeleteError(null);
         }}
         onConfirm={handleDelete}
-        error={deleteError}
-        t={t}
       />
     </PageShell>
   );
