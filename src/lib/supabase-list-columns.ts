@@ -63,6 +63,10 @@ export const ASSET_LIST_COLUMNS = [
   'main_category',
   'sub_category',
   'storage_key',
+  'is_deleted',
+  'deleted_at',
+  'sync_status',
+  'missing_in_storage',
   'created_at',
 ].join(',');
 

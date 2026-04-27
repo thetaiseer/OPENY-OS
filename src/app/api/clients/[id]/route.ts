@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
-import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,24 +22,11 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
     }
 
     const db = getServiceClient();
-    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
-      request,
-      db,
-      auth.profile.id,
-      { allowWorkspaceFallbackWithoutMembership: true },
-    );
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: workspaceError ?? 'Workspace not found' },
-        { status: 403 },
-      );
-    }
 
     const { data: existing, error: fetchErr } = await db
       .from('clients')
       .select('id')
       .eq('id', clientId)
-      .eq('workspace_id', workspaceId)
       .maybeSingle();
 
     if (fetchErr) {
@@ -77,11 +63,7 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       }
     }
 
-    const { error: delErr } = await db
-      .from('clients')
-      .delete()
-      .eq('id', clientId)
-      .eq('workspace_id', workspaceId);
+    const { error: delErr } = await db.from('clients').delete().eq('id', clientId);
 
     if (delErr) {
       return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });

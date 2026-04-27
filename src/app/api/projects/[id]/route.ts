@@ -9,7 +9,6 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
-import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -90,40 +89,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const { id } = await params;
     const db = getServiceClient();
-    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
-      req,
-      db,
-      auth.profile.id,
-      { allowWorkspaceFallbackWithoutMembership: true },
-    );
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: workspaceError ?? 'Workspace not found' },
-        { status: 403 },
-      );
-    }
 
     const { data: existing, error: fetchError } = await db
       .from('projects')
-      .select('id, name')
+      .select('id, name, workspace_id')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
       .maybeSingle();
     if (fetchError)
       return NextResponse.json({ success: false, error: fetchError.message }, { status: 500 });
     if (!existing)
       return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
 
-    const { error } = await db
-      .from('projects')
-      .delete()
-      .eq('id', id)
-      .eq('workspace_id', workspaceId);
+    const { error } = await db.from('projects').delete().eq('id', id);
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
     void db.from('activities').insert({
-      workspace_id: workspaceId,
+      workspace_id: existing.workspace_id,
       type: 'project_deleted',
       description: `Project "${existing.name ?? id}" deleted`,
       user_uuid: auth.profile.id,

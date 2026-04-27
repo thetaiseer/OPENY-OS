@@ -167,13 +167,17 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Workspace not found' }, { status: 403 });
     }
 
-    let workspaceMemberRow: { id: string; user_id: string; role: string | null } | null = null;
+    let workspaceMemberRow: {
+      id: string;
+      user_id: string;
+      role: string | null;
+      workspace_id: string;
+    } | null = null;
 
-    // Preferred: path id is workspace_members.id (membershipId).
+    // Preferred: path id is workspace_members.id (membershipId) — look up without workspace_id filter.
     const membershipById = await db
       .from('workspace_members')
-      .select('id, user_id, role')
-      .eq('workspace_id', workspaceId)
+      .select('id, user_id, role, workspace_id')
       .eq('id', id)
       .maybeSingle();
     if (membershipById.error) {
@@ -183,14 +187,18 @@ export async function DELETE(
       );
     }
     workspaceMemberRow =
-      (membershipById.data as { id: string; user_id: string; role: string | null } | null) ?? null;
+      (membershipById.data as {
+        id: string;
+        user_id: string;
+        role: string | null;
+        workspace_id: string;
+      } | null) ?? null;
 
     // Backward compatibility: if caller still sends userId/profileId/teamMemberId, resolve membership.
     if (!workspaceMemberRow && UUID_RE.test(id)) {
       const membershipByUser = await db
         .from('workspace_members')
-        .select('id, user_id, role')
-        .eq('workspace_id', workspaceId)
+        .select('id, user_id, role, workspace_id')
         .eq('user_id', id)
         .maybeSingle();
       if (membershipByUser.error) {
@@ -200,8 +208,12 @@ export async function DELETE(
         );
       }
       workspaceMemberRow =
-        (membershipByUser.data as { id: string; user_id: string; role: string | null } | null) ??
-        null;
+        (membershipByUser.data as {
+          id: string;
+          user_id: string;
+          role: string | null;
+          workspace_id: string;
+        } | null) ?? null;
     }
 
     if (!workspaceMemberRow) {
@@ -221,8 +233,7 @@ export async function DELETE(
       if (profileId) {
         const membershipByProfile = await db
           .from('workspace_members')
-          .select('id, user_id, role')
-          .eq('workspace_id', workspaceId)
+          .select('id, user_id, role, workspace_id')
           .eq('user_id', profileId)
           .maybeSingle();
         if (membershipByProfile.error) {
@@ -236,6 +247,7 @@ export async function DELETE(
             id: string;
             user_id: string;
             role: string | null;
+            workspace_id: string;
           } | null) ?? null;
       }
     }
@@ -247,11 +259,13 @@ export async function DELETE(
     const membershipId = workspaceMemberRow.id;
     const userId = workspaceMemberRow.user_id;
     const membershipRole = (workspaceMemberRow.role ?? '').toLowerCase();
+    // Use the actual workspace_id from the found member row (not the resolved one from the request).
+    const resolvedWorkspaceId = workspaceMemberRow.workspace_id ?? workspaceId;
 
     const { data: workspaceRow, error: workspaceRowError } = await db
       .from('workspaces')
       .select('owner_id')
-      .eq('id', workspaceId)
+      .eq('id', resolvedWorkspaceId)
       .maybeSingle();
     if (workspaceRowError) {
       return NextResponse.json(
@@ -264,7 +278,7 @@ export async function DELETE(
     const { count: ownerCount, error: ownerCountError } = await db
       .from('workspace_members')
       .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
+      .eq('workspace_id', resolvedWorkspaceId)
       .eq('role', 'owner');
     if (ownerCountError) {
       return NextResponse.json({ success: false, error: ownerCountError.message }, { status: 500 });
@@ -287,7 +301,7 @@ export async function DELETE(
 
     // eslint-disable-next-line no-console
     console.info('[team/members/delete] removing membership', {
-      workspaceId,
+      workspaceId: resolvedWorkspaceId,
       membershipId,
       requesterRole: auth.profile.role,
       requesterId: auth.profile.id,
@@ -296,7 +310,7 @@ export async function DELETE(
     const { error: wmDeleteError } = await db
       .from('workspace_members')
       .delete()
-      .eq('workspace_id', workspaceId)
+      .eq('workspace_id', resolvedWorkspaceId)
       .eq('id', membershipId);
     if (wmDeleteError) {
       return NextResponse.json({ success: false, error: wmDeleteError.message }, { status: 500 });
@@ -310,7 +324,7 @@ export async function DELETE(
         .eq('user_id', userId);
       if (legacyMembershipDeleteError) {
         console.warn('[team/members/delete] failed to remove workspace_memberships row', {
-          workspaceId,
+          workspaceId: resolvedWorkspaceId,
           userId,
           error: legacyMembershipDeleteError.message,
         });

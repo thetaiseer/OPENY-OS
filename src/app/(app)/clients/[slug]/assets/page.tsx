@@ -56,13 +56,17 @@ export default function ClientAssetsPage() {
       .select('*')
       .eq('client_id', clientId)
       .neq('is_deleted', true)
+      .is('deleted_at', null)
+      .neq('missing_in_storage', true)
       .order('created_at', { ascending: false })
       .limit(200);
     if (error?.code === '42703') {
+      // Older schema — drop soft-delete filters that may not exist yet.
       const retry = await supabase
         .from('assets')
         .select('*')
         .eq('client_id', clientId)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false })
         .limit(200);
       data = retry.data;

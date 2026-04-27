@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { CONTENT_ITEM_WITH_CLIENT } from '@/lib/supabase-list-columns';
-import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = [
   'draft',
@@ -149,25 +148,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   const { id } = await params;
   try {
     const db = getServiceClient();
-    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
-      req,
-      db,
-      auth.profile.id,
-      { allowWorkspaceFallbackWithoutMembership: true },
-    );
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: workspaceError ?? 'Workspace not found' },
-        { status: 403 },
-      );
-    }
 
     // Fetch before delete for activity logging
     const { data: existing } = await db
       .from('content_items')
       .select('id, title, client_id, workspace_id')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
       .maybeSingle();
     if (!existing) {
       return NextResponse.json(
@@ -176,26 +162,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
       );
     }
 
-    const { error } = await db
-      .from('content_items')
-      .delete()
-      .eq('id', id)
-      .eq('workspace_id', workspaceId);
+    const { error } = await db.from('content_items').delete().eq('id', id);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-    // Log deletion activity (fire-and-forget)
-    if (existing) {
-      void db.from('activities').insert({
-        type: 'content_deleted',
-        description: `Content "${existing.title}" deleted`,
-        workspace_id: workspaceId,
-        user_id: auth.profile.id,
-        user_uuid: auth.profile.id,
-        client_id: existing.client_id ?? null,
-        entity_type: 'content_item',
-        entity_id: id,
-      });
-    }
+    void db.from('activities').insert({
+      type: 'content_deleted',
+      description: `Content "${existing.title}" deleted`,
+      workspace_id: existing.workspace_id,
+      user_id: auth.profile.id,
+      user_uuid: auth.profile.id,
+      client_id: existing.client_id ?? null,
+      entity_type: 'content_item',
+      entity_id: id,
+    });
 
     return NextResponse.json({ success: true });
   } catch {

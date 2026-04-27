@@ -266,6 +266,12 @@ export interface Asset {
   last_synced_at?: string | null;
   source_updated_at?: string | null;
   is_deleted?: boolean;
+  /** ISO timestamp when the DB record was soft-deleted. */
+  deleted_at?: string | null;
+  /** R2 reconciliation: 'synced' | 'missing' | 'pending' */
+  sync_status?: string | null;
+  /** True when the storage object is absent from R2 (set by sync-r2 cron). */
+  missing_in_storage?: boolean | null;
   upload_state?: string | null;
   tags?: string[];
   version_number?: number;

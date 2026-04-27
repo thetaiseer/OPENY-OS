@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
       .select(ASSET_LIST_COLUMNS)
       .eq('workspace_id', workspaceId)
       .neq('is_deleted', true)
+      .is('deleted_at', null)
+      .neq('missing_in_storage', true)
       .order('created_at', { ascending: false });
 
     if (clientId) query = query.eq('client_id', clientId);
@@ -95,11 +97,12 @@ export async function GET(req: NextRequest) {
     let result = await query.range(from, to);
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #1: same projection without `is_deleted` filter (older schemas).
+      // Retry #1: drop newer soft-delete filters that may not exist yet.
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
         .eq('workspace_id', workspaceId)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);

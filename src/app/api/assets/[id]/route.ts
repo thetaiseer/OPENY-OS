@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { checkR2Config } from '@/lib/r2';
-import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { deleteR2Object } from '@/lib/storage/r2';
+
+// Seconds to wait before hard-purging from R2 after soft-delete (0 = immediate).
+// Set to 0 for now; raise to e.g. 86400 if you want a recycle-bin window.
+const HARD_PURGE_DELAY_SECONDS = 0;
 
 type AssetRow = {
   id: string;
@@ -46,6 +49,20 @@ function extractR2Key(asset: AssetRow): string | null {
 }
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
+/**
+ * Soft-deletes the asset DB record and immediately purges the object from R2.
+ *
+ * Strategy:
+ *   1. Fetch the asset row (id only, then storage_key for R2).
+ *   2. Mark the DB record soft-deleted: is_deleted=true, deleted_at=now().
+ *      The record disappears from all list queries immediately.
+ *   3. Purge from R2 using storage_key only (never rely on public URL).
+ *      R2 "not found" is treated as success (idempotent).
+ *   4. Hard-delete the DB row + related rows (activities, comments, etc.)
+ *      after HARD_PURGE_DELAY_SECONDS.  Currently 0 → immediate hard-delete.
+ *
+ * Never blocks deletion because R2 is missing/misconfigured.
+ */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireRole(req, ['owner', 'admin', 'manager']);
@@ -56,46 +73,28 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ success: false, error: 'Missing asset id' }, { status: 400 });
     }
 
-    // ── Soft delete mode ──────────────────────────────────────────────────────
-    // Pass ?soft=true to mark the asset as deleted without removing it from
-    // storage or the database.  Useful when you want a recycle-bin workflow.
-    const { searchParams } = new URL(req.url);
-    const softDelete = searchParams.get('soft') === 'true';
-
     const supabase = getServiceClient();
-    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
-      req,
-      supabase,
-      auth.profile.id,
-      { allowWorkspaceFallbackWithoutMembership: true },
-    );
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: workspaceError ?? 'Workspace not found' },
-        { status: 403 },
-      );
-    }
 
+    // ── 1. Fetch asset ────────────────────────────────────────────────────────
     let asset: AssetRow | null = null;
     let fetchError: { code?: string; message?: string } | null = null;
+
     const primary = await supabase
       .from('assets')
       .select(
         'id, workspace_id, file_path, storage_key, bucket_name, name, storage_provider, file_url, preview_url, download_url',
       )
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
       .maybeSingle();
     asset = primary.data as AssetRow | null;
     fetchError = primary.error;
 
     if (fetchError?.code === '42703') {
-      // Backward compatibility for schemas missing one or more newer columns.
+      // Schema drift — retry with minimal columns.
       const fallback = await supabase
         .from('assets')
         .select('id, workspace_id, file_path, storage_key, bucket_name, name, file_url')
         .eq('id', id)
-        .eq('workspace_id', workspaceId)
         .maybeSingle();
       asset = fallback.data as AssetRow | null;
       fetchError = fallback.error;
@@ -108,227 +107,125 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    // ── 2a. Soft delete — mark as deleted without touching storage ────────────
-    if (softDelete) {
-      const { error: dbError } = await supabase
-        .from('assets')
-        .update({ is_deleted: true })
-        .eq('id', id);
+    // ── 2. Soft-delete DB record immediately ──────────────────────────────────
+    const now = new Date().toISOString();
+    const { error: softDeleteError } = await supabase
+      .from('assets')
+      .update({ is_deleted: true, deleted_at: now, sync_status: 'deleted' })
+      .eq('id', id);
 
+    if (softDeleteError) {
+      // Column might not exist yet in older schemas — fall through to hard delete.
+      if (softDeleteError.code !== '42703') {
+        console.error('[asset-delete] soft-delete update failed', {
+          assetId: asset.id,
+          error: softDeleteError.message,
+        });
+        return NextResponse.json(
+          { success: false, error: `Database update failed: ${softDeleteError.message}` },
+          { status: 500 },
+        );
+      }
+    }
+
+    // ── 3. Purge from R2 using storage_key only ───────────────────────────────
+    let r2Warning: string | undefined;
+    const r2Key = (asset.storage_key ?? '').trim().replace(/^\/+/, '') || null;
+
+    if (r2Key) {
+      const r2Delete = await deleteR2Object(r2Key);
+      if (!r2Delete.success) {
+        if (r2Delete.configMissing) {
+          r2Warning = 'R2 storage is not configured — remote file was not removed.';
+        } else {
+          r2Warning = `R2 file removal failed: ${r2Delete.error ?? 'unknown error'}`;
+        }
+        console.warn('[asset-delete] non-fatal R2 cleanup issue', {
+          assetId: asset.id,
+          r2Key,
+          error: r2Delete.error ?? null,
+          configMissing: Boolean(r2Delete.configMissing),
+        });
+      } else if (r2Delete.missing) {
+        r2Warning = 'Remote R2 file was already missing.';
+      }
+    } else {
+      // No storage_key — try fallback path derivation for legacy supabase_storage assets.
+      const provider = asset.storage_provider as string | null;
+      if (provider === 'supabase_storage') {
+        const rawFilePath = asset.file_path as string | null;
+        const filePath = rawFilePath ? rawFilePath.replace(/^\/+/, '') : null;
+        if (filePath) {
+          const bucketName = ((asset.bucket_name as string | null) ?? 'client-assets').trim();
+          const { error: storageError } = await supabase.storage
+            .from(bucketName)
+            .remove([filePath]);
+          if (storageError && !storageError.message.toLowerCase().includes('not found')) {
+            r2Warning = `Supabase storage removal failed: ${storageError.message}`;
+          }
+        } else {
+          console.warn(
+            '[asset-delete] no storage_key and no file_path — skipping storage removal',
+            {
+              assetId: asset.id,
+            },
+          );
+        }
+      } else {
+        // R2 without a storage_key — try extractR2Key as last resort.
+        const legacyKey = extractR2Key(asset);
+        if (legacyKey && checkR2Config().configured) {
+          const r2Delete = await deleteR2Object(legacyKey);
+          if (!r2Delete.success && !r2Delete.configMissing) {
+            r2Warning = `R2 file removal failed: ${r2Delete.error ?? 'unknown error'}`;
+          }
+        } else {
+          console.warn('[asset-delete] no resolvable storage key — skipping R2 removal', {
+            assetId: asset.id,
+            provider,
+          });
+        }
+      }
+    }
+
+    // ── 4. Hard-delete DB record + related rows ───────────────────────────────
+    if (HARD_PURGE_DELAY_SECONDS === 0) {
+      // Clean up related rows (best-effort — schema drift errors are silenced).
+      const cleanups = await Promise.allSettled([
+        supabase.from('publishing_schedules').delete().eq('asset_id', asset.id),
+        supabase.from('task_asset_links').delete().eq('asset_id', asset.id),
+        supabase.from('tasks').update({ asset_id: null }).eq('asset_id', asset.id),
+        supabase.from('comments').delete().eq('asset_id', asset.id),
+        supabase.from('activities').delete().eq('entity_type', 'asset').eq('entity_id', asset.id),
+      ]);
+      for (const result of cleanups) {
+        if (result.status === 'fulfilled' && result.value.error) {
+          const code = result.value.error.code;
+          // Ignore missing table/column errors — schema drift is non-fatal.
+          if (code !== '42703' && code !== '42P01') {
+            console.warn('[asset-delete] cleanup warning', { error: result.value.error.message });
+          }
+        }
+      }
+
+      const { error: dbError } = await supabase.from('assets').delete().eq('id', id);
       if (dbError) {
-        console.error('[asset-delete] soft delete DB update failed', {
+        console.error('[asset-delete] DB hard-delete failed', {
           assetId: asset.id,
           error: dbError.message,
         });
-        return NextResponse.json(
-          { success: false, error: `Database update failed: ${dbError.message}` },
-          { status: 500 },
-        );
-      }
-
-      return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
-    }
-
-    // ── 2. Delete dependent rows first (workspace-scoped when possible) ─────
-    const deletePublishingSchedules = await supabase
-      .from('publishing_schedules')
-      .delete()
-      .eq('asset_id', asset.id)
-      .eq('workspace_id', workspaceId);
-    if (deletePublishingSchedules.error?.code === '42703') {
-      const legacyDelete = await supabase
-        .from('publishing_schedules')
-        .delete()
-        .eq('asset_id', asset.id);
-      if (legacyDelete.error) {
-        return NextResponse.json(
-          { success: false, error: legacyDelete.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-          { status: 500 },
-        );
-      }
-    } else if (deletePublishingSchedules.error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: deletePublishingSchedules.error.message,
-          code: 'DEPENDENCY_DELETE_FAILED',
-        },
-        { status: 500 },
-      );
-    }
-
-    const deleteTaskAssetLinks = await supabase
-      .from('task_asset_links')
-      .delete()
-      .eq('asset_id', asset.id);
-    if (deleteTaskAssetLinks.error && deleteTaskAssetLinks.error.code !== '42P01') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: deleteTaskAssetLinks.error.message,
-          code: 'DEPENDENCY_DELETE_FAILED',
-        },
-        { status: 500 },
-      );
-    }
-
-    const clearTaskAssetRefs = await supabase
-      .from('tasks')
-      .update({ asset_id: null })
-      .eq('asset_id', asset.id)
-      .eq('workspace_id', workspaceId);
-    if (clearTaskAssetRefs.error?.code === '42703') {
-      const legacyClear = await supabase
-        .from('tasks')
-        .update({ asset_id: null })
-        .eq('asset_id', asset.id);
-      if (legacyClear.error && legacyClear.error.code !== '42703') {
-        return NextResponse.json(
-          { success: false, error: legacyClear.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-          { status: 500 },
-        );
-      }
-    } else if (clearTaskAssetRefs.error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: clearTaskAssetRefs.error.message,
-          code: 'DEPENDENCY_DELETE_FAILED',
-        },
-        { status: 500 },
-      );
-    }
-
-    const deleteComments = await supabase.from('comments').delete().eq('asset_id', asset.id);
-    if (deleteComments.error && deleteComments.error.code !== '42P01') {
-      return NextResponse.json(
-        { success: false, error: deleteComments.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-        { status: 500 },
-      );
-    }
-
-    const deleteActivities = await supabase
-      .from('activities')
-      .delete()
-      .eq('workspace_id', workspaceId)
-      .eq('entity_type', 'asset')
-      .eq('entity_id', asset.id);
-    if (deleteActivities.error && deleteActivities.error.code !== '42703') {
-      return NextResponse.json(
-        { success: false, error: deleteActivities.error.message, code: 'DEPENDENCY_DELETE_FAILED' },
-        { status: 500 },
-      );
-    }
-
-    // ── 3. Delete from remote storage ────────────────────────────────────────
-    let warning: string | undefined;
-
-    const provider = asset.storage_provider as string | null;
-    const r2Key = extractR2Key(asset as AssetRow);
-
-    if (provider === 'r2') {
-      // ── Cloudflare R2 delete ────────────────────────────────────────────────
-      if (!r2Key) {
-        console.warn('[asset-delete] file_path missing for r2 asset – skipping R2 deletion', {
-          assetId: asset.id,
-        });
-      } else {
-        const r2Delete = await deleteR2Object(r2Key);
-        if (!r2Delete.success) {
-          if (r2Delete.configMissing) {
-            warning =
-              'Asset record deleted. R2 storage is not configured — remote file was not removed.';
-          } else {
-            warning = `Asset record deleted. R2 file removal failed: ${r2Delete.error ?? 'unknown error'}`;
-          }
-          console.warn('[asset-delete] non-fatal R2 cleanup issue', {
-            assetId: asset.id,
-            r2Key,
-            error: r2Delete.error ?? null,
-            configMissing: Boolean(r2Delete.configMissing),
-          });
-        } else if (r2Delete.missing) {
-          warning = 'Asset record deleted. Remote R2 file was already missing.';
-        }
-      }
-    } else if (provider === 'supabase_storage') {
-      // ── Legacy Supabase Storage delete ─────────────────────────────────────
-      const rawFilePath = asset.file_path as string | null;
-      const filePath = rawFilePath ? rawFilePath.replace(/^\/+/, '') : null;
-
-      if (!filePath) {
-        console.warn(
-          '[asset-delete] file_path missing for supabase_storage asset – skipping storage deletion',
-          {
-            assetId: asset.id,
-          },
-        );
-      } else {
-        const bucketName = ((asset.bucket_name as string | null) ?? 'client-assets').trim();
-        const { error: storageError } = await supabase.storage.from(bucketName).remove([filePath]);
-
-        if (storageError) {
-          if (storageError.message.toLowerCase().includes('not found')) {
-            warning = 'Asset record deleted. Remote file was already missing.';
-            console.warn('[asset-delete] Storage file not found – treating as orphaned', {
-              assetId: asset.id,
-              filePath,
-              error: storageError.message,
-            });
-          } else {
-            console.error('[asset-delete] Storage delete failed', {
-              assetId: asset.id,
-              filePath,
-              error: storageError.message,
-            });
-            return NextResponse.json(
-              { success: false, error: `Storage delete failed: ${storageError.message}` },
-              { status: 502 },
-            );
-          }
-        }
-      }
-    } else {
-      const r2Ready = checkR2Config().configured;
-      if (r2Key && r2Ready) {
-        const r2Delete = await deleteR2Object(r2Key);
-        if (!r2Delete.success) {
-          warning =
-            r2Delete.configMissing || !r2Delete.error
-              ? 'Asset record deleted. R2 storage is not configured — remote file was not removed.'
-              : `Asset record deleted. R2 file removal failed: ${r2Delete.error}`;
-        } else if (r2Delete.missing) {
-          warning = 'Asset record deleted. Remote R2 file was already missing.';
-        }
-      } else {
-        console.warn('[asset-delete] unknown storage_provider — skipping remote deletion', {
-          assetId: asset.id,
-          provider,
-          hasKey: Boolean(r2Key),
-          r2Ready,
+        // Soft-delete already succeeded — return success with a warning.
+        return NextResponse.json({
+          success: true,
+          message: 'Asset soft-deleted; hard-delete deferred.',
+          ...(r2Warning ? { warning: r2Warning } : {}),
         });
       }
     }
 
-    // ── 4. Delete row from assets table ──────────────────────────────────────
-    const { error: dbError } = await supabase
-      .from('assets')
-      .delete()
-      .eq('id', id)
-      .eq('workspace_id', workspaceId);
-    if (dbError) {
-      console.error('[asset-delete] DB delete failed', {
-        assetId: asset.id,
-        error: dbError.message,
-      });
-      return NextResponse.json(
-        { success: false, error: `Database delete failed: ${dbError.message}` },
-        { status: 500 },
-      );
-    }
-
+    // Audit log (fire-and-forget).
     void supabase.from('activities').insert({
-      workspace_id: workspaceId,
+      workspace_id: asset.workspace_id,
       type: 'asset_deleted',
       description: `Asset "${asset.name}" deleted`,
       user_uuid: auth.profile.id,
@@ -338,8 +235,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({
       success: true,
-      message: warning ?? 'Asset deleted successfully.',
-      ...(warning ? { warning } : {}),
+      message: r2Warning ? `Asset deleted. ${r2Warning}` : 'Asset deleted successfully.',
+      ...(r2Warning ? { warning: r2Warning } : {}),
     });
   } catch (err) {
     return NextResponse.json(

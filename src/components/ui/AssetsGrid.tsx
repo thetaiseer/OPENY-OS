@@ -150,29 +150,44 @@ function AssetTile({
 
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-4">
-            {video ? (
-              <Film size={28} className="text-[var(--text-secondary)]" />
-            ) : pdf ? (
-              <FileText size={28} className="text-rose-500" />
-            ) : audio ? (
-              <Music size={28} className="text-[var(--text-secondary)]" />
-            ) : isSheet ? (
-              <FileSpreadsheet size={28} className="text-emerald-500" />
-            ) : isDoc ? (
-              <FileText size={28} className="text-blue-500" />
-            ) : isCode ? (
-              <FileCode2 size={28} className="text-violet-500" />
-            ) : (
-              <ImageIcon size={28} className="text-[var(--text-secondary)]" />
-            )}
-            <span className="line-clamp-2 text-center text-[10px] font-medium text-[var(--text-secondary)]">
-              {asset.name}
-            </span>
-          </div>
-        )}
+          <img
+            src={thumb}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              // Hide broken image; reveal the icon placeholder sibling.
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+              const placeholder = (e.currentTarget as HTMLImageElement)
+                .nextElementSibling as HTMLElement | null;
+              if (placeholder) placeholder.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        {/* Icon placeholder — visible when no thumb URL, or when image fails to load */}
+        <div
+          className="flex h-full w-full flex-col items-center justify-center gap-1 p-4"
+          style={{ display: thumb ? 'none' : 'flex' }}
+        >
+          {video ? (
+            <Film size={28} className="text-[var(--text-secondary)]" />
+          ) : pdf ? (
+            <FileText size={28} className="text-rose-500" />
+          ) : audio ? (
+            <Music size={28} className="text-[var(--text-secondary)]" />
+          ) : isSheet ? (
+            <FileSpreadsheet size={28} className="text-emerald-500" />
+          ) : isDoc ? (
+            <FileText size={28} className="text-blue-500" />
+          ) : isCode ? (
+            <FileCode2 size={28} className="text-violet-500" />
+          ) : (
+            <ImageIcon size={28} className="text-[var(--text-secondary)]" />
+          )}
+          <span className="line-clamp-2 text-center text-[10px] font-medium text-[var(--text-secondary)]">
+            {asset.name}
+          </span>
+        </div>
 
         {video ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
