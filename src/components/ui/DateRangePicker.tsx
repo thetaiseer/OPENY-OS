@@ -256,21 +256,22 @@ export default function DateRangePicker({
                   }}
                   classNames={{
                     months: 'flex flex-col gap-4 sm:flex-row sm:gap-6',
-                    month: 'space-y-3 min-w-[260px]',
+                    month: 'min-w-[260px] space-y-3',
                     caption:
-                      'flex items-center justify-center text-sm font-semibold text-[color:var(--text-primary)]',
-                    nav: 'flex items-center gap-1',
+                      'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text-primary)]',
+                    caption_label: 'text-sm font-semibold text-[color:var(--text-primary)]',
+                    nav: 'pointer-events-none absolute inset-x-0 top-1 flex items-center justify-between px-1',
                     button_previous:
-                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                      'pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                     button_next:
-                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                      'pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                     table: 'w-full border-collapse',
-                    head_row: 'grid grid-cols-7 gap-1',
-                    row: 'mt-1 grid grid-cols-7 gap-1',
+                    head_row: '',
+                    row: '',
                     head_cell:
-                      'h-8 rounded-md border border-[color:var(--border)] bg-[color:var(--surface-elevated)] text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
-                    cell: 'h-9 w-9',
-                    day: 'h-9 w-9 rounded-md border border-transparent p-0 text-sm font-medium text-[color:var(--text-primary)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)]',
+                      'h-9 w-9 border-b border-[color:var(--border)] text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
+                    cell: 'relative h-9 w-9 p-0 text-center align-middle',
+                    day: 'inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent p-0 text-sm font-medium text-[color:var(--text-primary)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)]',
                     today: 'border-[color:var(--accent)] text-[color:var(--accent)]',
                     selected:
                       'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
