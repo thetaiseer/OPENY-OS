@@ -18,10 +18,25 @@ const TRIGGER_TYPES = [
   { value: 'project.created', label: 'Project Created' },
 ];
 
+interface ManagedAutomationRule {
+  key: string;
+  label: string;
+  description: string;
+  category: 'tasks' | 'clients' | 'projects' | 'assets' | 'notifications';
+  enabled: boolean;
+}
+
 async function fetchRules(): Promise<AutomationRule[]> {
   const res = await fetch('/api/automations');
   const json = (await res.json()) as { success: boolean; rules: AutomationRule[] };
   if (!json.success) throw new Error('Failed to load rules');
+  return json.rules;
+}
+
+async function fetchManagedRules(): Promise<ManagedAutomationRule[]> {
+  const res = await fetch('/api/automations/settings');
+  const json = (await res.json()) as { success: boolean; rules: ManagedAutomationRule[] };
+  if (!json.success) throw new Error('Failed to load managed automations');
   return json.rules;
 }
 
@@ -39,10 +54,15 @@ export default function AutomationsPage() {
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [pendingDeleteRule, setPendingDeleteRule] = useState<AutomationRule | null>(null);
   const [deletingRule, setDeletingRule] = useState(false);
+  const [runNowLoading, setRunNowLoading] = useState(false);
 
   const { data: rules = [], isLoading } = useQuery<AutomationRule[]>({
     queryKey: ['automations'],
     queryFn: fetchRules,
+  });
+  const { data: managedRules = [], isLoading: loadingManaged } = useQuery<ManagedAutomationRule[]>({
+    queryKey: ['automation-settings'],
+    queryFn: fetchManagedRules,
   });
 
   const openCreate = () => {
@@ -110,6 +130,25 @@ export default function AutomationsPage() {
 
   const triggerLabel = (type: string) => TRIGGER_TYPES.find((t) => t.value === type)?.label ?? type;
 
+  const handleManagedToggle = async (rule: ManagedAutomationRule) => {
+    await fetch('/api/automations/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rule_key: rule.key, enabled: !rule.enabled }),
+    });
+    void queryClient.invalidateQueries({ queryKey: ['automation-settings'] });
+  };
+
+  const runNow = async () => {
+    setRunNowLoading(true);
+    try {
+      await fetch('/api/automations/run', { method: 'POST' });
+      void queryClient.invalidateQueries({ queryKey: ['automations'] });
+    } finally {
+      setRunNowLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Header */}
@@ -129,6 +168,60 @@ export default function AutomationsPage() {
         >
           <Plus size={16} /> New Rule
         </button>
+      </div>
+
+      {/* Managed automations */}
+      <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--border)' }}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              Intelligent workflow automations
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Workspace-level switches for invisible automation behavior.
+            </p>
+          </div>
+          <button
+            onClick={() => void runNow()}
+            disabled={runNowLoading}
+            className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+          >
+            {runNowLoading ? 'Running…' : 'Run now'}
+          </button>
+        </div>
+        {loadingManaged ? (
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            Loading automation settings...
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {managedRules.map((rule) => (
+              <div
+                key={rule.key}
+                className="flex items-center gap-3 rounded-xl border p-3"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                    {rule.label}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {rule.description}
+                  </p>
+                </div>
+                <button
+                  onClick={() => void handleManagedToggle(rule)}
+                  className="transition-colors"
+                  title={rule.enabled ? 'Disable' : 'Enable'}
+                  style={{ color: rule.enabled ? 'var(--accent)' : 'var(--text-secondary)' }}
+                >
+                  {rule.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Rules */}

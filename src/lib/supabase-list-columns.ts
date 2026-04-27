@@ -201,7 +201,7 @@ export const SAVED_VIEW_COLUMNS =
   'id,workspace_id,user_id,entity_type,name,view_type,filters,sort_config,group_by,columns,is_default,is_shared,created_at';
 
 export const AUTOMATION_RULE_COLUMNS =
-  'id,workspace_id,name,description,trigger_type,condition_json,action_type,action_config,enabled,created_by,created_at,run_count,last_run_at,error_count';
+  'id,workspace_id,name,description,is_active,trigger_type,trigger_config,conditions,actions,created_by,created_at,updated_at,run_count,last_run_at,error_count';
 
 export const PROJECT_LIST_COLUMNS =
   'id,workspace_id,client_id,name,description,status,start_date,end_date,color,created_by,created_at,updated_at';

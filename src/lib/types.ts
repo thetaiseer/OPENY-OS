@@ -539,6 +539,7 @@ export interface Project {
   start_date?: string | null;
   end_date?: string | null;
   color?: string | null;
+  health_status?: 'healthy' | 'at_risk' | 'critical';
   created_by?: string | null;
   created_at: string;
   updated_at: string;
