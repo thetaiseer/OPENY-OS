@@ -331,57 +331,60 @@ export async function POST(request: NextRequest) {
   });
 
   const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
-  if (!resendConfigured) {
-    console.warn(
-      '[team/invite] RESEND_API_KEY is not set — invitation saved but no email was sent.',
-    );
-    await logEmailSent({
-      to: email,
-      subject: "You're invited to join OPENY OS",
-      eventType: 'team_invite',
-      entityType: 'team_invitation',
-      entityId: String(invitation.id),
-      status: 'skipped',
-      error: 'RESEND_API_KEY not configured',
-    });
-    return NextResponse.json(
-      {
-        member,
-        invitation,
-        emailSent: false,
-        emailSkippedReason:
-          'Email service is not configured (RESEND_API_KEY). The invitation is active — use Copy invite link on the Team page or configure Resend to send emails.',
-      },
-      { status: 201 },
-    );
-  }
 
   try {
-    const apiKey = process.env.RESEND_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error('RESEND_API_KEY is missing');
-    }
-    const resend = new Resend(apiKey);
-    const { error: resendError } = await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: "You're invited to join OPENY OS",
-      html,
-    });
+    if (resendConfigured) {
+      const apiKey = process.env.RESEND_API_KEY?.trim();
+      if (!apiKey) {
+        throw new Error('RESEND_API_KEY is missing');
+      }
+      const resend = new Resend(apiKey);
+      const { error: resendError } = await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: "You're invited to join OPENY OS",
+        html,
+      });
 
-    if (resendError) {
-      const msg = resendError.message ?? JSON.stringify(resendError);
-      throw new Error(msg);
-    }
+      if (resendError) {
+        const msg = resendError.message ?? JSON.stringify(resendError);
+        throw new Error(msg);
+      }
 
-    await logEmailSent({
-      to: email,
-      subject: "You're invited to join OPENY OS",
-      eventType: 'team_invite',
-      entityType: 'team_invitation',
-      entityId: String(invitation.id),
-      status: 'sent',
-    });
+      await logEmailSent({
+        to: email,
+        subject: "You're invited to join OPENY OS",
+        eventType: 'team_invite',
+        entityType: 'team_invitation',
+        entityId: String(invitation.id),
+        status: 'sent',
+      });
+    } else {
+      // Fallback: use Supabase Auth built-in invite emailer when Resend is not configured.
+      // This keeps invite emails automatic in environments without RESEND_API_KEY.
+      const supabaseInvite = await db.auth.admin.inviteUserByEmail(email, {
+        data: {
+          full_name,
+          team_member_id: member.id,
+          invited_role: access_role,
+          invite_token: token,
+          invite_url: inviteUrl,
+        },
+      });
+      if (supabaseInvite.error) {
+        throw new Error(
+          `Supabase invite email failed: ${supabaseInvite.error.message ?? 'unknown error'}`,
+        );
+      }
+      await logEmailSent({
+        to: email,
+        subject: "You're invited to join OPENY OS",
+        eventType: 'team_invite',
+        entityType: 'team_invitation',
+        entityId: String(invitation.id),
+        status: 'sent',
+      });
+    }
   } catch (emailErr) {
     const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.error('[team/invite] Invitation email send failed (rolled back invitation)', {
@@ -443,5 +446,13 @@ export async function POST(request: NextRequest) {
     }
   })();
 
-  return NextResponse.json({ member, invitation, emailSent: true }, { status: 201 });
+  return NextResponse.json(
+    {
+      member,
+      invitation,
+      emailSent: true,
+      emailProvider: resendConfigured ? 'resend' : 'supabase-auth',
+    },
+    { status: 201 },
+  );
 }
