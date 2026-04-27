@@ -47,6 +47,7 @@ import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
+import { useAppPeriod } from '@/context/app-period-context';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -1438,7 +1439,12 @@ export default function TasksPage() {
   const { t } = useLang();
   const { role } = useAuth();
   const { toast } = useToast();
+  const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
+  const tasksQueryKey = useMemo(
+    () => ['tasks-all', periodStart, periodEnd] as const,
+    [periodStart, periodEnd],
+  );
   const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canManageTasks = role === 'admin' || role === 'manager' || role === 'team_member';
 
@@ -1451,12 +1457,14 @@ export default function TasksPage() {
     isLoading: loading,
     error: queryError,
   } = useQuery({
-    queryKey: ['tasks-all'],
+    queryKey: tasksQueryKey,
     queryFn: async () => {
       const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
         supabase
           .from('tasks')
           .select('*, client:clients(id,name,logo,slug)')
+          .gte('due_date', periodStart)
+          .lte('due_date', periodEnd)
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('clients').select('id,name,logo,slug').order('name'),
@@ -1516,7 +1524,7 @@ export default function TasksPage() {
     clients: Client[];
     projects: Project[];
     team: TeamMember[];
-  }>(['tasks-all']);
+  }>(tasksQueryKey);
   const [tasks, setTasks] = useState<Task[]>(() => cachedOnMount?.tasks ?? []);
   const [clients, setClients] = useState<Client[]>(() => cachedOnMount?.clients ?? []);
   const [projects, setProjects] = useState<Project[]>(() => cachedOnMount?.projects ?? []);
@@ -1722,7 +1730,7 @@ export default function TasksPage() {
           clients: Client[];
           projects: Project[];
           team: TeamMember[];
-        }>(['tasks-all'], (old) =>
+        }>(tasksQueryKey, (old) =>
           old
             ? { ...old, tasks: [createdTask, ...old.tasks.filter((t) => t.id !== createdTask.id)] }
             : old,

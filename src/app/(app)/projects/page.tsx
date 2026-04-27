@@ -27,6 +27,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
+import { useAppPeriod } from '@/context/app-period-context';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -96,8 +97,9 @@ function priorityVariant(priority: 'high' | 'medium' | 'low' | 'none') {
   return 'default' as const;
 }
 
-async function fetchAllProjects(): Promise<Project[]> {
-  const res = await fetch('/api/projects');
+async function fetchAllProjects(periodStart: string, periodEnd: string): Promise<Project[]> {
+  const qs = new URLSearchParams({ from: periodStart, to: periodEnd });
+  const res = await fetch(`/api/projects?${qs.toString()}`);
   const json = (await res.json()) as { success: boolean; projects?: Project[] };
   if (!json.success) throw new Error('Failed to load projects');
   return json.projects ?? [];
@@ -115,6 +117,7 @@ export default function ProjectsPage() {
   const { t, lang } = useLang();
   const STATUS_LABEL = useMemo(() => statusLabels(t), [t]);
   const { role } = useAuth();
+  const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
   const canManage =
     role === 'owner' || role === 'admin' || role === 'manager' || role === 'team_member';
@@ -137,8 +140,8 @@ export default function ProjectsPage() {
   });
 
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['projects-all'],
-    queryFn: fetchAllProjects,
+    queryKey: ['projects-all', periodStart, periodEnd],
+    queryFn: () => fetchAllProjects(periodStart, periodEnd),
     staleTime: 60_000,
   });
 

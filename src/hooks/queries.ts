@@ -13,6 +13,7 @@ import {
   NOTIFICATION_LIST_COLUMNS,
   TASK_LIST_COLUMNS,
 } from '@/lib/supabase-list-columns';
+import { toUtcRangeBounds } from '@/lib/date-range';
 
 function supabase() {
   return createClient();
@@ -207,8 +208,7 @@ export function useDashboardStats(
 ) {
   const start = periodStart;
   const end = periodEnd;
-  const startTs = `${start}T00:00:00`;
-  const endTs = `${end}T23:59:59.999`;
+  const { startIso: startTs, endIso: endTs } = toUtcRangeBounds(start, end);
 
   return useQuery<DashboardStats>({
     queryKey: ['dashboard-stats', periodStart, periodEnd],

@@ -36,6 +36,7 @@ import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import { useAppPeriod } from '@/context/app-period-context';
 import { useDashboardStats } from '@/hooks/queries';
+import { toUtcRangeBounds } from '@/lib/date-range';
 import StatCard from '@/components/ui/StatCard';
 import Skeleton, { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
@@ -440,6 +441,10 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { t, lang } = useLang();
   const { periodStart, periodEnd } = useAppPeriod();
+  const { startIso: periodStartIso, endIso: periodEndIso } = useMemo(
+    () => toUtcRangeBounds(periodStart, periodEnd),
+    [periodStart, periodEnd],
+  );
   const { triggerQuickAction } = useQuickActions();
   const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
 
@@ -471,8 +476,8 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from('activities')
         .select('*')
-        .gte('created_at', `${periodStart}T00:00:00`)
-        .lte('created_at', `${periodEnd}T23:59:59.999`)
+        .gte('created_at', periodStartIso)
+        .lte('created_at', periodEndIso)
         .order('created_at', { ascending: false })
         .limit(10);
       return (data ?? []) as ActivityType[];
@@ -486,8 +491,8 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from('assets')
         .select('content_type')
-        .gte('created_at', `${periodStart}T00:00:00`)
-        .lte('created_at', `${periodEnd}T23:59:59.999`)
+        .gte('created_at', periodStartIso)
+        .lte('created_at', periodEndIso)
         .limit(500);
       return (data ?? []) as { content_type: string | null }[];
     },
@@ -578,8 +583,8 @@ export default function DashboardPage() {
         .select(
           'id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id',
         )
-        .gte('created_at', `${periodStart}T00:00:00`)
-        .lte('created_at', `${periodEnd}T23:59:59.999`)
+        .gte('created_at', periodStartIso)
+        .lte('created_at', periodEndIso)
         .order('created_at', { ascending: false })
         .limit(6);
       return (data ?? []) as Asset[];
@@ -614,9 +619,13 @@ export default function DashboardPage() {
   }, [assetRows]);
 
   const { data: projectRows = [] } = useQuery({
-    queryKey: ['dashboard-projects-mini'],
+    queryKey: ['dashboard-projects-mini', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id,status');
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id,status')
+        .gte('created_at', periodStartIso)
+        .lte('created_at', periodEndIso);
       if (error) throw new Error(error.message);
       return (data ?? []) as { id: string; status: string }[];
     },

@@ -9,6 +9,7 @@ import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { toUtcRangeBounds } from '@/lib/date-range';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -19,6 +20,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('client_id');
   const status = searchParams.get('status');
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
 
   try {
     const db = getServiceClient();
@@ -46,6 +49,10 @@ export async function GET(req: NextRequest) {
 
     if (clientId) query = query.eq('client_id', clientId);
     if (status) query = query.eq('status', status);
+    if (from && to) {
+      const { startIso, endIso } = toUtcRangeBounds(from, to);
+      query = query.gte('created_at', startIso).lte('created_at', endIso);
+    }
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });

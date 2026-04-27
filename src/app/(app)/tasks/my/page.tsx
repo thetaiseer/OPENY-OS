@@ -23,6 +23,7 @@ import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
+import { useAppPeriod } from '@/context/app-period-context';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { Card, cardSurfaceClass } from '@/components/ui/Card';
@@ -298,15 +299,18 @@ export default function MyTasksPage() {
   const { t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
 
   const { data: queryData, isLoading: loading } = useQuery({
-    queryKey: ['tasks-my'],
+    queryKey: ['tasks-my', periodStart, periodEnd],
     queryFn: async () => {
       const [tasksRes, teamRes, clientsRes] = await Promise.allSettled([
         supabase
           .from('tasks')
           .select('*, client:clients(id,name,logo,slug)')
+          .gte('due_date', periodStart)
+          .lte('due_date', periodEnd)
           .order('due_date', { ascending: true })
           .limit(500),
         supabase
@@ -345,7 +349,7 @@ export default function MyTasksPage() {
     tasks: Task[];
     team: TeamMember[];
     clients: Client[];
-  }>(['tasks-my']);
+  }>(['tasks-my', periodStart, periodEnd]);
   const [tasks, setTasks] = useState<Task[]>(() => cachedOnMount?.tasks ?? []);
   const [team, setTeam] = useState<TeamMember[]>(() => cachedOnMount?.team ?? []);
   const [clients, setClients] = useState<Client[]>(() => cachedOnMount?.clients ?? []);
