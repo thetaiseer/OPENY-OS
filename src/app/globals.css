@@ -149,6 +149,17 @@ select {
     /* Default label color; utility classes (e.g. text-secondary) still win in @layer utilities. */
     color: var(--text-primary);
   }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span {
+    background-color: transparent;
+  }
 }
 
 @layer components {
