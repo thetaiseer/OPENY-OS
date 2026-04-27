@@ -6,7 +6,6 @@ import {
   Users2,
   CheckSquare,
   AlertTriangle,
-  Activity,
   FolderOpen,
   CalendarDays,
   TrendingUp,
@@ -44,9 +43,9 @@ import type { Activity as ActivityType, PublishingSchedule, Asset, Client } from
 import { useQuickActions } from '@/context/quick-actions-context';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import EmptyState from '@/components/ui/EmptyState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
 
@@ -471,7 +470,12 @@ export default function DashboardPage() {
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats(periodStart, periodEnd);
 
-  const { data: activitiesData } = useQuery<ActivityType[]>({
+  const {
+    data: activitiesData,
+    isLoading: activitiesLoading,
+    error: activitiesError,
+    refetch: refetchActivities,
+  } = useQuery<ActivityType[]>({
     queryKey: ['activities', periodStart, periodEnd],
     queryFn: async () => {
       const rangeQuery = applyUtcTimestampRange(
@@ -730,6 +734,39 @@ export default function DashboardPage() {
 
   const recentPace =
     (trendsData ?? []).slice(-7).reduce((s, d) => s + d.completed, 0) / Math.max(7, 1);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const dueTodayCount = upcomingTasks.filter((task) => task.due_date === todayIso).length;
+  const todayFocusCards = [
+    {
+      key: 'today-tasks',
+      label: t('today'),
+      value: dueTodayCount,
+      hint: t('tasks'),
+      href: '/tasks/all',
+    },
+    {
+      key: 'today-overdue',
+      label: t('overdue'),
+      value: overdueTasksList.length,
+      hint: t('tasks'),
+      href: '/tasks/all?filter=overdue',
+    },
+    {
+      key: 'today-content',
+      label: t('upcomingScheduledPosts'),
+      value: scheduled?.length ?? 0,
+      hint: t('content'),
+      href: '/content',
+    },
+    {
+      key: 'today-activity',
+      label: t('recentActivity'),
+      value: activitiesData?.length ?? 0,
+      hint: t('activityPageTitle'),
+      href: '/activity',
+    },
+  ];
+  const hasTodayFocusData = todayFocusCards.some((item) => item.value > 0);
   const completionRate =
     stats && stats.activeTasks + stats.overdueTasks > 0
       ? Math.round(
@@ -744,7 +781,7 @@ export default function DashboardPage() {
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}
         actions={
-          <>
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="primary"
@@ -759,7 +796,21 @@ export default function DashboardPage() {
             >
               {t('newTask')}
             </Button>
-          </>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => triggerQuickAction('add-project')}
+            >
+              {t('newProject')}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => triggerQuickAction('add-asset')}
+            >
+              {t('uploadAsset')}
+            </Button>
+          </div>
         }
       />
 
@@ -767,36 +818,95 @@ export default function DashboardPage() {
         <SkeletonStatGrid count={4} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label={t('statTotalProjects')}
-            value={totalProjects}
-            icon={<FolderKanban size={20} />}
-            color="blue"
-            trend={{ value: '12%', positive: true }}
-          />
-          <StatCard
-            label={t('statInProgress')}
-            value={donutData.find((d) => d.id === 'in_progress')?.value ?? 0}
-            icon={<TrendingUp size={20} />}
-            color="mint"
-            trend={{ value: '8%', positive: true }}
-          />
-          <StatCard
-            label={t('statCompleted')}
-            value={donutData.find((d) => d.id === 'completed')?.value ?? 0}
-            icon={<CheckSquare size={20} />}
-            color="green"
-            trend={{ value: '20%', positive: true }}
-          />
-          <StatCard
-            label={t('statOverdueTasks')}
-            value={stats?.overdueTasks ?? 0}
-            icon={<AlertTriangle size={20} />}
-            color="rose"
-            trend={{ value: '5%', positive: false }}
-          />
+          {[
+            {
+              label: t('statTotalProjects'),
+              value: totalProjects,
+              icon: <FolderKanban size={20} />,
+              color: 'blue' as const,
+              trend: { value: '12%', positive: true },
+              href: '/projects',
+            },
+            {
+              label: t('statInProgress'),
+              value: donutData.find((d) => d.id === 'in_progress')?.value ?? 0,
+              icon: <TrendingUp size={20} />,
+              color: 'mint' as const,
+              trend: { value: '8%', positive: true },
+              href: '/projects?status=active',
+            },
+            {
+              label: t('statCompleted'),
+              value: donutData.find((d) => d.id === 'completed')?.value ?? 0,
+              icon: <CheckSquare size={20} />,
+              color: 'green' as const,
+              trend: { value: '20%', positive: true },
+              href: '/projects?status=completed',
+            },
+            {
+              label: t('statOverdueTasks'),
+              value: stats?.overdueTasks ?? 0,
+              icon: <AlertTriangle size={20} />,
+              color: 'rose' as const,
+              trend: { value: '5%', positive: false },
+              href: '/tasks/all?filter=overdue',
+            },
+          ].map((card) => (
+            <Link
+              key={card.label}
+              href={card.href}
+              className="block rounded-2xl transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            >
+              <StatCard
+                label={card.label}
+                value={card.value}
+                icon={card.icon}
+                color={card.color}
+                trend={card.trend}
+              />
+            </Link>
+          ))}
         </div>
       )}
+
+      <Card>
+        <CardHeader className="mb-4 items-center">
+          <div>
+            <CardTitle className="!text-lg">Today Focus</CardTitle>
+            <CardDescription>{t('dashboardSubtitle')}</CardDescription>
+          </div>
+          <Button type="button" variant="secondary" onClick={() => triggerQuickAction('add-task')}>
+            {t('newTask')}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {!hasTodayFocusData ? (
+            <EmptyState
+              title={t('noUpcomingTasks')}
+              description={t('noUpcomingTasksDesc')}
+              actionLabel="Create Task"
+              onAction={() => triggerQuickAction('add-task')}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {todayFocusCards.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className="rounded-xl border p-4 transition-all hover:border-[var(--accent)] hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-2xl font-bold text-[var(--text)]">{item.value}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.hint}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="mb-2 items-center">
@@ -813,6 +923,18 @@ export default function DashboardPage() {
         <CardContent>
           {trendsData && trendsData.length > 0 ? (
             <PerformanceLineChart data={trendsData} />
+          ) : trendsData && trendsData.length === 0 ? (
+            <div
+              className="rounded-xl border px-4 py-10 text-center"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <p className="text-sm font-medium text-[var(--text)]">
+                {t('noCompletedTasksPeriod')}
+              </p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                Keep work moving to unlock performance trends.
+              </p>
+            </div>
           ) : (
             <Skeleton className="h-52 rounded-xl" />
           )}
@@ -901,7 +1023,6 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {(taskTab === 'upcoming' ? upcomingTasks : overdueTasksList).length === 0 ? (
                 <EmptyState
-                  icon={CheckSquare}
                   title={taskTab === 'upcoming' ? t('noUpcomingTasks') : t('noOverdueTasks')}
                   description={
                     taskTab === 'upcoming' ? t('noUpcomingTasksDesc') : t('noOverdueTasksDesc')
@@ -938,24 +1059,34 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="mb-4">
-            <CardTitle className="!text-lg">{t('recentActivity')}</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="!text-lg">{t('recentActivity')}</CardTitle>
+              <Link
+                href="/activity"
+                className="text-xs font-semibold text-[var(--accent)] hover:underline"
+              >
+                View all activity
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
-            {!activitiesData ? (
-              <div className="space-y-3">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-10 rounded-lg" />
-                ))}
-              </div>
-            ) : activitiesData.length === 0 ? (
+            {activitiesLoading ? (
+              <LoadingState rows={4} className="grid-cols-1" cardHeightClass="h-10" />
+            ) : activitiesError ? (
+              <ErrorState
+                title={t('recentActivity')}
+                description={(activitiesError as Error).message}
+                actionLabel={t('assetsRetry')}
+                onAction={() => void refetchActivities()}
+              />
+            ) : (activitiesData?.length ?? 0) === 0 ? (
               <EmptyState
-                icon={Activity}
                 title={t('noRecentActivityTitle')}
-                description={t('noRecentActivityDesc')}
+                description="Activity includes client, project, task, content, and asset actions from your workspace."
               />
             ) : (
               <div className="space-y-4">
-                {activitiesData.map((a) => (
+                {(activitiesData ?? []).map((a) => (
                   <div key={a.id} className="flex gap-3">
                     <div
                       className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
@@ -1085,7 +1216,6 @@ export default function DashboardPage() {
             </div>
           ) : scheduled.length === 0 ? (
             <EmptyState
-              icon={CalendarDays}
               title={t('noScheduledPostsTitle')}
               description={t('noScheduledPostsDesc')}
             />
@@ -1154,11 +1284,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : recentAssets.length === 0 ? (
-              <EmptyState
-                icon={ImageIcon}
-                title={t('noAssetsDashTitle')}
-                description={t('noAssetsDashDesc')}
-              />
+              <EmptyState title={t('noAssetsDashTitle')} description={t('noAssetsDashDesc')} />
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {recentAssets.map((asset) => (
@@ -1233,7 +1359,6 @@ export default function DashboardPage() {
               </div>
             ) : activeClients.length === 0 ? (
               <EmptyState
-                icon={Users2}
                 title={t('noActiveClientsTitle')}
                 description={t('noActiveClientsDesc')}
               />
