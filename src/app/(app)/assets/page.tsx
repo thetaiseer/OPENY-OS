@@ -9,7 +9,7 @@ import {
   useMemo,
   Suspense,
 } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Upload,
   FolderOpen,
@@ -68,6 +68,23 @@ interface FolderPath {
   year?: string;
   month?: string; // "YYYY-MM"
   subCategory?: string; // slug
+}
+
+const FOLDER_QUERY_KEYS = {
+  client: 'client',
+  mainCategory: 'category',
+  year: 'year',
+  month: 'month',
+  subCategory: 'sub',
+} as const;
+
+function folderPathFromSearchParams(searchParams: URLSearchParams): FolderPath {
+  const client = searchParams.get(FOLDER_QUERY_KEYS.client) ?? undefined;
+  const mainCategory = searchParams.get(FOLDER_QUERY_KEYS.mainCategory) ?? undefined;
+  const year = searchParams.get(FOLDER_QUERY_KEYS.year) ?? undefined;
+  const month = searchParams.get(FOLDER_QUERY_KEYS.month) ?? undefined;
+  const subCategory = searchParams.get(FOLDER_QUERY_KEYS.subCategory) ?? undefined;
+  return { client, mainCategory, year, month, subCategory };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -699,6 +716,8 @@ function assetsFetchQuery(folderPath: FolderPath, periodYm: string): string {
 
 function AssetsPage() {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLang();
   const { periodYm } = useAppPeriod();
   const { user, defaultWorkspaceId } = useAuth();
@@ -780,6 +799,35 @@ function AssetsPage() {
   const deferredAssets = useDeferredValue(assets);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
+  const updateAssetsUrl = useCallback(
+    (
+      nextFolderPath: FolderPath,
+      previewAssetName: string | null,
+      previewAssetId?: string | null,
+    ) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const entries: Array<[keyof FolderPath, string]> = [
+        ['client', FOLDER_QUERY_KEYS.client],
+        ['mainCategory', FOLDER_QUERY_KEYS.mainCategory],
+        ['year', FOLDER_QUERY_KEYS.year],
+        ['month', FOLDER_QUERY_KEYS.month],
+        ['subCategory', FOLDER_QUERY_KEYS.subCategory],
+      ];
+      for (const [pathKey, queryKey] of entries) {
+        const value = nextFolderPath[pathKey];
+        if (value) params.set(queryKey, value);
+        else params.delete(queryKey);
+      }
+      if (previewAssetName) params.set('preview', previewAssetName);
+      else params.delete('preview');
+      if (previewAssetId) params.set('previewId', previewAssetId);
+      else params.delete('previewId');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
   // ── Fetch assets ──────────────────────────────────────────────────────────
 
   const fetchAssets = useCallback(
@@ -835,6 +883,22 @@ function AssetsPage() {
     setPage(0);
     fetchAssets(0);
   }, [fetchAssets]);
+
+  useEffect(() => {
+    const nextPath = folderPathFromSearchParams(new URLSearchParams(searchParams.toString()));
+    setFolderPath((prev) => {
+      if (
+        prev.client === nextPath.client &&
+        prev.mainCategory === nextPath.mainCategory &&
+        prev.year === nextPath.year &&
+        prev.month === nextPath.month &&
+        prev.subCategory === nextPath.subCategory
+      ) {
+        return prev;
+      }
+      return nextPath;
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     setUploadMonth(periodYm);
@@ -1037,24 +1101,30 @@ function AssetsPage() {
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
-  const navigateTo = useCallback((path: FolderPath) => {
-    setFolderPath(path);
-    setSearchQuery('');
-  }, []);
+  const navigateTo = useCallback(
+    (path: FolderPath) => {
+      setFolderPath(path);
+      setSearchQuery('');
+      updateAssetsUrl(path, previewAsset?.name ?? null, previewAsset?.id ?? null);
+    },
+    [updateAssetsUrl, previewAsset],
+  );
 
   const navigateInto = useCallback(
     (key: string) => {
       setFolderPath((prev) => {
-        if (pathDepth === 0) return { client: key };
-        if (pathDepth === 1) return { ...prev, mainCategory: key };
-        if (pathDepth === 2) return { ...prev, year: key };
-        if (pathDepth === 3) return { ...prev, month: key };
-        if (pathDepth === 4) return { ...prev, subCategory: key };
-        return prev;
+        let next = prev;
+        if (pathDepth === 0) next = { client: key };
+        else if (pathDepth === 1) next = { ...prev, mainCategory: key };
+        else if (pathDepth === 2) next = { ...prev, year: key };
+        else if (pathDepth === 3) next = { ...prev, month: key };
+        else if (pathDepth === 4) next = { ...prev, subCategory: key };
+        updateAssetsUrl(next, previewAsset?.name ?? null, previewAsset?.id ?? null);
+        return next;
       });
       setSearchQuery('');
     },
-    [pathDepth],
+    [pathDepth, updateAssetsUrl, previewAsset],
   );
 
   const goUp = useCallback(() => {
@@ -1071,9 +1141,10 @@ function AssetsPage() {
       } else if (p.client) {
         delete p.client;
       }
+      updateAssetsUrl(p, previewAsset?.name ?? null, previewAsset?.id ?? null);
       return p;
     });
-  }, []);
+  }, [updateAssetsUrl, previewAsset]);
 
   // ── Folder card labels ────────────────────────────────────────────────────
 
@@ -1457,7 +1528,27 @@ function AssetsPage() {
 
   const handleView = (asset: Asset) => {
     setPreviewAsset(asset);
+    updateAssetsUrl(folderPath, asset.name, asset.id);
   };
+
+  const closePreview = useCallback(() => {
+    setPreviewAsset(null);
+    updateAssetsUrl(folderPath, null, null);
+  }, [folderPath, updateAssetsUrl]);
+
+  useEffect(() => {
+    const previewName = searchParams.get('preview');
+    const previewId = searchParams.get('previewId');
+    if (!previewName && !previewId) {
+      if (previewAsset) setPreviewAsset(null);
+      return;
+    }
+    const match =
+      (previewId ? assets.find((a) => a.id === previewId) : null) ??
+      assets.find((a) => a.name === previewName);
+    if (!match) return;
+    setPreviewAsset((prev) => (prev?.id === match.id ? prev : match));
+  }, [searchParams, assets, previewAsset]);
 
   const handleCopyLink = async (asset: Asset) => {
     try {
@@ -1728,7 +1819,7 @@ function AssetsPage() {
                   variant="danger"
                   onClick={() => {
                     clearFilters();
-                    setFolderPath({});
+                    navigateTo({});
                   }}
                 >
                   <X size={14} /> {t('assetsClearAll')}
@@ -1901,7 +1992,7 @@ function AssetsPage() {
             mimeType: previewAsset.file_type ?? previewAsset.mime_type ?? null,
             size: previewAsset.file_size ?? null,
           }}
-          onClose={() => setPreviewAsset(null)}
+          onClose={closePreview}
         />
       )}
 

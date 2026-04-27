@@ -495,54 +495,6 @@ export default function InvoicePage() {
     );
   }
 
-  function updateKsaPlatformName(branchIndex: number, platformIndex: number, value: string) {
-    setKsaBranchConfigs((prev) =>
-      prev.map((branch, idx) => {
-        if (idx !== branchIndex) return branch;
-        return {
-          ...branch,
-          platforms: branch.platforms.map((platform, pIdx) =>
-            pIdx === platformIndex ? { ...platform, name: value } : platform,
-          ),
-        };
-      }),
-    );
-  }
-
-  function addKsaPlatform(branchIndex: number) {
-    setKsaBranchConfigs((prev) =>
-      prev.map((branch, idx) =>
-        idx === branchIndex
-          ? {
-              ...branch,
-              platforms: [
-                ...branch.platforms,
-                {
-                  id: uid(),
-                  name: t('docPlatformNumbered', { n: branch.platforms.length + 1 }),
-                  enabled: true,
-                  campaignCount: 1,
-                  allocationPct: 0,
-                },
-              ],
-            }
-          : branch,
-      ),
-    );
-  }
-
-  function removeKsaPlatform(branchIndex: number, platformIndex: number) {
-    setKsaBranchConfigs((prev) =>
-      normalizeKsaBranchConfigs(
-        prev.map((branch, idx) =>
-          idx === branchIndex
-            ? { ...branch, platforms: branch.platforms.filter((_, pIdx) => pIdx !== platformIndex) }
-            : branch,
-        ),
-      ),
-    );
-  }
-
   function toggleKsaPlatform(branchIndex: number, platformIndex: number, enabled: boolean) {
     setKsaBranchConfigs((prev) =>
       normalizeKsaBranchConfigs(
@@ -578,24 +530,6 @@ export default function InvoicePage() {
           ),
         };
       }),
-    );
-  }
-
-  function updateKsaPlatformAllocation(branchIndex: number, platformIndex: number, value: number) {
-    setKsaBranchConfigs((prev) =>
-      normalizeKsaBranchConfigs(
-        prev.map((branch, idx) => {
-          if (idx !== branchIndex) return branch;
-          return {
-            ...branch,
-            platforms: branch.platforms.map((platform, pIdx) =>
-              pIdx === platformIndex
-                ? { ...platform, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) }
-                : platform,
-            ),
-          };
-        }),
-      ),
     );
   }
 
@@ -959,31 +893,13 @@ export default function InvoicePage() {
                 background: 'var(--bg-elevated)',
               }}
             >
-              <p
-                className="mb-2"
-                style={{
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {t('docInvHistorySectionTitle')}
-              </p>
-              <p
-                className="mb-3 max-w-3xl text-sm leading-relaxed"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                {t('docInvHistorySectionBlurb')}
-              </p>
               <div>
                 <label>{t('docInvHistory')}</label>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Link
                     href="/docs/invoice/history"
-                    className="inline-flex items-center rounded-lg border px-3 py-2 text-sm font-semibold transition-opacity hover:opacity-80"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                    className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                    style={{ background: 'var(--accent)' }}
                   >
                     {t('docInvOpenHistoryPage')}
                   </Link>
@@ -1150,9 +1066,9 @@ export default function InvoicePage() {
 
                   {ksaBranchConfigs.map((branch, branchIndex) => {
                     const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
-                    const localAllocationTotal = branch.platforms
+                    const activeCampaigns = branch.platforms
                       .filter((item) => item.enabled)
-                      .reduce((sum, item) => sum + item.allocationPct, 0);
+                      .reduce((sum, item) => sum + toPositiveInt(item.campaignCount), 0);
                     return (
                       <div
                         key={branch.id}
@@ -1224,7 +1140,7 @@ export default function InvoicePage() {
                               className="space-y-2 rounded-lg border p-2"
                               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
                             >
-                              <div className="grid grid-cols-[1fr_90px_28px] items-center gap-2">
+                              <div className="grid grid-cols-[1fr_120px] items-center gap-2">
                                 <label
                                   className="flex items-center gap-2 text-xs font-semibold"
                                   style={{ color: 'var(--text)' }}
@@ -1240,19 +1156,7 @@ export default function InvoicePage() {
                                       )
                                     }
                                   />
-                                  <input
-                                    className={inputClass}
-                                    value={platform.name}
-                                    onChange={(e) =>
-                                      updateKsaPlatformName(
-                                        branchIndex,
-                                        platformIndex,
-                                        e.target.value,
-                                      )
-                                    }
-                                    disabled={!platform.enabled}
-                                    placeholder={t('docPlatformNamePh')}
-                                  />
+                                  <span>{platform.name}</span>
                                 </label>
                                 <span
                                   className="text-end text-[11px] font-semibold"
@@ -1262,17 +1166,8 @@ export default function InvoicePage() {
                                     ? `${formatInvoiceAmount(platformBudget, lang)} ${form.currency}`
                                     : t('docDisabled')}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeKsaPlatform(branchIndex, platformIndex)}
-                                  className="h-7 rounded border text-[10px]"
-                                  style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
-                                  title={t('docRemovePlatform')}
-                                >
-                                  <Trash2 size={11} className="mx-auto" />
-                                </button>
                               </div>
-                              <div className="grid grid-cols-[120px_1fr_90px] items-end gap-2">
+                              <div className="grid grid-cols-[140px_1fr] items-end gap-2">
                                 <div>
                                   <label>{t('docCampaignCount')}</label>
                                   <input
@@ -1291,38 +1186,20 @@ export default function InvoicePage() {
                                   />
                                 </div>
                                 <div>
-                                  <label>{t('docPlatformAllocationPct')}</label>
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    disabled={!platform.enabled}
-                                    className="w-full"
-                                    value={platform.allocationPct}
-                                    onChange={(e) =>
-                                      updateKsaPlatformAllocation(
-                                        branchIndex,
-                                        platformIndex,
-                                        Number(e.target.value),
-                                      )
-                                    }
-                                  />
+                                  <label>Auto distribution</label>
+                                  <div
+                                    className="rounded-lg border px-2 py-2 text-[11px]"
+                                    style={{
+                                      borderColor: 'var(--border)',
+                                      color: 'var(--text-secondary)',
+                                      background: 'var(--bg-elevated)',
+                                    }}
+                                  >
+                                    {platform.enabled
+                                      ? 'Budget is distributed automatically by active campaign counts.'
+                                      : t('docDisabled')}
+                                  </div>
                                 </div>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  disabled={!platform.enabled}
-                                  className={inputClass}
-                                  value={platform.allocationPct}
-                                  onChange={(e) =>
-                                    updateKsaPlatformAllocation(
-                                      branchIndex,
-                                      platformIndex,
-                                      Number(e.target.value),
-                                    )
-                                  }
-                                />
                               </div>
                             </div>
                           );
@@ -1330,18 +1207,10 @@ export default function InvoicePage() {
 
                         <div
                           className="text-[11px]"
-                          style={{ color: localAllocationTotal === 100 ? '#047857' : '#b45309' }}
+                          style={{ color: activeCampaigns > 0 ? '#047857' : '#b45309' }}
                         >
-                          {t('docPlatformAllocationTotal', { n: localAllocationTotal })}
+                          {`Active campaigns: ${activeCampaigns}`}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => addKsaPlatform(branchIndex)}
-                          className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
-                          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        >
-                          <Plus size={12} className="me-1 inline" /> {t('docAddPlatform')}
-                        </button>
                       </div>
                     );
                   })}

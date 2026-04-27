@@ -1201,19 +1201,37 @@ export default function AccountingPage() {
 
   async function deleteEntry(id: string) {
     if (!confirm(t('docAcctDeleteRevenueConfirm'))) return;
-    await fetch(`/api/docs/accounting/entries/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/docs/accounting/entries/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast(`Delete revenue: ${data.error ?? `HTTP ${res.status}`}`, 'error');
+      return;
+    }
+    toast('Delete revenue: done', 'success');
     await loadData();
   }
 
   async function deleteExpense(id: string) {
     if (!confirm(t('docAcctDeleteExpenseConfirm'))) return;
-    await fetch(`/api/docs/accounting/expenses/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/docs/accounting/expenses/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast(`Delete expense: ${data.error ?? `HTTP ${res.status}`}`, 'error');
+      return;
+    }
+    toast('Delete expense: done', 'success');
     await loadData();
   }
 
   async function deleteTransfer(id: string) {
     if (!confirm(t('docAcctDeleteTransferConfirm'))) return;
-    await fetch(`/api/docs/accounting/transfers/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/docs/accounting/transfers/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast(`Delete transfer: ${data.error ?? `HTTP ${res.status}`}`, 'error');
+      return;
+    }
+    toast('Delete transfer: done', 'success');
     await loadData();
   }
 

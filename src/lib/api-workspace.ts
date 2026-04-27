@@ -20,13 +20,23 @@ async function userBelongsToWorkspace(
   userId: string,
   workspaceId: string,
 ): Promise<boolean> {
-  const row = await db
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', userId)
-    .eq('workspace_id', workspaceId)
+  const workspaceRow = await db
+    .from('workspaces')
+    .select('slug, name')
+    .eq('id', workspaceId)
     .maybeSingle();
-  return !row.error && Boolean(row.data?.workspace_id);
+  if (workspaceRow.error || !workspaceRow.data) return false;
+  const slug = (workspaceRow.data.slug ?? '').toLowerCase();
+  const name = (workspaceRow.data.name ?? '').toUpperCase();
+  const workspaceKey: WorkspaceKey = slug === 'docs' || name.includes('DOCS') ? 'docs' : 'os';
+  const membership = await db
+    .from('workspace_memberships')
+    .select('user_id')
+    .eq('user_id', userId)
+    .eq('workspace_key', workspaceKey)
+    .eq('is_active', true)
+    .maybeSingle();
+  return !membership.error && Boolean(membership.data?.user_id);
 }
 
 function resolveWorkspaceKeyFromRequest(request: NextRequest): WorkspaceKey | null {
@@ -137,36 +147,55 @@ function pickWorkspaceForPreferredKey(
 /**
  * Resolve a workspace UUID for an authenticated user.
  *
- * Only considers rows in `workspace_members` (never looks up `workspaces` by
- * slug/name globally). The preferred UI key (`os` vs `docs`) only chooses among
- * workspaces the user already belongs to.
+ * Resolves from `workspace_memberships` (workspace_key + is_active) then maps
+ * that key to a workspace UUID row.
  */
 async function resolveWorkspaceIdFromSession(
   db: SupabaseClient,
   userId: string,
   preferredKey: WorkspaceKey,
 ): Promise<{ workspaceId: string | null; workspaceKey: WorkspaceKey | null }> {
-  const allMembers = await db
-    .from('workspace_members')
-    .select('workspace_id')
+  const allMemberships = await db
+    .from('workspace_memberships')
+    .select('workspace_key, is_active')
     .eq('user_id', userId);
-  if (allMembers.error || !allMembers.data?.length) {
+  if (allMemberships.error || !allMemberships.data?.length) {
     return { workspaceId: null, workspaceKey: null };
   }
 
-  const ids = [
-    ...new Set(allMembers.data.map((r) => (r as { workspace_id: string }).workspace_id)),
-  ];
-  const workspaces = await db.from('workspaces').select('id, slug, name').in('id', ids);
+  const activeKeys = new Set(
+    allMemberships.data
+      .filter((r) => Boolean((r as { is_active?: boolean }).is_active ?? true))
+      .map((r) => normalizeWorkspaceKey((r as { workspace_key?: string }).workspace_key))
+      .filter((k): k is WorkspaceKey => k === 'os' || k === 'docs'),
+  );
+  if (!activeKeys.size) {
+    return { workspaceId: null, workspaceKey: null };
+  }
+  const chosenKey = activeKeys.has(preferredKey)
+    ? preferredKey
+    : activeKeys.has('os')
+      ? 'os'
+      : 'docs';
+  const byKey = await resolveWorkspaceIdByKey(db, chosenKey);
+  if (byKey) {
+    return { workspaceId: byKey, workspaceKey: chosenKey };
+  }
+  const workspaces = await db.from('workspaces').select('id, slug, name');
   if (workspaces.error || !workspaces.data?.length) {
     return { workspaceId: null, workspaceKey: null };
   }
-
   const rows = workspaces.data as WorkspaceRow[];
-  const picked = pickWorkspaceForPreferredKey(rows, preferredKey);
+  const allowedRows = rows.filter((row) => {
+    const slug = (row.slug ?? '').toLowerCase();
+    const name = (row.name ?? '').toUpperCase();
+    const key: WorkspaceKey = slug === 'docs' || name.includes('DOCS') ? 'docs' : 'os';
+    return activeKeys.has(key);
+  });
+  const picked = pickWorkspaceForPreferredKey(allowedRows.length ? allowedRows : rows, chosenKey);
   return {
     workspaceId: picked?.id ?? null,
-    workspaceKey: picked ? preferredKey : null,
+    workspaceKey: picked ? chosenKey : null,
   };
 }
 
@@ -186,7 +215,7 @@ export async function resolveWorkspaceForRequest(
     }
   }
 
-  // Authenticated routes: workspace_id must come from workspace_members only.
+  // Authenticated routes: workspace_id must match active workspace membership.
   if (userId) {
     const bySession = await resolveWorkspaceIdFromSession(db, userId, workspaceKey);
     if (bySession.workspaceId) {

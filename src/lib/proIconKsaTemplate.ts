@@ -97,9 +97,9 @@ export const PRO_ICON_KSA_TEMPLATE_CONFIG: ProIconKsaTemplateConfig = {
       defaultCampaignCount: 2,
       resultRule: {
         resultLabel: 'Messages',
-        minCpa: 20,
-        maxCpa: 28,
-        variancePct: 0.1,
+        minCpa: 15,
+        maxCpa: 20,
+        variancePct: 0.14,
       },
     },
     {
@@ -109,9 +109,9 @@ export const PRO_ICON_KSA_TEMPLATE_CONFIG: ProIconKsaTemplateConfig = {
       defaultCampaignCount: 1,
       resultRule: {
         resultLabel: 'Visits',
-        minCpa: 4,
-        maxCpa: 8,
-        variancePct: 0.1,
+        minCpa: 2,
+        maxCpa: 4,
+        variancePct: 0.16,
       },
     },
     {
@@ -121,17 +121,41 @@ export const PRO_ICON_KSA_TEMPLATE_CONFIG: ProIconKsaTemplateConfig = {
       defaultCampaignCount: 1,
       resultRule: {
         resultLabel: 'Visits',
-        minCpa: 5,
-        maxCpa: 10,
-        variancePct: 0.1,
+        minCpa: 2,
+        maxCpa: 4,
+        variancePct: 0.16,
+      },
+    },
+    {
+      key: 'Google Ads',
+      defaultEnabled: false,
+      defaultAllocationPct: 0,
+      defaultCampaignCount: 1,
+      resultRule: {
+        resultLabel: 'Visits',
+        minCpa: 2,
+        maxCpa: 4,
+        variancePct: 0.16,
+      },
+    },
+    {
+      key: 'Salla (Visits)',
+      defaultEnabled: false,
+      defaultAllocationPct: 0,
+      defaultCampaignCount: 1,
+      resultRule: {
+        resultLabel: 'Visits',
+        minCpa: 2,
+        maxCpa: 4,
+        variancePct: 0.16,
       },
     },
   ],
   fallbackResultRule: {
     resultLabel: 'Visits',
-    minCpa: 6,
-    maxCpa: 12,
-    variancePct: 0.1,
+    minCpa: 2,
+    maxCpa: 4,
+    variancePct: 0.16,
   },
 };
 
@@ -331,7 +355,7 @@ function normalizeBranchConfigs(branches: ProIconKsaBranchConfig[]) {
     enabledBranchIndex += 1;
     const enabledPlatforms = branch.platforms.filter((platform) => platform.enabled);
     const normalizedPlatformPct = normalizePercentages(
-      enabledPlatforms.map((platform) => platform.allocationPct),
+      enabledPlatforms.map((platform) => Math.max(1, Math.round(platform.campaignCount || 1))),
     );
     let enabledPlatformIndex = 0;
     const platforms = branch.platforms.map((platform) => {
@@ -377,9 +401,10 @@ function buildResultValue(
   const ratio = rowCount > 1 ? rowIndex / (rowCount - 1) : 0;
   const targetCpa = rule.minCpa + (rule.maxCpa - rule.minCpa) * ratio;
   const jitter = 1 + (rng() * 2 - 1) * rule.variancePct;
-  const effectiveCpa = clamp(targetCpa * jitter, rule.minCpa, rule.maxCpa);
+  const effectiveCpaRaw = clamp(targetCpa * jitter, rule.minCpa, rule.maxCpa);
+  const effectiveCpa = Math.round(effectiveCpaRaw * 10) / 10;
   const count = Math.max(1, Math.round(cost / Math.max(1, effectiveCpa)));
-  return `${count} ${rule.resultLabel}`;
+  return `${count} ${rule.resultLabel} @ ${effectiveCpa.toFixed(1)} SAR`;
 }
 
 function sumBranchGroupsCost(branchGroups: InvoiceBranchGroup[]) {
@@ -612,7 +637,7 @@ export function getProIconKsaPlatformPreviewBudget(
   const normalizedPlatforms = normalizePercentages(
     branchConfig.platforms
       .filter((platform) => platform.enabled)
-      .map((platform) => platform.allocationPct),
+      .map((platform) => Math.max(1, Math.round(platform.campaignCount || 1))),
   );
   const enabledPlatforms = branchConfig.platforms.filter((platform) => platform.enabled);
   const index = enabledPlatforms.findIndex((platform) => platform.id === platformConfig.id);
