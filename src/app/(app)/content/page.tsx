@@ -108,9 +108,10 @@ interface ContentCardProps {
   item: ContentItem;
   onStatusChange: (id: string, status: ContentItemStatus) => void;
   onDelete?: (id: string) => void;
+  isDeleting?: boolean;
 }
 
-function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
+function ContentCard({ item, onStatusChange, onDelete, isDeleting = false }: ContentCardProps) {
   const { t } = useLang();
   const nextStatuses: Partial<Record<ContentItemStatus, ContentItemStatus>> = {
     draft: 'pending_review',
@@ -186,12 +187,13 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
           {onDelete && (
             <Button
               type="button"
-              variant="ghost"
+              variant="danger"
               className="h-7 min-h-0 w-7 p-0"
+              disabled={isDeleting}
               onClick={() => onDelete(item.id)}
               aria-label={t('deleteAction')}
             >
-              <Trash2 size={13} />
+              {isDeleting ? '…' : <Trash2 size={13} />}
             </Button>
           )}
         </div>
@@ -205,13 +207,14 @@ function ContentCard({ item, onStatusChange, onDelete }: ContentCardProps) {
 function ContentPage() {
   const { role } = useAuth();
   const { t } = useLang();
-  const canDeleteContent = role === 'admin' || role === 'owner';
+  const canDeleteContent = role === 'owner' || role === 'admin' || role === 'manager';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newOpen, setNewOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 
   const {
     data: itemsData,
@@ -297,10 +300,11 @@ function ContentPage() {
 
   async function handleDelete(id: string) {
     if (!confirm(t('confirmDeleteContentItem'))) return;
+    setDeletingItemId(id);
     try {
       const res = await fetch(`/api/content-items/${id}`, { method: 'DELETE' });
-      const json = (await res.json()) as { success: boolean };
-      if (!json.success) throw new Error('Delete failed');
+      const json = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) throw new Error(json.error ?? t('failedDeleteToast'));
       queryClient.setQueryData<{ success: boolean; items: ContentItem[] }>(
         ['content-items', clientFilter, statusFilter],
         (old) => (old ? { ...old, items: old.items.filter((item) => item.id !== id) } : old),
@@ -309,8 +313,10 @@ function ContentPage() {
         queryKey: ['content-items', clientFilter, statusFilter],
       });
       toast(t('contentItemDeletedToast'), 'success');
-    } catch {
-      toast(t('failedDeleteToast'), 'error');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : t('failedDeleteToast'), 'error');
+    } finally {
+      setDeletingItemId((current) => (current === id ? null : current));
     }
   }
 
@@ -413,6 +419,7 @@ function ContentPage() {
                     item={item}
                     onStatusChange={handleStatusChange}
                     onDelete={canDeleteContent ? handleDelete : undefined}
+                    isDeleting={deletingItemId === item.id}
                   />
                 </div>
               ))}

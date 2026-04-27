@@ -1,36 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { getApiUser, requireRole } from '@/lib/api-auth';
+import { requireRole } from '@/lib/api-auth';
 import { deleteFile, R2NotFoundError, R2ConfigError } from '@/lib/storage';
 import { checkR2Config } from '@/lib/r2';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Auth: only owner and admin may delete assets.
-    const auth = await getApiUser(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
+    if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
-
-    const canDelete = auth.profile.role === 'owner' || auth.profile.role === 'admin';
-    if (!canDelete) {
-      console.warn('[asset-delete] unauthorized delete attempt', {
-        userId: auth.profile.id,
-        email: auth.profile.email,
-        role: auth.profile.role,
-        assetId: id ?? 'unknown',
-      });
-      return NextResponse.json(
-        { error: 'You do not have permission to delete this file' },
-        { status: 403 },
-      );
-    }
-
     if (!id) {
-      return NextResponse.json({ error: 'Missing asset id' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Missing asset id' }, { status: 400 });
     }
 
     // ── Soft delete mode ──────────────────────────────────────────────────────
@@ -40,17 +23,28 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const softDelete = searchParams.get('soft') === 'true';
 
     const supabase = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      supabase,
+      auth.profile.id,
+      { allowWorkspaceFallbackWithoutMembership: true },
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, error: workspaceError ?? 'Workspace not found' },
+        { status: 403 },
+      );
+    }
+
     const { data: asset, error: fetchError } = await supabase
       .from('assets')
-      .select('id, file_path, storage_key, bucket_name, name, storage_provider')
+      .select('id, workspace_id, file_path, storage_key, bucket_name, name, storage_provider')
       .eq('id', id)
-      .single();
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
 
     if (fetchError || !asset) {
-      return NextResponse.json(
-        { error: `Asset not found: ${fetchError?.message ?? 'unknown'}` },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: 'Asset not found' }, { status: 404 });
     }
 
     // ── 2a. Soft delete — mark as deleted without touching storage ────────────
@@ -66,7 +60,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
           error: dbError.message,
         });
         return NextResponse.json(
-          { error: `Database update failed: ${dbError.message}` },
+          { success: false, error: `Database update failed: ${dbError.message}` },
           { status: 500 },
         );
       }
@@ -148,7 +142,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
               error: storageError.message,
             });
             return NextResponse.json(
-              { error: `Storage delete failed: ${storageError.message}` },
+              { success: false, error: `Storage delete failed: ${storageError.message}` },
               { status: 502 },
             );
           }
@@ -188,17 +182,30 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     // ── 3. Delete row from assets table ──────────────────────────────────────
-    const { error: dbError } = await supabase.from('assets').delete().eq('id', id);
+    const { error: dbError } = await supabase
+      .from('assets')
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', workspaceId);
     if (dbError) {
       console.error('[asset-delete] DB delete failed', {
         assetId: asset.id,
         error: dbError.message,
       });
       return NextResponse.json(
-        { error: `Database delete failed: ${dbError.message}` },
+        { success: false, error: `Database delete failed: ${dbError.message}` },
         { status: 500 },
       );
     }
+
+    void supabase.from('activities').insert({
+      workspace_id: workspaceId,
+      type: 'asset_deleted',
+      description: `Asset "${asset.name}" deleted`,
+      user_uuid: auth.profile.id,
+      entity_type: 'asset',
+      entity_id: id,
+    });
 
     const successMessage = warning ?? 'Asset deleted successfully.';
     return NextResponse.json({
@@ -209,6 +216,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   } catch (err) {
     return NextResponse.json(
       {
+        success: false,
         error: err instanceof Error ? err.message : 'Unexpected server error while deleting asset',
       },
       { status: 500 },

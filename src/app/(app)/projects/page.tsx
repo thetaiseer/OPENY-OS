@@ -26,6 +26,7 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/context/toast-context';
 import { useAppPeriod } from '@/context/app-period-context';
 import { applyUtcTimestampRange } from '@/lib/date-range';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
@@ -118,6 +119,7 @@ export default function ProjectsPage() {
   const { t, lang } = useLang();
   const STATUS_LABEL = useMemo(() => statusLabels(t), [t]);
   const { role } = useAuth();
+  const { toast } = useToast();
   const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
   const canManage =
@@ -129,6 +131,7 @@ export default function ProjectsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -383,9 +386,21 @@ export default function ProjectsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm(t('projectsDeleteConfirm'))) return;
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    void queryClient.invalidateQueries({ queryKey: ['projects-all'] });
-    void queryClient.invalidateQueries({ queryKey: ['projects'] });
+    setDeletingProjectId(id);
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      const json = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? t('projectsDeleteFailed'));
+      }
+      toast(`${t('deleteAction')}: ${t('done')}`, 'success');
+      void queryClient.invalidateQueries({ queryKey: ['projects-all'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : t('projectsDeleteFailed'), 'error');
+    } finally {
+      setDeletingProjectId((current) => (current === id ? null : current));
+    }
   };
 
   const tabs: { id: ProjectTab; label: string }[] = [
@@ -638,9 +653,10 @@ export default function ProjectsPage() {
                         type="button"
                         variant="danger"
                         className="h-9 px-3 text-xs"
+                        disabled={deletingProjectId === project.id}
                         onClick={() => void handleDelete(project.id)}
                       >
-                        <Trash2 size={14} />
+                        {deletingProjectId === project.id ? t('loading') : <Trash2 size={14} />}
                       </Button>
                     )}
                   </div>

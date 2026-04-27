@@ -25,6 +25,7 @@ import { TASK_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { notifyTaskCompleted } from '@/lib/notification-service';
 import type { Task } from '@/lib/types';
 import { processEvent } from '@/lib/event-engine';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = [
   'todo',
@@ -272,51 +273,89 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<Params> }) {
-  const { id } = await params;
+  try {
+    const { id } = await params;
+    const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
+    if (auth instanceof NextResponse) return auth;
 
-  // Auth
-  const auth = await requireRole(request, ['admin', 'manager', 'team_member']);
-  if (auth instanceof NextResponse) return auth;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, step: 'validation', error: 'Task ID is required' },
+        { status: 400 },
+      );
+    }
 
-  if (!id) {
-    return NextResponse.json(
-      { success: false, step: 'validation', error: 'Task ID is required' },
-      { status: 400 },
+    const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      request,
+      db,
+      auth.profile.id,
+      { allowWorkspaceFallbackWithoutMembership: true },
     );
-  }
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 403 },
+      );
+    }
 
-  const db = getServiceClient();
-  const { error } = await db.from('tasks').delete().eq('id', id);
+    const { data: existing, error: existingError } = await db
+      .from('tasks')
+      .select('id, title, assigned_to, workspace_id')
+      .eq('id', id)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
+    if (existingError) {
+      return NextResponse.json(
+        { success: false, step: 'db_lookup', error: existingError.message },
+        { status: 500 },
+      );
+    }
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, step: 'db_lookup', error: 'Task not found' },
+        { status: 404 },
+      );
+    }
 
-  if (error) {
-    console.error(
-      '[DELETE /api/tasks/[id]] db_delete error — code:',
-      error.code,
-      '| message:',
-      error.message,
-    );
+    // team_member can only delete own assigned tasks; manager/admin/owner can delete all.
+    if (auth.profile.role === 'team_member' && existing.assigned_to !== auth.profile.id) {
+      return NextResponse.json(
+        { success: false, step: 'authorization', error: 'Forbidden' },
+        { status: 403 },
+      );
+    }
+
+    const { error } = await db.from('tasks').delete().eq('id', id).eq('workspace_id', workspaceId);
+    if (error) {
+      return NextResponse.json(
+        { success: false, step: 'db_delete', error: error.message },
+        { status: 500 },
+      );
+    }
+
+    void db.from('activities').insert({
+      workspace_id: workspaceId,
+      type: 'task_deleted',
+      description: `Task "${existing.title ?? id}" deleted`,
+      user_uuid: auth.profile.id,
+      entity_type: 'task',
+      entity_id: id,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
     return NextResponse.json(
-      { success: false, step: 'db_delete', error: error.message },
+      {
+        success: false,
+        step: 'unexpected',
+        error: err instanceof Error ? err.message : 'Unexpected error',
+      },
       { status: 500 },
     );
   }
-
-  // Activity log (fire-and-forget)
-  void Promise.resolve(
-    db.from('activities').insert({
-      type: 'task',
-      description: `Task deleted (id: ${id})`,
-    }),
-  )
-    .then(({ error: actErr }) => {
-      if (actErr) console.warn('[DELETE /api/tasks/[id]] activity log failed:', actErr.message);
-    })
-    .catch((err: unknown) => {
-      console.warn(
-        '[DELETE /api/tasks/[id]] activity log network error:',
-        err instanceof Error ? err.message : String(err),
-      );
-    });
-
-  return NextResponse.json({ success: true });
 }

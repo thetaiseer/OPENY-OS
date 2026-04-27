@@ -157,12 +157,14 @@ export async function DELETE(
       workspaceId,
       workspaceKey,
       error: workspaceError,
-    } = await resolveWorkspaceForRequest(request, db, auth.profile.id);
+    } = await resolveWorkspaceForRequest(request, db, auth.profile.id, {
+      allowWorkspaceFallbackWithoutMembership: true,
+    });
     if (workspaceError) {
-      return NextResponse.json({ error: workspaceError }, { status: 500 });
+      return NextResponse.json({ error: workspaceError }, { status: 403 });
     }
     if (!workspaceId) {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 500 });
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 403 });
     }
 
     const byId = await db

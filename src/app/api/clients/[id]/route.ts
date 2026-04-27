@@ -27,11 +27,12 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       request,
       db,
       auth.profile.id,
+      { allowWorkspaceFallbackWithoutMembership: true },
     );
     if (!workspaceId) {
       return NextResponse.json(
         { success: false, error: workspaceError ?? 'Workspace not found' },
-        { status: 500 },
+        { status: 403 },
       );
     }
 

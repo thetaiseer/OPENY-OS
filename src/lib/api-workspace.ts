@@ -160,7 +160,35 @@ async function resolveWorkspaceIdFromSession(
     .select('workspace_key, is_active')
     .eq('user_id', userId);
   if (allMemberships.error || !allMemberships.data?.length) {
-    return { workspaceId: null, workspaceKey: null };
+    // Owner-repair fallback: if the authenticated user owns a workspace row but
+    // has no workspace_memberships record, re-create an active owner membership.
+    const owned = await db
+      .from('workspaces')
+      .select('id, slug, name')
+      .eq('owner_id', userId)
+      .limit(5);
+    if (owned.error || !owned.data?.length) {
+      return { workspaceId: null, workspaceKey: null };
+    }
+    const ownedRows = owned.data as WorkspaceRow[];
+    const preferredOwned = pickWorkspaceForPreferredKey(ownedRows, preferredKey) ?? ownedRows[0];
+    const pickedKey: WorkspaceKey =
+      (preferredOwned?.slug ?? '').toLowerCase() === 'docs' ||
+      (preferredOwned?.name ?? '').toUpperCase().includes('DOCS')
+        ? 'docs'
+        : 'os';
+
+    await db.from('workspace_memberships').upsert(
+      {
+        user_id: userId,
+        workspace_key: pickedKey,
+        role: 'owner',
+        is_active: true,
+      },
+      { onConflict: 'user_id,workspace_key' },
+    );
+
+    return { workspaceId: preferredOwned?.id ?? null, workspaceKey: pickedKey };
   }
 
   const activeKeys = new Set(

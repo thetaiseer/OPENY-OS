@@ -138,13 +138,43 @@ export async function getApiUser(request: NextRequest): Promise<{ profile: UserP
 
     membershipRole = (membership?.role as WorkspaceRole | undefined) ?? null;
     if (!membershipRole) {
-      console.warn(
-        '[api-auth] workspace membership denied — email:',
-        email,
-        '| workspace:',
-        requiredWorkspace,
-      );
-      return null;
+      // Owner-repair fallback: if this user owns the requested workspace row
+      // but the membership row is missing, recreate membership automatically.
+      const ownedWorkspace = await admin
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+        .or(
+          requiredWorkspace === 'docs'
+            ? 'slug.eq.docs,name.ilike.%DOCS%'
+            : 'slug.eq.os,name.ilike.%OPENY%OS%,name.ilike.%default%workspace%',
+        )
+        .limit(1)
+        .maybeSingle();
+      if (!ownedWorkspace.error && ownedWorkspace.data?.id) {
+        const upsertMembership = await admin.from('workspace_memberships').upsert(
+          {
+            user_id: user.id,
+            workspace_key: requiredWorkspace,
+            role: 'owner',
+            is_active: true,
+          },
+          { onConflict: 'user_id,workspace_key' },
+        );
+        if (!upsertMembership.error) {
+          membershipRole = 'owner';
+        }
+      }
+
+      if (!membershipRole) {
+        console.warn(
+          '[api-auth] workspace membership denied — email:',
+          email,
+          '| workspace:',
+          requiredWorkspace,
+        );
+        return null;
+      }
     }
   }
 
@@ -199,14 +229,6 @@ export async function requireRole(
 
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // System-wide hard guard: destructive deletes are owner-only.
-  if (request.method === 'DELETE' && auth.profile.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Forbidden — only the owner can delete data from the system.' },
-      { status: 403 },
-    );
   }
 
   // Owner has full access to all system actions — bypass all role restrictions.
@@ -265,14 +287,6 @@ export async function requireModulePermission(
 
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // System-wide hard guard: destructive deletes are owner-only.
-  if (request.method === 'DELETE' && auth.profile.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Forbidden — only the owner can delete data from the system.' },
-      { status: 403 },
-    );
   }
 
   // Owner and admin always pass module checks.

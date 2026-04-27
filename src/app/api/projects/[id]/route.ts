@@ -9,6 +9,7 @@ import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -83,13 +84,57 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRole(req, ['admin', 'manager']);
-  if (auth instanceof NextResponse) return auth;
+  try {
+    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
+    if (auth instanceof NextResponse) return auth;
 
-  const { id } = await params;
-  const db = getServiceClient();
-  const { error } = await db.from('projects').delete().eq('id', id);
+    const { id } = await params;
+    const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+      { allowWorkspaceFallbackWithoutMembership: true },
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, error: workspaceError ?? 'Workspace not found' },
+        { status: 403 },
+      );
+    }
 
-  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    const { data: existing, error: fetchError } = await db
+      .from('projects')
+      .select('id, name')
+      .eq('id', id)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
+    if (fetchError)
+      return NextResponse.json({ success: false, error: fetchError.message }, { status: 500 });
+    if (!existing)
+      return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 });
+
+    const { error } = await db
+      .from('projects')
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', workspaceId);
+
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+
+    void db.from('activities').insert({
+      workspace_id: workspaceId,
+      type: 'project_deleted',
+      description: `Project "${existing.name ?? id}" deleted`,
+      user_uuid: auth.profile.id,
+      entity_type: 'project',
+      entity_id: id,
+    });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, error: err instanceof Error ? err.message : 'Unexpected error' },
+      { status: 500 },
+    );
+  }
 }
