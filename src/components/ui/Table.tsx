@@ -16,7 +16,7 @@ export function TableContainer({ className, children, ...props }: HTMLAttributes
 }
 
 export function TableHead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead {...props} className={cn('bg-elevated', className)} />;
+  return <thead {...props} className={cn('bg-[color:var(--surface-soft)]', className)} />;
 }
 
 export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
@@ -36,7 +36,7 @@ export function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-secondary',
+        'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[color:var(--text-secondary)]',
         className,
       )}
     >
@@ -51,7 +51,7 @@ export function TableCell({
   ...props
 }: HTMLAttributes<HTMLTableCellElement> & { children?: ReactNode }) {
   return (
-    <td {...props} className={cn('px-4 py-3 text-sm text-primary', className)}>
+    <td {...props} className={cn('px-4 py-3 text-sm text-[color:var(--text-primary)]', className)}>
       {children}
     </td>
   );

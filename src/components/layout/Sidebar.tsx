@@ -71,7 +71,7 @@ export default function Sidebar() {
               className={cn(
                 'flex items-center gap-2 rounded-control border px-3 py-2.5 text-sm leading-normal transition-colors',
                 active
-                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft'
+                  ? 'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-soft'
                   : 'border-transparent text-secondary hover:border-border hover:bg-[color:var(--surface-elevated)] hover:text-primary',
               )}
             >

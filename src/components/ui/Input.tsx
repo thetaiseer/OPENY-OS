@@ -26,7 +26,7 @@ export function Input({ label, error, icon, id, className, ...props }: InputProp
         id={id}
         {...props}
         className={cn(
-          'openy-control h-11 w-full px-4 text-sm text-primary outline-none placeholder:text-secondary disabled:cursor-not-allowed disabled:opacity-60',
+          'openy-control h-11 w-full px-4 text-sm text-[color:var(--text-primary)] outline-none placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:text-[color:var(--text-disabled)] disabled:opacity-100',
           icon ? 'pl-9' : '',
           error ? 'border-danger focus-within:border-danger focus-within:shadow-none' : '',
           className,
@@ -49,7 +49,7 @@ export function Textarea({ label, error, id, className, ...props }: TextareaProp
       id={id}
       {...props}
       className={cn(
-        'openy-control min-h-[120px] w-full px-4 py-3 text-sm text-primary outline-none placeholder:text-secondary disabled:cursor-not-allowed disabled:opacity-60',
+        'openy-control min-h-[120px] w-full px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none placeholder:text-[color:var(--text-muted)] disabled:cursor-not-allowed disabled:text-[color:var(--text-disabled)] disabled:opacity-100',
         error ? 'border-danger focus-within:border-danger focus-within:shadow-none' : '',
         className,
       )}
@@ -81,13 +81,13 @@ export function FormField({
   return (
     <div className={cn('space-y-1.5', className)}>
       {label ? (
-        <label htmlFor={htmlFor} className="text-sm font-medium text-primary">
+        <label htmlFor={htmlFor} className="text-sm font-medium text-[color:var(--text-secondary)]">
           {label}
         </label>
       ) : null}
       {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
-      {!error && hint ? <p className="text-xs text-secondary">{hint}</p> : null}
+      {error ? <p className="text-xs text-[color:var(--danger-text)]">{error}</p> : null}
+      {!error && hint ? <p className="text-xs text-[color:var(--text-muted)]">{hint}</p> : null}
     </div>
   );
 }

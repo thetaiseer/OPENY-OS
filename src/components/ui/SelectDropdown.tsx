@@ -96,14 +96,16 @@ export default function SelectDropdown({
   const displayContent = useMemo(() => {
     if (selectedOption) return selectedOption.label;
     if (stringValue === '' && showEmptyRow) {
-      return <span className="text-secondary">{placeholder ?? 'Select an option'}</span>;
+      return (
+        <span className="text-[color:var(--text-muted)]">{placeholder ?? 'Select an option'}</span>
+      );
     }
     if (stringValue === '' && hasEmptyOption) {
       const emptyOpt = normalizedOptions.find((o) => o.value === '');
       if (emptyOpt) return emptyOpt.label;
     }
-    if (placeholder) return <span className="text-secondary">{placeholder}</span>;
-    return <span className="text-secondary">Select an option</span>;
+    if (placeholder) return <span className="text-[color:var(--text-muted)]">{placeholder}</span>;
+    return <span className="text-[color:var(--text-muted)]">Select an option</span>;
   }, [selectedOption, stringValue, showEmptyRow, placeholder, hasEmptyOption, normalizedOptions]);
 
   const rowCount = (showEmptyRow ? 1 : 0) + normalizedOptions.length;
@@ -242,9 +244,9 @@ export default function SelectDropdown({
   };
 
   const triggerClass = cn(
-    'openy-control flex h-11 w-full items-center justify-between gap-2 px-4 text-left text-sm text-primary outline-none',
+    'openy-control flex h-11 w-full items-center justify-between gap-2 px-4 text-left text-sm text-[color:var(--text-primary)] outline-none',
     'focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/15',
-    'disabled:cursor-not-allowed disabled:opacity-60',
+    'disabled:cursor-not-allowed disabled:text-[color:var(--text-disabled)] disabled:opacity-100',
     fullWidth ? 'w-full' : 'min-w-[10rem]',
     error
       ? 'border-danger focus-visible:border-danger focus-visible:ring-[color:var(--danger)]/20'
@@ -253,14 +255,14 @@ export default function SelectDropdown({
   );
 
   const panelClass =
-    'max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--surface)] p-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.14)]';
+    'max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--surface-elevated)] p-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.14)]';
 
   const rowClass = (active: boolean) =>
     cn(
       'flex w-full items-center justify-between gap-2 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors',
       active
-        ? 'bg-[color:var(--accent-soft)] text-primary'
-        : 'text-primary hover:bg-[color:var(--surface-elevated)]',
+        ? 'bg-[color:var(--accent-soft)] text-[color:var(--text-primary)]'
+        : 'text-[color:var(--text-primary)] hover:bg-[color:var(--surface-soft)]',
     );
 
   const core = (
@@ -325,7 +327,7 @@ export default function SelectDropdown({
         <span className="min-w-0 flex-1 truncate">{displayContent}</span>
         <ChevronDown
           className={cn(
-            'h-4 w-4 shrink-0 text-secondary transition-transform',
+            'h-4 w-4 shrink-0 text-[color:var(--text-secondary)] transition-transform',
             open && 'rotate-180',
           )}
           aria-hidden
@@ -359,7 +361,7 @@ export default function SelectDropdown({
                   onMouseEnter={() => setHighlight(0)}
                   onClick={() => selectOptionAt(0)}
                 >
-                  <span className="min-w-0 flex-1 truncate text-secondary">
+                  <span className="min-w-0 flex-1 truncate text-[color:var(--text-muted)]">
                     {placeholder ?? 'Select an option'}
                   </span>
                   {stringValue === '' ? (
@@ -382,7 +384,9 @@ export default function SelectDropdown({
                     }}
                     className={cn(
                       rowClass(highlight === idx),
-                      option.disabled ? 'cursor-not-allowed opacity-50 hover:bg-transparent' : '',
+                      option.disabled
+                        ? 'cursor-not-allowed text-[color:var(--text-disabled)] opacity-100 hover:bg-transparent'
+                        : '',
                     )}
                     onMouseEnter={() => setHighlight(idx)}
                     onClick={() => selectOptionAt(idx)}

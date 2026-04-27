@@ -20,12 +20,13 @@ const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
 
 const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-contrast)] shadow-[0_10px_24px_rgba(47,93,255,0.24)] hover:bg-[color:var(--accent-hover)]',
+    'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_24px_rgba(37,99,235,0.24)] hover:bg-[color:var(--accent-hover)]',
   secondary:
-    'border-border bg-[color:var(--surface)] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_22px_rgba(15,23,42,0.06)] hover:bg-[color:var(--surface-elevated)]',
+    'border-border bg-[color:var(--surface-soft)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_22px_rgba(15,23,42,0.06)] hover:bg-[color:var(--surface-elevated)]',
   ghost:
-    'border-transparent bg-transparent text-secondary hover:bg-[color:var(--surface-elevated)] hover:text-primary',
-  danger: 'border-[color:var(--danger)] bg-[color:var(--danger)] text-white hover:brightness-95',
+    'border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text-primary)]',
+  danger:
+    'border-[color:var(--danger)] bg-[color:var(--danger)] text-[color:var(--danger-foreground)] shadow-[0_10px_24px_rgba(220,38,38,0.2)] hover:brightness-95',
 };
 
 export default function Button({
@@ -47,7 +48,7 @@ export default function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-control border font-medium leading-normal transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60',
+        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-control border font-medium leading-normal transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-[1px] disabled:cursor-not-allowed disabled:border-[color:var(--border)] disabled:bg-[color:var(--surface-soft)] disabled:text-[color:var(--text-disabled)] disabled:opacity-100',
         SIZE_CLASS[resolvedSize],
         VARIANT_CLASS[resolvedVariant],
         className,

@@ -57,7 +57,7 @@ export default function UserAccountMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         disabled={loading}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary disabled:opacity-50 sm:h-11 sm:w-11"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary disabled:text-[color:var(--text-disabled)] disabled:opacity-100 sm:h-11 sm:w-11"
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote profile URLs (R2 / Supabase)
@@ -136,8 +136,7 @@ export default function UserAccountMenu() {
               role="menuitem"
               disabled={signingOut}
               onClick={() => void handleSignOut()}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-rose-500/10 disabled:opacity-50"
-              style={{ color: '#b91c1c' }}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[color:var(--danger-text)] transition-colors hover:bg-[color:var(--danger-soft)] disabled:text-[color:var(--text-disabled)] disabled:opacity-100"
             >
               <LogOut size={16} />
               {signingOut ? t('signingOut') : t('logout')}

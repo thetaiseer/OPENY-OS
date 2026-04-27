@@ -3,29 +3,44 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #0a0f1e;
-  --bg-surface: #111827;
-  --bg-elevated: color-mix(in srgb, #111827 80%, #1f2937 20%);
-  --bg-soft: color-mix(in srgb, #0f172a 66%, transparent);
-  --border-subtle: rgba(255, 255, 255, 0.14);
-  --border: rgba(148, 163, 184, 0.24);
+  --bg: #07111f;
+  --surface: #0f1b2d;
+  --surface-soft: #14233a;
+  --surface-elevated: #18263d;
+
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #cbd5e1;
+  --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
-  --accent: #4f7cff;
-  --accent-hover: #6089ff;
-  --danger: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --bg: var(--bg-base);
-  --surface: var(--bg-surface);
-  --surface-2: var(--bg-elevated);
-  --surface-elevated: color-mix(in srgb, var(--bg-surface) 84%, #334155 16%);
-  --surface-shell: color-mix(in srgb, var(--bg-surface) 96%, black 4%);
+  --text-disabled: #64748b;
+
+  --border: #26364f;
+  --border-strong: #3b4a66;
+  --border-subtle: #26364f;
+
+  --primary: #60a5fa;
+  --primary-foreground: #020617;
+
+  --danger: #f87171;
+  --danger-foreground: #020617;
+  --danger-soft: #3f1d1d;
+  --danger-text: #fca5a5;
+
+  --success: #4ade80;
+  --warning: #fbbf24;
+
+  /* Backward-compatible aliases used across app */
+  --bg-base: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-soft);
+  --bg-soft: color-mix(in srgb, var(--surface-soft) 60%, transparent);
+  --surface-2: var(--surface-soft);
+  --surface-shell: color-mix(in srgb, var(--surface) 96%, black 4%);
   --text: var(--text-primary);
-  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
-  --accent-contrast: #ffffff;
+  --text-tertiary: var(--text-secondary);
+  --accent: var(--primary);
+  --accent-hover: color-mix(in srgb, var(--primary) 88%, white 12%);
+  --accent-soft: color-mix(in srgb, var(--primary) 22%, transparent);
+  --accent-contrast: var(--primary-foreground);
   --border-glass: var(--border);
   --radius-card: 22px;
   --radius-control: 16px;
@@ -46,29 +61,43 @@
 }
 
 [data-theme='light'] {
-  --bg-base: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-elevated: color-mix(in srgb, #ffffff 78%, #eef2f9 22%);
-  --bg-soft: color-mix(in srgb, #e2e8f0 30%, transparent);
-  --border-subtle: #e6ebf3;
-  --border: #e7ecf4;
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --surface-soft: #f3f6fb;
+  --surface-elevated: #ffffff;
+
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-tertiary: #475569;
-  --text-muted: #475569;
-  --accent: #2f5dff;
-  --accent-hover: #244fef;
-  --danger: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --bg: var(--bg-base);
-  --surface: var(--bg-surface);
-  --surface-2: var(--bg-elevated);
-  --surface-elevated: color-mix(in srgb, var(--bg-surface) 88%, #e2e8f0 12%);
-  --surface-shell: color-mix(in srgb, var(--bg-surface) 98%, #e2e8f0 2%);
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+
+  --border: #d8dee9;
+  --border-strong: #b6c0d2;
+  --border-subtle: #d8dee9;
+
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
+  --danger-soft: #fee2e2;
+  --danger-text: #b91c1c;
+
+  --success: #16a34a;
+  --warning: #d97706;
+
+  --bg-base: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-soft);
+  --bg-soft: color-mix(in srgb, var(--surface-soft) 65%, transparent);
+  --surface-2: var(--surface-soft);
+  --surface-shell: color-mix(in srgb, var(--surface) 98%, #e2e8f0 2%);
   --text: var(--text-primary);
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --accent-contrast: #ffffff;
+  --text-tertiary: var(--text-secondary);
+  --accent: var(--primary);
+  --accent-hover: color-mix(in srgb, var(--primary) 88%, black 12%);
+  --accent-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --accent-contrast: var(--primary-foreground);
   --border-glass: var(--border);
   --shadow-sm: 0 12px 28px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 28px 56px rgba(15, 23, 42, 0.1);
@@ -210,7 +239,8 @@ select {
   .openy-control {
     border: 1px solid var(--border);
     border-radius: var(--radius-control);
-    background: color-mix(in srgb, var(--surface) 92%, #ffffff 8%);
+    background: var(--surface);
+    color: var(--text-primary);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.8) inset,
       0 10px 24px rgba(15, 23, 42, 0.05);
@@ -222,7 +252,7 @@ select {
   }
 
   .openy-control:hover {
-    background: color-mix(in srgb, var(--surface-elevated) 90%, #ffffff 10%);
+    background: var(--surface-soft);
   }
 
   .openy-control:focus-within {
@@ -258,13 +288,13 @@ select {
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-control);
-    border: 1px solid var(--accent);
-    background-color: var(--accent);
+    border: 1px solid var(--primary);
+    background-color: var(--primary);
     box-shadow: 0 10px 24px rgba(47, 93, 255, 0.22);
     padding: 0.75rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #fff;
+    color: var(--primary-foreground);
     transition:
       transform 140ms ease,
       background-color 160ms ease;
@@ -285,7 +315,7 @@ select {
     justify-content: center;
     border-radius: var(--radius-control);
     border: 1px solid var(--border);
-    background-color: color-mix(in srgb, var(--surface) 92%, #ffffff 8%);
+    background-color: var(--surface-soft);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.78) inset,
       0 8px 22px rgba(15, 23, 42, 0.06);
@@ -299,7 +329,7 @@ select {
   }
 
   .openy-modal-btn-secondary:hover {
-    background-color: var(--surface-elevated);
+    background-color: color-mix(in srgb, var(--surface-soft) 85%, var(--surface) 15%);
   }
 
   .openy-modal-btn-secondary:active {

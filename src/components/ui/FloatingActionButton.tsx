@@ -90,7 +90,7 @@ export default function FloatingActionButton({
         type="button"
         {...props}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-soft-md transition-[filter,box-shadow] hover:shadow-lg hover:brightness-105 active:brightness-95"
+        className="inline-flex h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-soft-md transition-[filter,box-shadow] hover:shadow-lg hover:brightness-105 active:brightness-95"
         title={t('quickActions')}
         aria-expanded={open}
         aria-haspopup="menu"
