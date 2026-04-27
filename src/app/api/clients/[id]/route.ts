@@ -2,7 +2,7 @@
  * DELETE /api/clients/[id]
  *
  * Permanently removes a client in the current workspace.
- * Auth: workspace owner/admin.
+ * Auth: workspace owner/admin/manager.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,7 +14,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(request, ['owner', 'admin']);
+    const auth = await requireRole(request, ['owner', 'admin', 'manager']);
     if (auth instanceof NextResponse) return auth;
 
     const { id: clientId } = await ctx.params;

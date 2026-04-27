@@ -21,6 +21,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import type { Client } from '@/lib/types';
 import { isClientUuid, sanitizeClientRouteToken } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
+import { canDelete as canDeleteEntity } from '@/lib/permissions';
 import { ClientWorkspaceContext } from './client-context';
 import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 
@@ -45,6 +46,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
   const { toast } = useToast();
   const { role } = useAuth();
   const { periodYm } = useAppPeriod();
+  const canDeleteClient = canDeleteEntity(role, 'client');
 
   const [client, setClient] = useState<Client | null>(null);
   const [clientId, setClientId] = useState('');
@@ -354,7 +356,7 @@ export default function ClientWorkspaceLayout({ children }: { children: React.Re
               <Button type="button" variant="secondary" onClick={handleEdit}>
                 <Pencil size={14} /> Edit
               </Button>
-              {role === 'owner' || role === 'admin' ? (
+              {canDeleteClient ? (
                 <Button
                   type="button"
                   variant="danger"

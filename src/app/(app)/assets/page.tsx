@@ -720,7 +720,8 @@ function AssetsPage() {
     return workspaceSearchParamFromPathname(pathname);
   }, [defaultWorkspaceId, pathname]);
   const { toast } = useToast();
-  const canDeleteFiles = user?.role === 'admin' || user?.role === 'owner';
+  const canDeleteFiles =
+    user?.role === 'admin' || user?.role === 'owner' || user?.role === 'manager';
   const canUpload = canDeleteFiles || user?.role === 'team_member';
 
   const { startBatch, isUploading, latestAsset } = useUpload();

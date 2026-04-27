@@ -5,11 +5,14 @@ import { Plus, Calendar, User, Tag, AlertCircle, Trash2 } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { useToast } from '@/context/toast-context';
+import { useAuth } from '@/context/auth-context';
 import Badge from '@/components/ui/Badge';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import { ClientBrandMark } from '@/components/ui/ClientBrandMark';
 import { useClientWorkspace } from '../client-context';
 import type { Task, TeamMember, Client } from '@/lib/types';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import { canDelete as canDeleteEntity } from '@/lib/permissions';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,11 +56,15 @@ export default function ClientTasksPage() {
   const { client, clientId } = useClientWorkspace();
   const { t } = useLang();
   const { toast: addToast } = useToast();
+  const { role } = useAuth();
+  const canDeleteTasks = canDeleteEntity(role, 'task');
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [pendingDeleteTask, setPendingDeleteTask] = useState<Task | null>(null);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -81,26 +88,22 @@ export default function ClientTasksPage() {
     void load();
   }, [load]);
 
-  const handleDeleteTask = async (taskId: string, taskTitle: string) => {
-    if (!confirm(`Delete task "${taskTitle}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
-    if (error) {
-      addToast(error.message, 'error');
-      return;
+  const handleDeleteTask = async (task: Task) => {
+    setDeletingTaskId(task.id);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        addToast(json.error ?? t('failedDeleteTask'), 'error');
+        return;
+      }
+      setTasks((prev) => prev.filter((row) => row.id !== task.id));
+      addToast('Task deleted', 'success');
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : t('failedDeleteTask'), 'error');
+    } finally {
+      setDeletingTaskId((current) => (current === task.id ? null : current));
     }
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    // Log deletion activity via API so user_uuid and entity_id are tracked properly
-    void fetch('/api/activities', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'task_deleted',
-        description: `Task "${taskTitle}" deleted`,
-        client_id: clientId,
-        entity_type: 'task',
-        entity_id: taskId,
-      }),
-    });
   };
 
   if (loading) {
@@ -202,12 +205,15 @@ export default function ClientTasksPage() {
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => void handleDeleteTask(task.id, task.title)}
-                    className="shrink-0 rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {canDeleteTasks ? (
+                    <button
+                      onClick={() => setPendingDeleteTask(task)}
+                      className="shrink-0 rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      disabled={deletingTaskId === task.id}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  ) : null}
                 </div>
                 <div
                   className="flex flex-wrap items-center gap-2 text-xs"
@@ -273,6 +279,26 @@ export default function ClientTasksPage() {
         clients={clientsForModal}
         team={team}
         initialClientId={clientId}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteTask)}
+        title={t('deleteTask')}
+        description={
+          pendingDeleteTask
+            ? `${t('confirmDeleteTask')} "${pendingDeleteTask.title}"`
+            : t('confirmDeleteTask')
+        }
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteTask) && deletingTaskId === pendingDeleteTask?.id}
+        onCancel={() => setPendingDeleteTask(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteTask) return;
+          await handleDeleteTask(pendingDeleteTask);
+          setPendingDeleteTask(null);
+        }}
       />
     </div>
   );

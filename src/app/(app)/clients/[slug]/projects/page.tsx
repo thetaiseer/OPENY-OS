@@ -12,6 +12,8 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import { useToast } from '@/context/toast-context';
 
 type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
 
@@ -50,6 +52,7 @@ async function fetchProjects(clientId: string): Promise<Project[]> {
 export default function ClientProjectsPage() {
   const { clientId, client } = useClientWorkspace();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -63,6 +66,8 @@ export default function ClientProjectsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<Project | null>(null);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['projects', clientId],
@@ -181,14 +186,23 @@ export default function ClientProjectsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this project? Tasks linked to it will lose their project association.'))
-      return;
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    queryClient.setQueryData<Project[]>(['projects', clientId], (old) =>
-      (old ?? []).filter((project) => project.id !== id),
-    );
-    void queryClient.invalidateQueries({ queryKey: ['projects', clientId] });
+  const handleDelete = async (project: Project) => {
+    setDeletingProjectId(project.id);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        toast(json.error ?? 'Failed to delete project', 'error');
+        return;
+      }
+      queryClient.setQueryData<Project[]>(['projects', clientId], (old) =>
+        (old ?? []).filter((row) => row.id !== project.id),
+      );
+      void queryClient.invalidateQueries({ queryKey: ['projects', clientId] });
+      toast('Project deleted', 'success');
+    } finally {
+      setDeletingProjectId((current) => (current === project.id ? null : current));
+    }
   };
 
   return (
@@ -329,8 +343,9 @@ export default function ClientProjectsPage() {
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => void handleDelete(project.id)}
-                    className="rounded p-1 text-red-500 hover:bg-[var(--surface-2)]"
+                    onClick={() => setPendingDeleteProject(project)}
+                    className="rounded p-1 text-red-500 hover:bg-[var(--surface-2)] disabled:opacity-50"
+                    disabled={deletingProjectId === project.id}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -494,6 +509,22 @@ export default function ClientProjectsPage() {
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteProject)}
+        title="Delete project"
+        description="Delete this project? Tasks linked to it will lose their project association."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        loading={Boolean(pendingDeleteProject) && deletingProjectId === pendingDeleteProject?.id}
+        onCancel={() => setPendingDeleteProject(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteProject) return;
+          await handleDelete(pendingDeleteProject);
+          setPendingDeleteProject(null);
+        }}
+      />
     </div>
   );
 }

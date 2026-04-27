@@ -15,6 +15,7 @@ import { generateVideoThumbnail, isVideoFile } from '@/lib/video-thumbnail';
 import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 export default function ClientAssetsPage() {
   const { client, clientId } = useClientWorkspace();
@@ -30,6 +31,8 @@ export default function ClientAssetsPage() {
   const [loading, setLoading] = useState(true);
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [pendingDeleteAsset, setPendingDeleteAsset] = useState<Asset | null>(null);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
   const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState('social-media');
@@ -207,20 +210,19 @@ export default function ClientAssetsPage() {
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
-    if (!confirm(`Delete "${asset.name}"?`)) return;
-    const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
-    const json = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
-      return;
+    setDeletingAssetId(asset.id);
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) {
+        addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
+        return;
+      }
+      setAssets((prev) => prev.filter((a) => a.id !== asset.id));
+      addToast('Asset deleted', 'success');
+    } finally {
+      setDeletingAssetId((current) => (current === asset.id ? null : current));
     }
-    setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-    addToast('File deleted', 'success');
-    await supabase.from('activities').insert({
-      type: 'delete',
-      description: `Asset "${asset.name}" deleted`,
-      client_id: clientId,
-    });
   };
 
   const handleCopyAssetLink = async (asset: Asset) => {
@@ -299,9 +301,9 @@ export default function ClientAssetsPage() {
       ) : (
         <AssetsGrid
           assets={assets}
-          canDelete={user?.role === 'admin' || user?.role === 'owner'}
+          canDelete={user?.role === 'admin' || user?.role === 'owner' || user?.role === 'manager'}
           onView={(asset) => setPreviewAsset(asset)}
-          onDelete={(asset) => void handleDeleteAsset(asset)}
+          onDelete={(asset) => setPendingDeleteAsset(asset)}
           onCopyLink={(asset) => void handleCopyAssetLink(asset)}
           singleClientLogoUrl={client?.logo ?? null}
         />
@@ -355,6 +357,24 @@ export default function ClientAssetsPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteAsset)}
+        title={t('deleteAction')}
+        description={
+          pendingDeleteAsset ? `Delete "${pendingDeleteAsset.name}"?` : t('deleteAction')
+        }
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteAsset) && deletingAssetId === pendingDeleteAsset?.id}
+        onCancel={() => setPendingDeleteAsset(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteAsset) return;
+          await handleDeleteAsset(pendingDeleteAsset);
+          setPendingDeleteAsset(null);
+        }}
+      />
     </div>
   );
 }
