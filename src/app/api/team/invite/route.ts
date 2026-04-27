@@ -350,6 +350,62 @@ export async function POST(request: NextRequest) {
       .eq('email', email)
       .in('status', [...ACTIVE_INVITATION_STATUSES]);
 
+    const { data: regeneratedInvitation, error: regeneratedInvitationError } = await db
+      .from('team_invitations')
+      .select()
+      .eq('email', email)
+      .in('status', [...ACTIVE_INVITATION_STATUSES])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (regeneratedInvitationError || !regeneratedInvitation?.id) {
+      return NextResponse.json(
+        {
+          error:
+            regeneratedInvitationError?.message ??
+            'Failed to load regenerated invitation after update',
+        },
+        { status: 500 },
+      );
+    }
+
+    const teamMemberId = String(regeneratedInvitation.team_member_id ?? '').trim();
+    let regeneratedMember: Record<string, unknown> | null = null;
+
+    if (teamMemberId) {
+      const { data: byIdMember, error: byIdMemberError } = await db
+        .from('team_members')
+        .select()
+        .eq('id', teamMemberId)
+        .maybeSingle();
+      if (byIdMemberError) {
+        return NextResponse.json({ error: byIdMemberError.message }, { status: 500 });
+      }
+      regeneratedMember = (byIdMember as Record<string, unknown> | null) ?? null;
+    }
+
+    if (!regeneratedMember) {
+      const { data: byEmailMember, error: byEmailMemberError } = await db
+        .from('team_members')
+        .select()
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (byEmailMemberError || !byEmailMember?.id) {
+        return NextResponse.json(
+          {
+            error:
+              byEmailMemberError?.message ??
+              'Failed to load team member for regenerated invitation',
+          },
+          { status: 500 },
+        );
+      }
+      regeneratedMember = byEmailMember as Record<string, unknown>;
+    }
+
     try {
       await sendInviteEmail({
         to: email,
@@ -357,7 +413,16 @@ export async function POST(request: NextRequest) {
         workspaceName,
         role: access_role,
       });
-      return NextResponse.json({ success: true, regenerated: true }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: true,
+          regenerated: true,
+          emailSent: true,
+          member: regeneratedMember,
+          invitation: regeneratedInvitation,
+        },
+        { status: 200 },
+      );
     } catch (emailErr) {
       const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
       return NextResponse.json(
