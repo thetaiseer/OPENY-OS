@@ -34,15 +34,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const moduleAuth = await requireModulePermission(req, 'docs', 'accounting', 'full');
-  if (moduleAuth instanceof NextResponse) return moduleAuth;
+  try {
+    const moduleAuth = await requireModulePermission(req, 'docs', 'accounting', 'full');
+    if (moduleAuth instanceof NextResponse) return moduleAuth;
 
-  const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
-  if (auth instanceof NextResponse) return auth;
+    const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
+    if (auth instanceof NextResponse) return auth;
 
-  const { id } = await params;
-  const db = getServiceClient();
-  const { error } = await db.from('docs_accounting_expenses').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    const { id } = await params;
+    const db = getServiceClient();
+    const { error } = await db.from('docs_accounting_expenses').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unexpected delete error' },
+      { status: 500 },
+    );
+  }
 }

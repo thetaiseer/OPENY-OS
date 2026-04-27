@@ -1489,20 +1489,31 @@ function AssetsPage() {
   const handleDelete = async (asset: Asset) => {
     if (!confirm(t('assetsDeleteConfirm', { name: asset.name }))) return;
     const actionLabel = `${t('deleteAction')} / ${asset.name}`;
-    const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
-    const json = await res.json();
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        warning?: string;
+      };
+      if (!res.ok) {
+        toast(
+          `${actionLabel}: ${t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
+          'error',
+        );
+        return;
+      }
+      setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       toast(
-        `${actionLabel}: ${t('assetsDeleteFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
+        `${actionLabel}: ${String(json.message ?? json.warning ?? t('assetsDeletedSuccess'))}`,
+        'success',
+      );
+    } catch (err) {
+      toast(
+        `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
         'error',
       );
-      return;
     }
-    setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-    toast(
-      `${actionLabel}: ${String(json.message ?? json.warning ?? t('assetsDeletedSuccess'))}`,
-      'success',
-    );
   };
 
   const handleRename = async (asset: Asset, newName: string) => {

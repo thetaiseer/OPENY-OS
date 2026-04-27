@@ -142,158 +142,168 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireRole(request, ['owner', 'admin']);
-  if (auth instanceof NextResponse) return auth;
+  try {
+    const auth = await requireRole(request, ['owner', 'admin']);
+    if (auth instanceof NextResponse) return auth;
 
-  const { id } = await params;
-  if (!id) {
-    return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
-  }
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
+    }
 
-  const db = getServiceClient();
+    const db = getServiceClient();
 
-  const {
-    workspaceId,
-    workspaceKey,
-    error: workspaceError,
-  } = await resolveWorkspaceForRequest(request, db, auth.profile.id);
-  if (workspaceError) {
-    return NextResponse.json({ error: workspaceError }, { status: 500 });
-  }
-  if (!workspaceId) {
-    return NextResponse.json({ error: 'Workspace not found' }, { status: 500 });
-  }
+    const {
+      workspaceId,
+      workspaceKey,
+      error: workspaceError,
+    } = await resolveWorkspaceForRequest(request, db, auth.profile.id);
+    if (workspaceError) {
+      return NextResponse.json({ error: workspaceError }, { status: 500 });
+    }
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 500 });
+    }
 
-  const byId = await db
-    .from('team_members')
-    .select('id, full_name, role, profile_id, email')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (byId.error) {
-    return NextResponse.json({ error: byId.error.message }, { status: 500 });
-  }
-
-  let member = byId.data;
-  if (!member && UUID_RE.test(id)) {
-    const byProfile = await db
+    const byId = await db
       .from('team_members')
       .select('id, full_name, role, profile_id, email')
-      .eq('profile_id', id)
+      .eq('id', id)
       .maybeSingle();
-    if (byProfile.error) {
-      return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
+
+    if (byId.error) {
+      return NextResponse.json({ error: byId.error.message }, { status: 500 });
     }
-    member = byProfile.data;
-  }
 
-  if (!member) {
-    return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
-  }
-
-  const memberId = member.id as string;
-  if (member.profile_id && workspaceKey) {
-    const membership = await db
-      .from('workspace_memberships')
-      .select('user_id')
-      .eq('user_id', member.profile_id)
-      .eq('workspace_key', workspaceKey)
-      .eq('is_active', true)
-      .maybeSingle();
-    if (membership.error) {
-      return NextResponse.json({ error: membership.error.message }, { status: 500 });
+    let member = byId.data;
+    if (!member && UUID_RE.test(id)) {
+      const byProfile = await db
+        .from('team_members')
+        .select('id, full_name, role, profile_id, email')
+        .eq('profile_id', id)
+        .maybeSingle();
+      if (byProfile.error) {
+        return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
+      }
+      member = byProfile.data;
     }
-    if (!membership.data) {
-      return NextResponse.json(
-        { error: 'Team member not found in this workspace' },
-        { status: 404 },
-      );
+
+    if (!member) {
+      return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
     }
-  }
 
-  if (member.role === 'owner') {
-    return NextResponse.json(
-      { error: 'The workspace owner cannot be removed from the team.' },
-      { status: 403 },
-    );
-  }
-
-  const { data: workspaceRow } = await db
-    .from('workspaces')
-    .select('owner_id')
-    .eq('id', workspaceId)
-    .maybeSingle();
-  const ownerId = (workspaceRow as { owner_id?: string | null } | null)?.owner_id ?? null;
-  if (ownerId && member.profile_id && ownerId === member.profile_id) {
-    return NextResponse.json(
-      { error: 'The workspace owner cannot be removed from the team.' },
-      { status: 403 },
-    );
-  }
-
-  let workspaceUserId = (member.profile_id as string | null) ?? null;
-  if (!workspaceUserId && UUID_RE.test(id)) workspaceUserId = id;
-  if (!workspaceUserId && member.email) {
-    const emailLower = String(member.email).toLowerCase();
-    const { data: profile } = await db
-      .from('profiles')
-      .select('id')
-      .eq('email', emailLower)
-      .maybeSingle();
-    workspaceUserId = (profile as { id?: string } | null)?.id ?? null;
-  }
-
-  let workspaceMemberRow: { id: string; user_id: string } | null = null;
-  if (workspaceUserId) {
-    const lookup = await db
-      .from('workspace_members')
-      .select('id, user_id')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', workspaceUserId)
-      .maybeSingle();
-    if (lookup.error) {
-      return NextResponse.json({ error: lookup.error.message }, { status: 500 });
-    }
-    workspaceMemberRow = (lookup.data as { id: string; user_id: string } | null) ?? null;
-    if (workspaceMemberRow) {
-      const { error: wmError } = await db
-        .from('workspace_members')
-        .delete()
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', workspaceUserId);
-      if (wmError) {
+    const memberId = member.id as string;
+    if (member.profile_id && workspaceKey) {
+      const membership = await db
+        .from('workspace_memberships')
+        .select('user_id')
+        .eq('user_id', member.profile_id)
+        .eq('workspace_key', workspaceKey)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (membership.error) {
+        return NextResponse.json({ error: membership.error.message }, { status: 500 });
+      }
+      if (!membership.data) {
         return NextResponse.json(
-          { error: `Could not remove workspace membership: ${wmError.message}` },
-          { status: 500 },
+          { error: 'Team member not found in this workspace' },
+          { status: 404 },
         );
       }
     }
+
+    if (member.role === 'owner') {
+      return NextResponse.json(
+        { error: 'The workspace owner cannot be removed from the team.' },
+        { status: 403 },
+      );
+    }
+
+    const { data: workspaceRow } = await db
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .maybeSingle();
+    const ownerId = (workspaceRow as { owner_id?: string | null } | null)?.owner_id ?? null;
+    if (ownerId && member.profile_id && ownerId === member.profile_id) {
+      return NextResponse.json(
+        { error: 'The workspace owner cannot be removed from the team.' },
+        { status: 403 },
+      );
+    }
+
+    let workspaceUserId = (member.profile_id as string | null) ?? null;
+    if (!workspaceUserId && UUID_RE.test(id)) workspaceUserId = id;
+    if (!workspaceUserId && member.email) {
+      const emailLower = String(member.email).toLowerCase();
+      const { data: profile } = await db
+        .from('profiles')
+        .select('id')
+        .eq('email', emailLower)
+        .maybeSingle();
+      workspaceUserId = (profile as { id?: string } | null)?.id ?? null;
+    }
+
+    let workspaceMemberRow: { id: string; user_id: string } | null = null;
+    if (workspaceUserId) {
+      const lookup = await db
+        .from('workspace_members')
+        .select('id, user_id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', workspaceUserId)
+        .maybeSingle();
+      if (lookup.error) {
+        return NextResponse.json({ error: lookup.error.message }, { status: 500 });
+      }
+      workspaceMemberRow = (lookup.data as { id: string; user_id: string } | null) ?? null;
+      if (workspaceMemberRow) {
+        const { error: wmError } = await db
+          .from('workspace_members')
+          .delete()
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', workspaceUserId);
+        if (wmError) {
+          return NextResponse.json(
+            { error: `Could not remove workspace membership: ${wmError.message}` },
+            { status: 500 },
+          );
+        }
+      }
+    }
+
+    const { error: deleteError } = await db.from('team_members').delete().eq('id', memberId);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    void processEvent({
+      event_type: EVENT.MEMBER_REMOVED,
+      actor_id: auth.profile.id,
+      entity_type: 'team_member',
+      entity_id: memberId,
+      payload: {
+        memberName: member.full_name,
+        actorName: auth.profile.name,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deleted: {
+        team_member_id: memberId,
+        workspace_id: workspaceId,
+        user_id: workspaceUserId,
+        workspace_member_existed: Boolean(workspaceMemberRow),
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error ? err.message : 'Unexpected server error while deleting team member',
+      },
+      { status: 500 },
+    );
   }
-
-  const { error: deleteError } = await db.from('team_members').delete().eq('id', memberId);
-
-  if (deleteError) {
-    return NextResponse.json({ error: deleteError.message }, { status: 500 });
-  }
-
-  void processEvent({
-    event_type: EVENT.MEMBER_REMOVED,
-    actor_id: auth.profile.id,
-    entity_type: 'team_member',
-    entity_id: memberId,
-    payload: {
-      memberName: member.full_name,
-      actorName: auth.profile.name,
-    },
-  });
-
-  return NextResponse.json({
-    success: true,
-    deleted: {
-      team_member_id: memberId,
-      workspace_id: workspaceId,
-      user_id: workspaceUserId,
-      workspace_member_existed: Boolean(workspaceMemberRow),
-    },
-  });
 }
