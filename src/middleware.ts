@@ -26,27 +26,6 @@ const LEGACY_OS_REDIRECTS: Record<string, string> = {
   '/settings/profile': '/os/settings',
 };
 
-function isValidYmd(value: string): boolean {
-  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function weekRangeYmd(reference = new Date()): { from: string; to: string } {
-  const day = reference.getUTCDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const start = new Date(reference);
-  start.setUTCDate(reference.getUTCDate() + diffToMonday);
-  start.setUTCHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setUTCDate(start.getUTCDate() + 6);
-  end.setUTCHours(0, 0, 0, 0);
-  return {
-    from: start.toISOString().slice(0, 10),
-    to: end.toISOString().slice(0, 10),
-  };
-}
-
 /** Short TTL cache for auth.getUser() — reduces duplicate Auth API calls during rapid navigations. */
 const MW_USER_CACHE_MS = 12_000;
 
@@ -70,26 +49,6 @@ function authCookieSignature(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const fromParam = request.nextUrl.searchParams.get('from');
-  const toParam = request.nextUrl.searchParams.get('to');
-  const hasDateRangeParams = fromParam !== null || toParam !== null;
-  const isBypassedPath =
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon');
-
-  // Normalize invalid from/to query params early to prevent boot-time crashes.
-  if (hasDateRangeParams && !isBypassedPath) {
-    const fromValid = fromParam ? isValidYmd(fromParam) : false;
-    const toValid = toParam ? isValidYmd(toParam) : false;
-    if (!fromValid || !toValid) {
-      const url = request.nextUrl.clone();
-      const week = weekRangeYmd();
-      url.searchParams.set('from', week.from);
-      url.searchParams.set('to', week.to);
-      return NextResponse.redirect(url);
-    }
-  }
 
   // OPENY is invite-only: block any manual/public signup entry points.
   if (pathname === '/signup' || pathname.startsWith('/signup/')) {
