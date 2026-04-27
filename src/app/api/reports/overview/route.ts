@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,16 +41,54 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = getServiceClient();
+    const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
+      req,
+      db,
+      auth.profile.id,
+    );
+    if (!workspaceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'workspace_resolution',
+          error: workspaceError ?? 'Workspace not found',
+        },
+        { status: 500 },
+      );
+    }
+    const months = last6Months();
+    const rangeStart = `${months[0]}-01`;
+    const rangeEnd = `${months[months.length - 1]}-31`;
 
     const [clientsResult, tasksResult, assetsResult, schedulesResult, membersResult] =
       await Promise.allSettled([
-        db.from('clients').select('id, name'),
+        db.from('clients').select('id, name').eq('workspace_id', workspaceId),
         db
           .from('tasks')
-          .select('id, status, priority, due_date, client_id, assignee_id, created_at'),
-        db.from('assets').select('id, client_id, content_type, created_at'),
-        db.from('publishing_schedules').select('id, status, platforms, scheduled_date, client_id'),
-        db.from('team_members').select('id, full_name, role, profile_id').neq('status', 'invited'),
+          .select('id, status, priority, due_date, client_id, assignee_id, created_at')
+          .eq('workspace_id', workspaceId)
+          .gte('created_at', `${rangeStart}T00:00:00Z`)
+          .lte('created_at', `${rangeEnd}T23:59:59Z`)
+          .limit(2500),
+        db
+          .from('assets')
+          .select('id, client_id, content_type, created_at')
+          .eq('workspace_id', workspaceId)
+          .gte('created_at', `${rangeStart}T00:00:00Z`)
+          .lte('created_at', `${rangeEnd}T23:59:59Z`)
+          .limit(2500),
+        db
+          .from('publishing_schedules')
+          .select('id, status, platforms, scheduled_date, client_id')
+          .eq('workspace_id', workspaceId)
+          .gte('scheduled_date', rangeStart)
+          .lte('scheduled_date', rangeEnd)
+          .limit(2500),
+        db
+          .from('team_members')
+          .select('id, full_name, role, profile_id')
+          .eq('workspace_id', workspaceId)
+          .neq('status', 'invited'),
       ]);
 
     const clients = clientsResult.status === 'fulfilled' ? (clientsResult.value.data ?? []) : [];
@@ -148,7 +187,6 @@ export async function GET(req: NextRequest) {
 
     // ── Monthly trends ────────────────────────────────────────────────────────
 
-    const months = last6Months();
     const monthlyTrends = months.map((ym) => {
       const [y, m] = ym.split('-');
       const start = `${y}-${m}-01`;

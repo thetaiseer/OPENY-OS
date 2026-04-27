@@ -21,6 +21,7 @@ import { requireRole } from '@/lib/api-auth';
 import { notifyClientCreated } from '@/lib/notification-service';
 import { processEvent } from '@/lib/event-engine';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 
 export async function GET(req: NextRequest) {
   const { getApiUser } = await import('@/lib/api-auth');
@@ -43,17 +44,38 @@ export async function GET(req: NextRequest) {
       { status: 500 },
     );
   }
-  const { data, error } = await db
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(Number(searchParams.get('limit') ?? '50') || 50, 200);
+  const cursor = searchParams.get('cursor');
+
+  let query = db
     .from('clients')
-    .select('id,name,slug,status,default_currency,created_at,updated_at')
+    .select(CLIENT_LIST_COLUMNS)
     .eq('workspace_id', workspaceId)
-    .order('name', { ascending: true });
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit + 1);
+  if (cursor) query = query.lt('created_at', cursor);
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, clients: data ?? [] });
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  const sliced = hasMore ? rows.slice(0, limit) : rows;
+  const last = sliced[sliced.length - 1] as { created_at?: string } | undefined;
+  return NextResponse.json({
+    success: true,
+    clients: sliced,
+    pagination: {
+      limit,
+      hasMore,
+      nextCursor: hasMore ? (last?.created_at ?? null) : null,
+    },
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -125,7 +147,11 @@ export async function POST(request: NextRequest) {
   }
   insertPayload.workspace_id = workspaceId;
 
-  const { data, error } = await db.from('clients').insert(insertPayload).select().single();
+  const { data, error } = await db
+    .from('clients')
+    .insert(insertPayload)
+    .select(CLIENT_LIST_COLUMNS)
+    .single();
 
   if (error) {
     console.error(

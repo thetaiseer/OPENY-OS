@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const cursor = searchParams.get('cursor');
+  const limit = Math.min(Number(searchParams.get('limit') ?? '50') || 50, 200);
 
   try {
     const db = getServiceClient();
@@ -45,18 +47,32 @@ export async function GET(req: NextRequest) {
       .select(PROJECT_WITH_CLIENT)
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
-      .limit(200);
+      .order('id', { ascending: false })
+      .limit(limit + 1);
 
     if (clientId) query = query.eq('client_id', clientId);
     if (status) query = query.eq('status', status);
     if (from && to) {
       query = applyUtcTimestampRange(query, 'created_at', from, to);
     }
+    if (cursor) query = query.lt('created_at', cursor);
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-    return NextResponse.json({ success: true, projects: data ?? [] });
+    const rows = data ?? [];
+    const hasMore = rows.length > limit;
+    const sliced = hasMore ? rows.slice(0, limit) : rows;
+    const last = sliced[sliced.length - 1] as { created_at?: string } | undefined;
+    return NextResponse.json({
+      success: true,
+      projects: sliced,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor: hasMore ? (last?.created_at ?? null) : null,
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[api/projects] error:', message);
