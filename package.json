@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "smoke": "node scripts/smoke-routes.js",
+    "schema:consolidate": "node scripts/build-full-schema.mjs",
     "predeploy": "npm run lint && npm run build && npm run smoke",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
