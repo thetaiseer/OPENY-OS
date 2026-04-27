@@ -17,9 +17,9 @@ export type RouteMeta = {
   key: string;
   label: string;
   href: string;
-  breadcrumbLabel: string;
-  pageTitle: string;
-  description?: string;
+  title: string;
+  breadcrumbLabel?: string;
+  description: string;
   parent?: string;
   iconKey?: NavIconKey;
   sidebar?: boolean;
@@ -32,8 +32,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'dashboard',
     label: 'Dashboard',
     href: '/dashboard',
-    breadcrumbLabel: 'Dashboard',
-    pageTitle: 'Dashboard',
+    title: 'Dashboard',
+    description: 'Overview of performance, tasks, and workspace activity.',
     iconKey: 'dashboard',
     sidebar: true,
   },
@@ -41,8 +41,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'clients',
     label: 'Clients',
     href: '/clients',
-    breadcrumbLabel: 'Clients',
-    pageTitle: 'Clients',
+    title: 'Clients',
+    description: 'Manage client accounts and related workstreams.',
     iconKey: 'clients',
     sidebar: true,
   },
@@ -50,8 +50,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'client-details',
     label: 'Client details',
     href: '/clients/[id]',
-    breadcrumbLabel: 'Client details',
-    pageTitle: 'Client details',
+    title: 'Client details',
+    description: 'View client profile, projects, tasks, and assets.',
     parent: 'clients',
     matchPrefixes: ['/clients/', '/clients/edit/'],
   },
@@ -59,8 +59,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'projects',
     label: 'Projects',
     href: '/projects',
-    breadcrumbLabel: 'Projects',
-    pageTitle: 'Projects',
+    title: 'Projects',
+    description: 'Track project progress and delivery status.',
     iconKey: 'projects',
     sidebar: true,
   },
@@ -68,8 +68,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'project-details',
     label: 'Project details',
     href: '/projects/[id]',
-    breadcrumbLabel: 'Project details',
-    pageTitle: 'Project details',
+    title: 'Project details',
+    description: 'View project timeline, scope, and linked tasks.',
     parent: 'projects',
     matchPrefixes: ['/projects/'],
   },
@@ -77,8 +77,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'tasks',
     label: 'Tasks',
     href: '/tasks/all',
-    breadcrumbLabel: 'Tasks',
-    pageTitle: 'Tasks',
+    title: 'Tasks',
+    description: 'Manage personal and team task execution.',
     iconKey: 'tasks',
     sidebar: true,
     aliases: ['/tasks', '/my-tasks'],
@@ -87,8 +87,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'content',
     label: 'Content',
     href: '/content',
-    breadcrumbLabel: 'Content',
-    pageTitle: 'Content',
+    title: 'Content',
+    description: 'Plan, organize, and publish content assets.',
     iconKey: 'content',
     sidebar: true,
   },
@@ -96,8 +96,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'docs',
     label: 'Docs',
     href: '/docs',
-    breadcrumbLabel: 'Docs',
-    pageTitle: 'Docs',
+    title: 'Docs',
+    description: 'Create and manage operational business documents.',
     iconKey: 'docs',
     sidebar: true,
   },
@@ -105,8 +105,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'docs-invoice',
     label: 'Invoice',
     href: '/docs/invoice',
-    breadcrumbLabel: 'Invoice',
-    pageTitle: 'Invoice',
+    title: 'Invoice',
+    description: 'Create and manage invoices.',
     parent: 'docs',
     matchPrefixes: ['/docs/invoice', '/invoice'],
   },
@@ -114,8 +114,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'docs-quotation',
     label: 'Quotation',
     href: '/docs/quotation',
-    breadcrumbLabel: 'Quotation',
-    pageTitle: 'Quotation',
+    title: 'Quotation',
+    description: 'Create and manage quotations.',
     parent: 'docs',
     matchPrefixes: ['/docs/quotation', '/quotation'],
   },
@@ -123,8 +123,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'docs-accounting',
     label: 'Accounting',
     href: '/docs/accounting',
-    breadcrumbLabel: 'Accounting',
-    pageTitle: 'Accounting',
+    title: 'Accounting',
+    description: 'Track expenses, transfers, and financial entries.',
     parent: 'docs',
     matchPrefixes: ['/docs/accounting', '/accounting'],
   },
@@ -132,8 +132,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'calendar',
     label: 'Calendar',
     href: '/calendar',
-    breadcrumbLabel: 'Calendar',
-    pageTitle: 'Calendar',
+    title: 'Calendar',
+    description: 'View schedule, deadlines, and publishing timeline.',
     iconKey: 'calendar',
     sidebar: true,
   },
@@ -141,8 +141,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'assets',
     label: 'Assets',
     href: '/assets',
-    breadcrumbLabel: 'Assets',
-    pageTitle: 'Assets',
+    title: 'Assets',
+    description: 'Store, organize, and retrieve workspace files.',
     iconKey: 'assets',
     sidebar: true,
   },
@@ -150,8 +150,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'reports',
     label: 'Reports',
     href: '/reports/overview',
-    breadcrumbLabel: 'Reports',
-    pageTitle: 'Reports',
+    title: 'Reports',
+    description: 'Analyze outcomes and operational performance.',
     iconKey: 'reports',
     sidebar: true,
     aliases: ['/reports'],
@@ -160,8 +160,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'team',
     label: 'Team',
     href: '/team',
-    breadcrumbLabel: 'Team',
-    pageTitle: 'Team',
+    title: 'Team',
+    description: 'Manage team members, access, and invitations.',
     iconKey: 'team',
     sidebar: true,
   },
@@ -169,8 +169,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'activity',
     label: 'Activity',
     href: '/activity',
-    breadcrumbLabel: 'Activity',
-    pageTitle: 'Activity',
+    title: 'Activity',
+    description: 'Review recent workspace actions and events.',
     iconKey: 'activity',
     sidebar: true,
   },
@@ -178,8 +178,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'security',
     label: 'Security',
     href: '/security/sessions',
-    breadcrumbLabel: 'Security',
-    pageTitle: 'Security',
+    title: 'Security',
+    description: 'Manage sessions and account security controls.',
     iconKey: 'security',
     sidebar: true,
     aliases: ['/security'],
@@ -188,8 +188,8 @@ export const ROUTE_META: RouteMeta[] = [
     key: 'settings',
     label: 'Settings',
     href: '/settings/profile',
-    breadcrumbLabel: 'Settings',
-    pageTitle: 'Settings',
+    title: 'Settings',
+    description: 'Configure profile and workspace preferences.',
     iconKey: 'settings',
     sidebar: true,
     aliases: ['/settings'],
@@ -201,6 +201,12 @@ export type BreadcrumbItem = {
   label: string;
   href: string;
   isCurrent: boolean;
+};
+
+export type RoutePresentation = {
+  title: string;
+  description: string;
+  breadcrumbLabel: string;
 };
 
 function normalizePath(pathname: string): string {
@@ -237,6 +243,16 @@ export function resolveRouteMeta(pathnameRaw: string): RouteMeta | null {
   return best?.meta ?? null;
 }
 
+export function getRoutePresentation(pathnameRaw: string): RoutePresentation | null {
+  const meta = resolveRouteMeta(pathnameRaw);
+  if (!meta) return null;
+  return {
+    title: meta.title,
+    description: meta.description,
+    breadcrumbLabel: meta.breadcrumbLabel ?? meta.label,
+  };
+}
+
 export function getSidebarRoutes(): RouteMeta[] {
   return ROUTE_META.filter((meta) => meta.sidebar);
 }
@@ -259,7 +275,7 @@ export function buildBreadcrumbs(pathnameRaw: string): BreadcrumbItem[] {
 
   return chain.map((meta, index) => ({
     key: meta.key,
-    label: meta.breadcrumbLabel,
+    label: meta.breadcrumbLabel ?? meta.label,
     href: meta.href,
     isCurrent: index === chain.length - 1,
   }));

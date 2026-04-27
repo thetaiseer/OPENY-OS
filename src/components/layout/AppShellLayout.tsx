@@ -85,9 +85,6 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
             </div>
             <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
               <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
-              <div className="hidden max-w-[40%] md:block">
-                <RouteTitle />
-              </div>
             </div>
             {children}
           </PageShell>
