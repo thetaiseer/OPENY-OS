@@ -1882,24 +1882,24 @@ export default function TeamPage() {
             {t('teamRemoveMemberTrail')}
           </p>
           <div className="flex justify-end gap-3">
-            <button
+            <Button
               type="button"
               disabled={removingMember}
               onClick={() => setDeleteMember(null)}
-              className="h-9 rounded-lg px-4 text-sm font-medium disabled:opacity-50"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+              variant="secondary"
+              size="sm"
             >
               {t('cancel')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={removingMember}
               onClick={handleDelete}
-              className="h-9 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: 'var(--color-danger)' }}
+              variant="danger"
+              size="sm"
             >
               {removingMember ? t('teamRemoving') : t('teamRemove')}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>

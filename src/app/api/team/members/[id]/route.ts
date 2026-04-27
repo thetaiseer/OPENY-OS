@@ -187,21 +187,26 @@ export async function DELETE(
     workspaceId,
     count: workspaceUserIds.length,
   });
-  if (workspaceUserIds.length === 0) {
-    return NextResponse.json(
-      { error: 'Workspace has no members to match against' },
-      { status: 404 },
-    );
-  }
 
-  // Resolve row by team_members.id, or by profile_id when the UI sent workspace user_id.
-  // Keep the operation scoped to this workspace via workspace_members membership.
-  const byId = await db
-    .from('team_members')
-    .select('id, full_name, role, profile_id, email')
-    .eq('id', id)
-    .in('profile_id', workspaceUserIds)
-    .maybeSingle();
+  // Try scoped lookup first (current workspace members).
+  const byId =
+    workspaceUserIds.length > 0
+      ? await db
+          .from('team_members')
+          .select('id, full_name, role, profile_id, email')
+          .eq('id', id)
+          .in('profile_id', workspaceUserIds)
+          .maybeSingle()
+      : ({ data: null, error: null } as {
+          data: {
+            id: string;
+            full_name: string | null;
+            role: string | null;
+            profile_id: string | null;
+            email: string | null;
+          } | null;
+          error: { message: string } | null;
+        });
   console.log('[team/members/delete] query team_members by id executed', {
     id,
     workspaceId,
@@ -215,7 +220,7 @@ export async function DELETE(
   }
 
   let member = byId.data;
-  if (!member && UUID_RE.test(id)) {
+  if (!member && UUID_RE.test(id) && workspaceUserIds.length > 0) {
     const byProfile = await db
       .from('team_members')
       .select('id, full_name, role, profile_id, email')
@@ -233,6 +238,36 @@ export async function DELETE(
       return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
     }
     member = byProfile.data;
+  }
+
+  // Fallback: if member is not currently in workspace_members (e.g. pending/invited),
+  // still allow deletion by team_members.id or profile_id.
+  if (!member) {
+    const globalById = await db
+      .from('team_members')
+      .select('id, full_name, role, profile_id, email')
+      .eq('id', id)
+      .maybeSingle();
+    if (globalById.error) {
+      console.error('[team/members/delete] Global fetch by id error:', globalById.error.message);
+      return NextResponse.json({ error: globalById.error.message }, { status: 500 });
+    }
+    member = globalById.data;
+  }
+  if (!member && UUID_RE.test(id)) {
+    const globalByProfile = await db
+      .from('team_members')
+      .select('id, full_name, role, profile_id, email')
+      .eq('profile_id', id)
+      .maybeSingle();
+    if (globalByProfile.error) {
+      console.error(
+        '[team/members/delete] Global fetch by profile_id error:',
+        globalByProfile.error.message,
+      );
+      return NextResponse.json({ error: globalByProfile.error.message }, { status: 500 });
+    }
+    member = globalByProfile.data;
   }
 
   if (!member) {

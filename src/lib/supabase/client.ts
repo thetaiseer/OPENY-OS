@@ -31,5 +31,15 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
       },
     });
   }
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
 }

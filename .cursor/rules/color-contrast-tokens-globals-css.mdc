@@ -1,0 +1,14 @@
+---
+description: Color contrast tokens for OPENY-OS
+globs: src/app/globals.css
+alwaysApply: false
+---
+
+# Globals CSS Color Contrast Tokens
+
+When editing color tokens in `src/app/globals.css`:
+
+- Dark mode (`:root`) `--primary-foreground` must always be `#ffffff` (never `#020617`).
+- Light mode `--text-disabled` must be `#6b7280` or darker (never `#94a3b8`).
+- Light mode `--text-muted` must be `#4b6080` or darker.
+- All primary/danger buttons must have foreground color with contrast ratio >= `4.5:1`.
