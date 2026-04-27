@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { resolveFromToParams } from '@/lib/url-date';
 
 /**
  * GET /api/dashboard/team-performance
@@ -14,30 +15,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const from = searchParams.get('from') ?? '';
-    const to = searchParams.get('to') ?? '';
-    const isYmd = (v: string) => /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v);
-    const fromDate = isYmd(from) ? new Date(`${from}T00:00:00`) : null;
-    const toDate = isYmd(to) ? new Date(`${to}T00:00:00`) : null;
-    let rangeStartIso: string;
-    let rangeEndIso: string;
-    if (fromDate && toDate) {
-      const start = fromDate <= toDate ? fromDate : toDate;
-      const end = fromDate <= toDate ? toDate : fromDate;
-      rangeStartIso = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
-      rangeEndIso = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
-    } else {
-      const raw = searchParams.get('period') ?? '';
-      const now = new Date();
-      const defaultYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const period = /^\d{4}-(0[1-9]|1[0-2])$/.test(raw) ? raw : defaultYm;
-      const [py, pm] = period.split('-').map(Number);
-      const monthStart = new Date(py, pm - 1, 1).toISOString();
-      const monthEndDay = new Date(py, pm, 0).getDate();
-      const monthEnd = `${py}-${String(pm).padStart(2, '0')}-${String(monthEndDay).padStart(2, '0')}T23:59:59.999Z`;
-      rangeStartIso = monthStart;
-      rangeEndIso = monthEnd;
-    }
+    const { fromYmd, toYmd } = resolveFromToParams(searchParams);
+    const rangeStartIso = `${fromYmd}T00:00:00.000Z`;
+    const rangeEndIso = `${toYmd}T23:59:59.999Z`;
 
     const sb = getServiceClient();
 
@@ -80,7 +60,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, performance: result });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    console.error('[GET /api/dashboard/team-performance] failed', err);
+    return NextResponse.json({ success: false, error: 'Something went wrong' }, { status: 500 });
   }
 }

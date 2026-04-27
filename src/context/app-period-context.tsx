@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { getDefaultWeekRange, parseDate, toYmd } from '@/lib/url-date';
 
 export function calendarMonthNow(): string {
   return new Date().toISOString().slice(0, 7);
@@ -39,10 +40,8 @@ function parseYmd(s: string): Date | null {
 }
 
 function getCurrentMonthRange(): { from: string; to: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from: formatYmd(start), to: formatYmd(end) };
+  const defaults = getDefaultWeekRange();
+  return { from: toYmd(defaults.from), to: toYmd(defaults.to) };
 }
 
 /** First / last calendar day of `YYYY-MM` as `YYYY-MM-DD` (local). */
@@ -137,17 +136,15 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
       const url = new URL(window.location.href);
       const fromQuery = url.searchParams.get('from');
       const toQuery = url.searchParams.get('to');
-      if (fromQuery && toQuery && isValidYmd(fromQuery) && isValidYmd(toQuery)) {
-        const start = parseYmd(fromQuery);
-        const end = parseYmd(toQuery);
-        if (start && end) {
-          const normalized =
-            start <= end
-              ? { from: formatYmd(start), to: formatYmd(end) }
-              : { from: formatYmd(end), to: formatYmd(start) };
-          setPeriodRangeState(normalized);
-          return;
-        }
+      const start = parseDate(fromQuery);
+      const end = parseDate(toQuery);
+      if (start && end) {
+        const normalized =
+          start <= end
+            ? { from: formatYmd(start), to: formatYmd(end) }
+            : { from: formatYmd(end), to: formatYmd(start) };
+        setPeriodRangeState(normalized);
+        return;
       }
       setPeriodRangeState(currentMonthRange);
       updateUrlParams(currentMonthRange.from, currentMonthRange.to);

@@ -534,34 +534,44 @@ export default function DashboardPage() {
   });
 
   const { data: trendsData } = useQuery<{ date: string; completed: number }[]>({
-    queryKey: ['dashboard-trends', periodStart, periodEnd],
+    queryKey: ['dashboard-trends', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/dashboard/trends?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
-      );
-      if (!res.ok) return [];
-      const json = (await res.json()) as {
-        success: boolean;
-        trends?: { date: string; completed: number }[];
-      };
-      return json.trends ?? [];
+      try {
+        const res = await fetch(
+          `/api/dashboard/trends?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
+        );
+        if (!res.ok) return [];
+        const json = (await res.json()) as {
+          success: boolean;
+          trends?: { date: string; completed: number }[];
+        };
+        return json.trends ?? [];
+      } catch (error) {
+        console.error('[dashboard] trends fetch failed', error);
+        return [];
+      }
     },
     staleTime: 120_000,
     retry: 1,
   });
 
   const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
-    queryKey: ['dashboard-team-performance', periodStart, periodEnd],
+    queryKey: ['dashboard-team-performance', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/dashboard/team-performance?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
-      );
-      if (!res.ok) return [];
-      const json = (await res.json()) as {
-        success: boolean;
-        performance?: { id: string; name: string; completed: number }[];
-      };
-      return json.performance ?? [];
+      try {
+        const res = await fetch(
+          `/api/dashboard/team-performance?from=${encodeURIComponent(periodStart)}&to=${encodeURIComponent(periodEnd)}`,
+        );
+        if (!res.ok) return [];
+        const json = (await res.json()) as {
+          success: boolean;
+          performance?: { id: string; name: string; completed: number }[];
+        };
+        return json.performance ?? [];
+      } catch (error) {
+        console.error('[dashboard] team-performance fetch failed', error);
+        return [];
+      }
     },
     staleTime: 120_000,
     retry: 1,

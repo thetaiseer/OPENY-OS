@@ -10,6 +10,7 @@ import { emitEvent, EVENT } from '@/lib/workspace-events';
 import { PROJECT_WITH_CLIENT } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { applyUtcTimestampRange } from '@/lib/date-range';
+import { parseDate, toYmd } from '@/lib/url-date';
 
 const VALID_STATUSES = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const;
 
@@ -52,8 +53,12 @@ export async function GET(req: NextRequest) {
 
     if (clientId) query = query.eq('client_id', clientId);
     if (status) query = query.eq('status', status);
-    if (from && to) {
-      query = applyUtcTimestampRange(query, 'created_at', from, to);
+    const fromDate = parseDate(from);
+    const toDate = parseDate(to);
+    if (fromDate && toDate) {
+      const start = fromDate <= toDate ? fromDate : toDate;
+      const end = fromDate <= toDate ? toDate : fromDate;
+      query = applyUtcTimestampRange(query, 'created_at', toYmd(start), toYmd(end));
     }
     if (cursor) query = query.lt('created_at', cursor);
 

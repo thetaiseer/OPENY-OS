@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
+import { parseDate } from '@/lib/url-date';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, ['admin', 'manager', 'team_member']);
@@ -85,8 +86,10 @@ export async function GET(req: NextRequest) {
     if (clientId) query = query.eq('client_id', clientId);
     if (actorId) query = query.eq('actor_id', actorId);
     if (userRole) query = query.eq('user_role', userRole);
-    if (from) query = query.gte('created_at', from);
-    if (to) query = query.lte('created_at', to);
+    const fromDate = parseDate(from);
+    const toDate = parseDate(to);
+    if (fromDate) query = query.gte('created_at', fromDate.toISOString());
+    if (toDate) query = query.lte('created_at', toDate.toISOString());
     if (q) {
       // Sanitize special LIKE characters to prevent unexpected wildcard behavior
       const sanitizedQ = q.replace(/[%_\\]/g, (c) => `\\${c}`);
@@ -97,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error('[GET /api/activity-timeline] error:', error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Something went wrong' }, { status: 500 });
     }
 
     const actorIds = Array.from(
