@@ -239,3 +239,86 @@ export function buildDefaultPermissions(role: PlatformRole): MemberPermissions {
 export function buildBlankPermissions(): Omit<MemberPermissions, 'role'> {
   return { os: buildNoneOs(), docs: buildNoneDocs() };
 }
+
+// ── Entity action helpers (interaction safety layer) ─────────────────────────
+
+export type ActionRole = 'owner' | 'admin' | 'manager' | 'member' | 'viewer' | 'team_member';
+export type ActionEntityType =
+  | 'client'
+  | 'project'
+  | 'task'
+  | 'content'
+  | 'asset'
+  | 'team_member'
+  | 'document';
+
+function normalizeActionRole(role: string | null | undefined): ActionRole {
+  if (role === 'owner') return 'owner';
+  if (role === 'admin') return 'admin';
+  if (role === 'manager') return 'manager';
+  if (role === 'team_member') return 'member';
+  if (role === 'viewer' || role === 'client') return 'viewer';
+  return 'member';
+}
+
+export function canEdit(role: string | null | undefined, entityType: ActionEntityType): boolean {
+  const r = normalizeActionRole(role);
+  if (r === 'owner' || r === 'admin') return true;
+  if (r === 'manager') return entityType !== 'team_member';
+  if (r === 'member')
+    return entityType === 'task' || entityType === 'content' || entityType === 'asset';
+  return false;
+}
+
+export function canDelete(role: string | null | undefined, entityType: ActionEntityType): boolean {
+  const r = normalizeActionRole(role);
+  if (r === 'owner' || r === 'admin') return true;
+  if (r === 'manager') {
+    return (
+      entityType === 'client' ||
+      entityType === 'project' ||
+      entityType === 'task' ||
+      entityType === 'content' ||
+      entityType === 'asset'
+    );
+  }
+  if (r === 'member') {
+    return entityType === 'task' || entityType === 'content' || entityType === 'asset';
+  }
+  return false;
+}
+
+export function canArchive(role: string | null | undefined, entityType: ActionEntityType): boolean {
+  const r = normalizeActionRole(role);
+  if (r === 'owner' || r === 'admin') return true;
+  if (r === 'manager') return entityType !== 'team_member';
+  return false;
+}
+
+export function canRemoveTeamMember(
+  role: string | null | undefined,
+  targetRole: string | null | undefined,
+  options?: {
+    isSelf?: boolean;
+    ownerCount?: number;
+  },
+): { allowed: boolean; reason?: string } {
+  const actor = normalizeActionRole(role);
+  const target = normalizeActionRole(targetRole);
+  const ownerCount = options?.ownerCount ?? 1;
+  const isSelf = Boolean(options?.isSelf);
+
+  if (actor === 'viewer' || actor === 'member') {
+    return { allowed: false, reason: 'Insufficient permission' };
+  }
+  if (target === 'owner') {
+    return { allowed: false, reason: 'Owner cannot be removed' };
+  }
+  if (isSelf && actor === 'owner' && ownerCount <= 1) {
+    return { allowed: false, reason: 'Cannot remove the last owner' };
+  }
+  if (actor === 'admin' && target === 'admin') {
+    return { allowed: false, reason: 'Admin cannot remove peer admin' };
+  }
+  return { allowed: true };
+}

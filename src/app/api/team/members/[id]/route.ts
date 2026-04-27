@@ -148,7 +148,7 @@ export async function DELETE(
 
     const { id } = await params;
     if (!id) {
-      return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Member ID is required' }, { status: 400 });
     }
 
     const db = getServiceClient();
@@ -161,10 +161,10 @@ export async function DELETE(
       allowWorkspaceFallbackWithoutMembership: true,
     });
     if (workspaceError) {
-      return NextResponse.json({ error: workspaceError }, { status: 403 });
+      return NextResponse.json({ success: false, error: workspaceError }, { status: 403 });
     }
     if (!workspaceId) {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Workspace not found' }, { status: 403 });
     }
 
     const byId = await db
@@ -174,7 +174,7 @@ export async function DELETE(
       .maybeSingle();
 
     if (byId.error) {
-      return NextResponse.json({ error: byId.error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: byId.error.message }, { status: 500 });
     }
 
     let member = byId.data;
@@ -185,13 +185,16 @@ export async function DELETE(
         .eq('profile_id', id)
         .maybeSingle();
       if (byProfile.error) {
-        return NextResponse.json({ error: byProfile.error.message }, { status: 500 });
+        return NextResponse.json(
+          { success: false, error: byProfile.error.message },
+          { status: 500 },
+        );
       }
       member = byProfile.data;
     }
 
     if (!member) {
-      return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Team member not found' }, { status: 404 });
     }
 
     const memberId = member.id as string;
@@ -204,11 +207,14 @@ export async function DELETE(
         .eq('is_active', true)
         .maybeSingle();
       if (membership.error) {
-        return NextResponse.json({ error: membership.error.message }, { status: 500 });
+        return NextResponse.json(
+          { success: false, error: membership.error.message },
+          { status: 500 },
+        );
       }
       if (!membership.data) {
         return NextResponse.json(
-          { error: 'Team member not found in this workspace' },
+          { success: false, error: 'Team member not found in this workspace' },
           { status: 404 },
         );
       }
@@ -216,7 +222,7 @@ export async function DELETE(
 
     if (member.role === 'owner') {
       return NextResponse.json(
-        { error: 'The workspace owner cannot be removed from the team.' },
+        { success: false, error: 'The workspace owner cannot be removed from the team.' },
         { status: 403 },
       );
     }
@@ -229,7 +235,7 @@ export async function DELETE(
     const ownerId = (workspaceRow as { owner_id?: string | null } | null)?.owner_id ?? null;
     if (ownerId && member.profile_id && ownerId === member.profile_id) {
       return NextResponse.json(
-        { error: 'The workspace owner cannot be removed from the team.' },
+        { success: false, error: 'The workspace owner cannot be removed from the team.' },
         { status: 403 },
       );
     }
@@ -255,7 +261,7 @@ export async function DELETE(
         .eq('user_id', workspaceUserId)
         .maybeSingle();
       if (lookup.error) {
-        return NextResponse.json({ error: lookup.error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: lookup.error.message }, { status: 500 });
       }
       workspaceMemberRow = (lookup.data as { id: string; user_id: string } | null) ?? null;
       if (workspaceMemberRow) {
@@ -266,7 +272,7 @@ export async function DELETE(
           .eq('user_id', workspaceUserId);
         if (wmError) {
           return NextResponse.json(
-            { error: `Could not remove workspace membership: ${wmError.message}` },
+            { success: false, error: `Could not remove workspace membership: ${wmError.message}` },
             { status: 500 },
           );
         }
@@ -276,7 +282,7 @@ export async function DELETE(
     const { error: deleteError } = await db.from('team_members').delete().eq('id', memberId);
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: deleteError.message }, { status: 500 });
     }
 
     void processEvent({
@@ -302,6 +308,7 @@ export async function DELETE(
   } catch (err) {
     return NextResponse.json(
       {
+        success: false,
         error:
           err instanceof Error ? err.message : 'Unexpected server error while deleting team member',
       },

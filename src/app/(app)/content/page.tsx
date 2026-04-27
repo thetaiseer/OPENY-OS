@@ -2,16 +2,7 @@
 
 import { useState, useCallback, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Plus,
-  Search,
-  Trash2,
-  ChevronRight,
-  Instagram,
-  Linkedin,
-  Youtube,
-  Globe,
-} from 'lucide-react';
+import { Plus, Search, ChevronRight, Instagram, Linkedin, Youtube, Globe } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import type { ContentItem, ContentItemStatus, Client } from '@/lib/types';
@@ -25,6 +16,9 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { useLang } from '@/context/lang-context';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import { useDeleteContentItem } from '@/hooks/mutations/useDeleteContentItem';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -107,11 +101,18 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
 interface ContentCardProps {
   item: ContentItem;
   onStatusChange: (id: string, status: ContentItemStatus) => void;
+  onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   isDeleting?: boolean;
 }
 
-function ContentCard({ item, onStatusChange, onDelete, isDeleting = false }: ContentCardProps) {
+function ContentCard({
+  item,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  isDeleting = false,
+}: ContentCardProps) {
   const { t } = useLang();
   const nextStatuses: Partial<Record<ContentItemStatus, ContentItemStatus>> = {
     draft: 'pending_review',
@@ -184,18 +185,15 @@ function ContentCard({ item, onStatusChange, onDelete, isDeleting = false }: Con
               {t('reject')}
             </Button>
           )}
-          {onDelete && (
-            <Button
-              type="button"
-              variant="danger"
-              className="h-7 min-h-0 w-7 p-0"
-              disabled={isDeleting}
-              onClick={() => onDelete(item.id)}
-              aria-label={t('deleteAction')}
-            >
-              {isDeleting ? '…' : <Trash2 size={13} />}
-            </Button>
-          )}
+          {onDelete || onEdit ? (
+            <EntityActionsMenu
+              loading={isDeleting}
+              onEdit={onEdit ? () => onEdit(item.id) : undefined}
+              onDelete={onDelete ? () => onDelete(item.id) : undefined}
+              editLabel={t('editAction')}
+              deleteLabel={t('deleteAction')}
+            />
+          ) : null}
         </div>
       </div>
     </Card>
@@ -215,6 +213,8 @@ function ContentPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const deleteContentItemMutation = useDeleteContentItem();
 
   const {
     data: itemsData,
@@ -299,20 +299,9 @@ function ContentPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('confirmDeleteContentItem'))) return;
     setDeletingItemId(id);
     try {
-      const res = await fetch(`/api/content-items/${id}`, { method: 'DELETE' });
-      const json = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || !json.success) throw new Error(json.error ?? t('failedDeleteToast'));
-      queryClient.setQueryData<{ success: boolean; items: ContentItem[] }>(
-        ['content-items', clientFilter, statusFilter],
-        (old) => (old ? { ...old, items: old.items.filter((item) => item.id !== id) } : old),
-      );
-      void queryClient.invalidateQueries({
-        queryKey: ['content-items', clientFilter, statusFilter],
-      });
-      toast(t('contentItemDeletedToast'), 'success');
+      await deleteContentItemMutation.mutateAsync(id);
     } catch (err) {
       toast(err instanceof Error ? err.message : t('failedDeleteToast'), 'error');
     } finally {
@@ -418,7 +407,7 @@ function ContentPage() {
                   <ContentCard
                     item={item}
                     onStatusChange={handleStatusChange}
-                    onDelete={canDeleteContent ? handleDelete : undefined}
+                    onDelete={canDeleteContent ? (id) => setPendingDeleteId(id) : undefined}
                     isDeleting={deletingItemId === item.id}
                   />
                 </div>
@@ -427,6 +416,22 @@ function ContentPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title={t('deleteAction')}
+        description={t('confirmDeleteContentItem')}
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteId) && deletingItemId === pendingDeleteId}
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteId) return;
+          await handleDelete(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+      />
 
       <NewContentModal
         open={newOpen}

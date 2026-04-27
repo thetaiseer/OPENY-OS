@@ -32,6 +32,8 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import type {
   TeamMember,
   TeamInvitation,
@@ -41,13 +43,10 @@ import type {
   DocsModule,
   ActivityLogEntry,
 } from '@/lib/types';
-import {
-  normalizeWorkspaceKey,
-  WORKSPACE_ROLES,
-  workspaceSearchParamFromPathname,
-} from '@/lib/workspace-access';
+import { normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
+import { useRemoveTeamMember } from '@/hooks/mutations/useRemoveTeamMember';
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -1143,6 +1142,7 @@ export default function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
+  const removeMemberMutation = useRemoveTeamMember();
 
   // Member profile side panel
   const [panelMember, setPanelMember] = useState<TeamMember | null>(null);
@@ -1428,27 +1428,14 @@ export default function TeamPage() {
     }
     setRemovingMember(true);
     try {
-      const qs =
-        typeof window !== 'undefined'
-          ? workspaceSearchParamFromPathname(window.location.pathname)
-          : 'workspace=os';
-      const res = await fetch(`/api/team/members/${encodeURIComponent(deleteMember.id)}?${qs}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast(
-          `Remove member / ${deleteMember.full_name}: ${data.error ?? t('teamFailedRemoveMember')}`,
-          'error',
-        );
-        return;
-      }
+      await removeMemberMutation.mutateAsync(deleteMember.id);
       setDeleteMember(null);
-      toast(`Remove member / ${deleteMember.full_name}: ${t('teamMemberRemoved')}`, 'info');
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
-    } catch {
-      toast(`Remove member / ${deleteMember.full_name}: ${t('teamNetworkErrorRetry')}`, 'error');
+    } catch (err) {
+      toast(
+        `Remove member / ${deleteMember.full_name}: ${err instanceof Error ? err.message : t('teamNetworkErrorRetry')}`,
+        'error',
+      );
     } finally {
       setRemovingMember(false);
     }
@@ -1883,44 +1870,21 @@ export default function TeamPage() {
       </Modal>
 
       {/* ── Delete Confirm ────────────────────────────────────────────────── */}
-      <Modal
-        open={!!deleteMember}
-        onClose={() => !removingMember && setDeleteMember(null)}
-        title={
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {t('teamRemoveMemberTitle')}
-          </span>
+      <ConfirmDialog
+        open={Boolean(deleteMember)}
+        title={t('teamRemoveMemberTitle')}
+        description={
+          deleteMember
+            ? `${t('teamRemoveMemberLead')} ${deleteMember.full_name} ${t('teamRemoveMemberTrail')}`
+            : t('teamRemoveMemberLead')
         }
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-            {t('teamRemoveMemberLead')}
-            <strong>{deleteMember?.full_name}</strong>
-            {t('teamRemoveMemberTrail')}
-          </p>
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              disabled={removingMember}
-              onClick={() => setDeleteMember(null)}
-              variant="secondary"
-              size="sm"
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              disabled={removingMember}
-              onClick={handleDelete}
-              variant="danger"
-              size="sm"
-            >
-              {removingMember ? t('teamRemoving') : t('teamRemove')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        confirmLabel={t('teamRemove')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={removingMember}
+        onCancel={() => setDeleteMember(null)}
+        onConfirm={handleDelete}
+      />
 
       {/* ── Member Profile Side Panel ─────────────────────────────────────── */}
       {panelMember && (
@@ -2323,20 +2287,12 @@ function MemberCard({
         </div>
         {canManage && !isInvited && (
           <div className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={() => onEdit(member)}
-              className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-2)]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <Pencil size={13} />
-            </button>
-            <button
-              onClick={() => onDelete(member)}
-              className="rounded-lg p-1.5 transition-colors hover:bg-[var(--color-danger-bg)]"
-              style={{ color: 'var(--color-danger)' }}
-            >
-              <Trash2 size={13} />
-            </button>
+            <EntityActionsMenu
+              onEdit={() => onEdit(member)}
+              onDelete={() => onDelete(member)}
+              editLabel={t('editAction')}
+              deleteLabel={t('teamRemove')}
+            />
           </div>
         )}
       </div>

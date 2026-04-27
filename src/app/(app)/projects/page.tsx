@@ -3,16 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  FolderKanban,
-  FolderOpen,
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  LayoutGrid,
-  Calendar,
-} from 'lucide-react';
+import { FolderKanban, FolderOpen, Plus, Pencil, Search, LayoutGrid, Calendar } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import type { Client, Project, Task, TeamMember, Activity as ActivityItem } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
@@ -26,10 +17,12 @@ import SelectDropdown from '@/components/ui/SelectDropdown';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
-import { useToast } from '@/context/toast-context';
 import { useAppPeriod } from '@/context/app-period-context';
 import { applyUtcTimestampRange } from '@/lib/date-range';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
+import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import { useDeleteProject } from '@/hooks/mutations/useDeleteProject';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -119,7 +112,6 @@ export default function ProjectsPage() {
   const { t, lang } = useLang();
   const STATUS_LABEL = useMemo(() => statusLabels(t), [t]);
   const { role } = useAuth();
-  const { toast } = useToast();
   const { periodStart, periodEnd } = useAppPeriod();
   const queryClient = useQueryClient();
   const canManage =
@@ -132,6 +124,7 @@ export default function ProjectsPage() {
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<Project | null>(null);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -384,20 +377,11 @@ export default function ProjectsPage() {
     }
   };
 
+  const deleteProjectMutation = useDeleteProject();
   const handleDelete = async (id: string) => {
-    if (!confirm(t('projectsDeleteConfirm'))) return;
     setDeletingProjectId(id);
     try {
-      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-      const json = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? t('projectsDeleteFailed'));
-      }
-      toast(`${t('deleteAction')}: ${t('done')}`, 'success');
-      void queryClient.invalidateQueries({ queryKey: ['projects-all'] });
-      void queryClient.invalidateQueries({ queryKey: ['projects'] });
-    } catch (err) {
-      toast(err instanceof Error ? err.message : t('projectsDeleteFailed'), 'error');
+      await deleteProjectMutation.mutateAsync(id);
     } finally {
       setDeletingProjectId((current) => (current === id ? null : current));
     }
@@ -648,17 +632,15 @@ export default function ProjectsPage() {
                     >
                       <Pencil size={14} /> {t('editAction')}
                     </Button>
-                    {canDelete && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        className="h-9 px-3 text-xs"
-                        disabled={deletingProjectId === project.id}
-                        onClick={() => void handleDelete(project.id)}
-                      >
-                        {deletingProjectId === project.id ? t('loading') : <Trash2 size={14} />}
-                      </Button>
-                    )}
+                    {canDelete ? (
+                      <EntityActionsMenu
+                        loading={deletingProjectId === project.id}
+                        onEdit={() => openEdit(project)}
+                        onDelete={() => setPendingDeleteProject(project)}
+                        editLabel={t('editAction')}
+                        deleteLabel={t('deleteAction')}
+                      />
+                    ) : null}
                   </div>
                 )}
               </Card>
@@ -666,6 +648,22 @@ export default function ProjectsPage() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteProject)}
+        title={t('deleteAction')}
+        description={pendingDeleteProject ? t('projectsDeleteConfirm') : t('projectsDeleteConfirm')}
+        confirmLabel={t('deleteAction')}
+        cancelLabel={t('cancel')}
+        destructive
+        loading={Boolean(pendingDeleteProject) && deletingProjectId === pendingDeleteProject?.id}
+        onCancel={() => setPendingDeleteProject(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteProject) return;
+          await handleDelete(pendingDeleteProject.id);
+          setPendingDeleteProject(null);
+        }}
+      />
 
       <Modal
         open={modalOpen}
