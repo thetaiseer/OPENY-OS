@@ -48,7 +48,6 @@ import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
 import { useAppPeriod } from '@/context/app-period-context';
-import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import StatCard from '@/components/ui/StatCard';
@@ -70,6 +69,7 @@ import {
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
 import { taskStatusLabel } from '@/lib/task-status-labels';
 import { applyUtcTimestampRange } from '@/lib/date-range';
+import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -1457,6 +1457,7 @@ export default function TasksPage() {
     data: queryData,
     isLoading: loading,
     error: queryError,
+    refetch,
   } = useQuery({
     queryKey: tasksQueryKey,
     queryFn: async () => {
@@ -1517,6 +1518,7 @@ export default function TasksPage() {
             : [],
       };
     },
+    retry: 1,
   });
 
   const fetchError = queryError ? (queryError as Error).message : null;
@@ -2017,19 +2019,6 @@ export default function TasksPage() {
 
   return (
     <PageShell className="openy-tasks-page animate-openy-fade-in space-y-6">
-      {/* Fetch error banner */}
-      {fetchError && (
-        <div
-          className="flex items-center gap-3 rounded-xl border border-[var(--color-danger-border)] px-4 py-3 text-sm"
-          style={{
-            background: 'var(--color-danger-bg)',
-            color: 'var(--color-danger)',
-          }}
-        >
-          <AlertCircle size={16} className="shrink-0" />
-          <span>{fetchError}</span>
-        </div>
-      )}
       <Card padding="sm" className="sm:p-6">
         <PageHeader
           title={t('tasks')}
@@ -2274,28 +2263,20 @@ export default function TasksPage() {
 
       {/* Task list / kanban */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="h-40 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface)' }}
-            />
-          ))}
-        </div>
-      ) : fetchError ? null : filtered.length === 0 ? (
-        <EmptyState
-          icon={CheckSquare}
+        <LoadingState rows={6} cardHeightClass="h-40" />
+      ) : fetchError ? (
+        <ErrorState
+          title={t('tasks')}
+          description={fetchError}
+          actionLabel={t('assetsRetry')}
+          onAction={() => void refetch()}
+        />
+      ) : filtered.length === 0 ? (
+        <GlobalEmptyState
           title={t('noTasksYet')}
           description={t('noTasksDesc')}
-          action={
-            canManageTasks ? (
-              <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
-                <Plus size={16} />
-                {t('newTask')}
-              </Button>
-            ) : undefined
-          }
+          actionLabel={canManageTasks ? t('newTask') : undefined}
+          onAction={canManageTasks ? () => setCreateOpen(true) : undefined}
         />
       ) : view === 'kanban' ? (
         <Card

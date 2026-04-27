@@ -58,6 +58,7 @@ export function useClients(
       return { data: (data ?? []) as Client[], total: count ?? 0 };
     },
     staleTime: 30_000,
+    retry: 1,
     ...options,
   });
 }
@@ -104,6 +105,7 @@ export function useTasks(
       return { data: (data ?? []) as Task[], total: count ?? 0 };
     },
     staleTime: 15_000,
+    retry: 1,
     ...options,
   });
 }
@@ -163,6 +165,7 @@ export function useAssets(
       return { data: (data ?? []) as Asset[], total: count ?? 0 };
     },
     staleTime: 15_000,
+    retry: 1,
     ...options,
   });
 }
@@ -187,6 +190,7 @@ export function useNotifications(
       return { data: (data ?? []) as Notification[], total: count ?? 0 };
     },
     staleTime: 10_000,
+    retry: 1,
     ...options,
   });
 }
@@ -267,6 +271,7 @@ export function useDashboardStats(
       };
     },
     staleTime: 60_000,
+    retry: 1,
     ...options,
   });
 }

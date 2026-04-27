@@ -18,11 +18,11 @@ import {
   CalendarDays,
   MessageSquare,
 } from 'lucide-react';
-import EmptyState from '@/components/ui/EmptyState';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import type { ActivityLogEntry, NotificationCategory } from '@/lib/types';
 import { useLang } from '@/context/lang-context';
 import supabase from '@/lib/supabase';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -475,26 +475,18 @@ export default function ActivityTimelinePage() {
         </div>
       )}
 
-      {loadError && !loading && (
-        <p className="rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] px-4 py-3 text-sm text-[var(--color-danger)]">
-          {t('activityLoadError')}
-        </p>
-      )}
-
       {/* ── Timeline list ─────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-xl"
-              style={{ background: 'var(--surface)' }}
-            />
-          ))}
-        </div>
+        <LoadingState rows={6} className="grid-cols-1" cardHeightClass="h-16" />
+      ) : loadError ? (
+        <ErrorState
+          title={t('activityLoadError')}
+          description={t('activityNoActivityDesc')}
+          actionLabel={t('assetsRetry')}
+          onAction={() => void load(1, false)}
+        />
       ) : entries.length === 0 ? (
         <EmptyState
-          icon={Activity}
           title={t('activityNoActivityTitle')}
           description={t('activityNoActivityDesc')}
         />

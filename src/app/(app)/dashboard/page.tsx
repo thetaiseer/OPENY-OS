@@ -461,6 +461,7 @@ export default function DashboardPage() {
     },
     enabled: Boolean(user?.id),
     staleTime: 120_000,
+    retry: 1,
   });
 
   const displayName = profileDisplayName?.trim() || user?.name?.trim() || t('guestName');
@@ -483,6 +484,7 @@ export default function DashboardPage() {
       return (data ?? []) as ActivityType[];
     },
     staleTime: 30_000,
+    retry: 1,
   });
 
   const { data: assetRows } = useQuery<{ content_type: string | null }[]>({
@@ -498,6 +500,7 @@ export default function DashboardPage() {
       return (data ?? []) as { content_type: string | null }[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   // F2 fix: use publishing_schedules instead of deprecated assets.publish_date
@@ -522,6 +525,7 @@ export default function DashboardPage() {
       return (data ?? []) as unknown as PublishingSchedule[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const { data: trendsData } = useQuery<{ date: string; completed: number }[]>({
@@ -538,6 +542,7 @@ export default function DashboardPage() {
       return json.trends ?? [];
     },
     staleTime: 120_000,
+    retry: 1,
   });
 
   const { data: teamPerf } = useQuery<{ id: string; name: string; completed: number }[]>({
@@ -554,6 +559,7 @@ export default function DashboardPage() {
       return json.performance ?? [];
     },
     staleTime: 120_000,
+    retry: 1,
   });
 
   const { data: atRiskTasks } = useQuery({
@@ -580,6 +586,7 @@ export default function DashboardPage() {
       }>;
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const { data: recentAssets } = useQuery<Asset[]>({
@@ -599,6 +606,7 @@ export default function DashboardPage() {
       return (data ?? []) as Asset[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const { data: activeClients } = useQuery<Client[]>({
@@ -613,6 +621,7 @@ export default function DashboardPage() {
       return (data ?? []) as Client[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const contentDistItems = useMemo(() => {
@@ -640,6 +649,7 @@ export default function DashboardPage() {
       return (data ?? []) as { id: string; status: string }[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const donutData = useMemo(() => {
@@ -693,6 +703,7 @@ export default function DashboardPage() {
       return (data ?? []) as TaskRow[];
     },
     staleTime: 45_000,
+    retry: 1,
   });
 
   const { data: overdueTasksList = [] } = useQuery<TaskRow[]>({
@@ -714,6 +725,7 @@ export default function DashboardPage() {
       return (data ?? []) as TaskRow[];
     },
     staleTime: 45_000,
+    retry: 1,
   });
 
   const recentPace =

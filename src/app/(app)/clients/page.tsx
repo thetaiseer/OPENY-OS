@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   Plus,
   Search,
-  Users2,
   AlertCircle,
   FolderOpen,
   Image as ImageIcon,
@@ -31,6 +30,7 @@ import type { Client } from '@/lib/types';
 import { debugClientRouting, getClientRouteKey } from '@/lib/client-route-utils';
 import { CLIENT_LIST_COLUMNS } from '@/lib/supabase-list-columns';
 import { formatRelativeTime } from '@/lib/relative-time';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 const statusVariant = (s: string) => {
   if (s === 'active') return 'success' as const;
@@ -77,6 +77,7 @@ function ClientsPage() {
     data: clients = [],
     isLoading: loading,
     error: fetchErrorObj,
+    refetch,
   } = useQuery<Client[]>({
     queryKey: ['clients-list'],
     queryFn: async () => {
@@ -91,6 +92,7 @@ function ClientsPage() {
     // Clients change infrequently — keep cache fresh for 2 min (inherited from
     // QueryClient defaults) but also accept a longer gcTime so the list is
     // retained in memory while the user browses other sections.
+    retry: 1,
   });
   const fetchError = fetchErrorObj ? (fetchErrorObj as Error).message : null;
 
@@ -355,53 +357,22 @@ function ClientsPage() {
         </CardContent>
       </Card>
 
-      {fetchError && (
-        <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
-          style={{
-            background: 'rgba(239,68,68,0.1)',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.3)',
-          }}
-        >
-          <AlertCircle size={16} className="shrink-0" />
-          <span>{t('clientsLoadError')}</span>
-        </div>
-      )}
-
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-2xl"
-              style={{ background: 'var(--surface)', height: 220 }}
-            />
-          ))}
-        </div>
+        <LoadingState rows={6} cardHeightClass="h-[220px]" />
+      ) : fetchError ? (
+        <ErrorState
+          title={t('clientsLoadError')}
+          description={fetchError}
+          actionLabel={t('assetsRetry')}
+          onAction={() => void refetch()}
+        />
       ) : filteredClients.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-            <div
-              className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
-              style={{ background: 'var(--surface-2)' }}
-            >
-              <Users2 size={36} style={{ color: 'var(--text-secondary)' }} />
-            </div>
-            <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
-              {t('noClientsYet')}
-            </h3>
-            <p className="mb-6 max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {t('noClientsDesc')}
-            </p>
-            {canManageClients && (
-              <Button type="button" variant="primary" onClick={() => setModalOpen(true)}>
-                <Plus size={16} />
-                {t('newClient')}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={t('noClientsYet')}
+          description={t('noClientsDesc')}
+          actionLabel={canManageClients ? t('newClient') : undefined}
+          onAction={canManageClients ? () => setModalOpen(true) : undefined}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => {

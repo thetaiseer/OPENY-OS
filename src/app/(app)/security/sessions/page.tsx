@@ -23,6 +23,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -412,26 +413,18 @@ export default function SecurityPage() {
         </div>
       )}
 
-      {/* Error message */}
-      {error && (
-        <div
-          className="flex items-center gap-2 rounded-xl p-3"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
-        >
-          <AlertTriangle size={16} style={{ color: '#ef4444' }} />
-          <p className="text-sm" style={{ color: '#ef4444' }}>
-            {error}
-          </p>
-        </div>
-      )}
-
-      {/* Loading skeleton */}
+      {/* Primary state */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 animate-pulse rounded-2xl bg-[var(--surface)]" />
-          ))}
-        </div>
+        <LoadingState rows={3} className="grid-cols-1" cardHeightClass="h-32" />
+      ) : error ? (
+        <ErrorState
+          title={t('failedLoadSessions')}
+          description={error}
+          actionLabel={t('refresh')}
+          onAction={() => void loadSessions()}
+        />
+      ) : sessions.length === 0 ? (
+        <EmptyState title={t('noSessionsFound')} description={t('onlyThisDeviceSession')} />
       ) : (
         <>
           {/* Current session */}
@@ -489,9 +482,7 @@ export default function SecurityPage() {
           {activeSessions.length <= 1 && (
             <Card padding="md" className="py-6 text-center">
               <Shield size={32} className="mx-auto mb-2 text-[var(--text-secondary)] opacity-40" />
-              <p className="text-sm text-[var(--text-secondary)]">
-                {sessions.length === 0 ? t('noSessionsFound') : t('onlyThisDeviceSession')}
-              </p>
+              <p className="text-sm text-[var(--text-secondary)]">{t('onlyThisDeviceSession')}</p>
             </Card>
           )}
 

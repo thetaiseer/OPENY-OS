@@ -3,7 +3,6 @@
 import { useState, useCallback, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  FileText,
   Plus,
   Search,
   Trash2,
@@ -25,6 +24,7 @@ import { Input } from '@/components/ui/Input';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { useLang } from '@/context/lang-context';
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -213,16 +213,28 @@ function ContentPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
 
-  const { data: itemsData, isLoading } = useQuery<{ success: boolean; items: ContentItem[] }>({
+  const {
+    data: itemsData,
+    isLoading,
+    error: itemsError,
+    refetch: refetchItems,
+  } = useQuery<{ success: boolean; items: ContentItem[] }>({
     queryKey: ['content-items', clientFilter, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (clientFilter) params.set('client_id', clientFilter);
       if (statusFilter) params.set('status', statusFilter);
       const res = await fetch(`/api/content-items?${params}`);
-      return res.json() as Promise<{ success: boolean; items: ContentItem[] }>;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      const json = (await res.json()) as { success: boolean; items: ContentItem[]; error?: string };
+      if (!json.success) throw new Error(json.error ?? 'Failed to load content');
+      return json;
     },
     staleTime: 30_000,
+    retry: 1,
   });
 
   const { data: clientsData } = useQuery<{ data: Client[] }>({
@@ -233,6 +245,7 @@ function ContentPage() {
       return { data: (data ?? []) as Client[] };
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const items = itemsData?.items ?? [];
@@ -357,21 +370,16 @@ function ContentPage() {
 
       {/* Pipeline columns */}
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-48 animate-pulse rounded-2xl bg-[var(--surface)]" />
-          ))}
-        </div>
+        <LoadingState rows={6} cardHeightClass="h-48" className="grid-cols-2 lg:grid-cols-3" />
+      ) : itemsError ? (
+        <ErrorState
+          title={t('contentItemsTitle')}
+          description={(itemsError as Error).message}
+          actionLabel={t('assetsRetry')}
+          onAction={() => void refetchItems()}
+        />
       ) : filtered.length === 0 ? (
-        <Card padding="md" className="p-16 text-center">
-          <FileText size={36} className="mx-auto mb-3 text-[var(--text-secondary)] opacity-30" />
-          <p className="text-base font-medium text-[color:var(--text-primary)]">
-            {t('noContentItemsYet')}
-          </p>
-          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
-            {t('noContentItemsDesc')}
-          </p>
-        </Card>
+        <EmptyState title={t('noContentItemsYet')} description={t('noContentItemsDesc')} />
       ) : (
         <div
           className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"

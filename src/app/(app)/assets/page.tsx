@@ -15,7 +15,6 @@ import {
   FolderOpen,
   File,
   X,
-  AlertCircle,
   Search,
   ChevronRight,
   Folder,
@@ -33,7 +32,6 @@ import { useLang } from '@/context/lang-context';
 import { calendarMonthNow, useAppPeriod } from '@/context/app-period-context';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/context/toast-context';
-import EmptyState from '@/components/ui/EmptyState';
 import CommentsPanel from '@/components/ui/CommentsPanel';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import UploadModal from '@/components/features/upload/UploadModal';
@@ -57,6 +55,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
+import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1766,43 +1765,23 @@ function AssetsPage() {
           </div>
         )}
 
-        {/* ── Fetch error ──────────────────────────────────────────────────── */}
-        {fetchError && !loading && (
-          <Card className="border-[var(--color-danger-border)] bg-[var(--color-danger-bg)]">
-            <CardContent className="flex items-start gap-3 !p-4 py-3 text-sm text-[var(--color-danger)]">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{t('assetsFailedLoadTitle')}</p>
-                <p className="break-all opacity-80">{fetchError}</p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-auto shrink-0 p-0 underline"
-                onClick={() => fetchAssets(0)}
-              >
-                {t('assetsRetry')}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {/* ── Content area ─────────────────────────────────────────────────── */}
         {loading ? (
-          /* Skeleton */
-          <div className="min-[440px]:grid-cols-2 grid grid-cols-1 gap-4 xl:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse rounded-2xl"
-                style={{ background: 'var(--surface)', minHeight: '12rem' }}
-              />
-            ))}
-          </div>
+          <LoadingState
+            rows={6}
+            className="min-[440px]:grid-cols-2 grid-cols-1 xl:grid-cols-3"
+            cardHeightClass="min-h-[12rem]"
+          />
+        ) : fetchError ? (
+          <ErrorState
+            title={t('assetsFailedLoadTitle')}
+            description={fetchError}
+            actionLabel={t('assetsRetry')}
+            onAction={() => void fetchAssets(0)}
+          />
         ) : filteredAssets.length === 0 ? (
           /* Empty state */
-          <EmptyState
-            icon={FolderOpen}
+          <GlobalEmptyState
             title={
               hasActiveFilters || breadcrumbItems.length > 0
                 ? t('assetsNoMatchingFiles')
@@ -1813,29 +1792,22 @@ function AssetsPage() {
                 ? t('assetsNoMatchingDesc')
                 : t('noAssetsDesc')
             }
-            action={
-              !hasActiveFilters && canUpload ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={isUploading}
-                  onClick={() => !isUploading && fileRef.current?.click()}
-                >
-                  <Upload size={16} />
-                  {t('uploadFile')}
-                </Button>
-              ) : hasActiveFilters || breadcrumbItems.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={() => {
-                    clearFilters();
-                    navigateTo({});
-                  }}
-                >
-                  <X size={14} /> {t('assetsClearAll')}
-                </Button>
-              ) : undefined
+            actionLabel={
+              !hasActiveFilters && canUpload
+                ? t('uploadFile')
+                : hasActiveFilters || breadcrumbItems.length > 0
+                  ? t('assetsClearAll')
+                  : undefined
+            }
+            onAction={
+              !hasActiveFilters && canUpload
+                ? () => !isUploading && fileRef.current?.click()
+                : hasActiveFilters || breadcrumbItems.length > 0
+                  ? () => {
+                      clearFilters();
+                      navigateTo({});
+                    }
+                  : undefined
             }
           />
         ) : pathDepth < 5 && folderEntries.length > 0 ? (

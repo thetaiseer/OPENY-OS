@@ -23,12 +23,12 @@ import { Input, Textarea, Field } from '@/components/ui/Input';
 import StatCard from '@/components/ui/StatCard';
 import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import EmptyState from '@/components/ui/EmptyState';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useAppPeriod } from '@/context/app-period-context';
 import { applyUtcTimestampRange } from '@/lib/date-range';
+import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -140,10 +140,16 @@ export default function ProjectsPage() {
     color: '#6366f1',
   });
 
-  const { data: projects = [], isLoading } = useQuery({
+  const {
+    data: projects = [],
+    isLoading,
+    error: projectsError,
+    refetch: refetchProjects,
+  } = useQuery({
     queryKey: ['projects-all', periodStart, periodEnd],
     queryFn: () => fetchAllProjects(periodStart, periodEnd),
     staleTime: 60_000,
+    retry: 1,
   });
 
   const { data: clients = [] } = useQuery({
@@ -154,6 +160,7 @@ export default function ProjectsPage() {
       return (data ?? []) as Pick<Client, 'id' | 'name'>[];
     },
     staleTime: 120_000,
+    retry: 1,
   });
 
   const { data: projectTasks = [] } = useQuery({
@@ -176,6 +183,7 @@ export default function ProjectsPage() {
       >[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const { data: teamMembers = [] } = useQuery({
@@ -189,6 +197,7 @@ export default function ProjectsPage() {
       return (data ?? []) as Pick<TeamMember, 'id' | 'full_name' | 'profile_id'>[];
     },
     staleTime: 120_000,
+    retry: 1,
   });
 
   const { data: projectActivities = [] } = useQuery({
@@ -207,6 +216,7 @@ export default function ProjectsPage() {
       >[];
     },
     staleTime: 60_000,
+    retry: 1,
   });
 
   const projectMeta = useMemo(() => {
@@ -456,28 +466,15 @@ export default function ProjectsPage() {
         </CardContent>
       </Card>
 
-      {projects.length === 0 && isLoading ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-            <div
-              className="relative mb-5 flex h-24 w-24 animate-pulse items-center justify-center rounded-2xl ring-1 ring-[var(--border)]"
-              style={{ background: 'var(--surface-2)' }}
-            >
-              <FolderOpen
-                className="absolute opacity-25"
-                size={52}
-                style={{ color: 'var(--accent)' }}
-              />
-              <FolderKanban size={34} style={{ color: 'var(--text-secondary)' }} />
-            </div>
-            <h3 className="mb-2 text-xl font-semibold" style={{ color: 'var(--text)' }}>
-              {t('projectsLoading')}
-            </h3>
-            <p className="max-w-xs text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {t('projectsFetchingWorkspace')}
-            </p>
-          </CardContent>
-        </Card>
+      {isLoading ? (
+        <LoadingState rows={6} cardHeightClass="h-[220px]" />
+      ) : projectsError ? (
+        <ErrorState
+          title={t('projectsLoading')}
+          description={(projectsError as Error).message}
+          actionLabel={t('assetsRetry')}
+          onAction={() => void refetchProjects()}
+        />
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
@@ -507,17 +504,13 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={FolderKanban}
+        <GlobalEmptyState
           title={t('projectsNoProjectsFound')}
           description={tab === 'all' ? t('projectsNoProjectsDesc') : t('projectsEmptyFilterHint')}
-          action={
-            canManage && tab === 'all' && !search ? (
-              <Button type="button" variant="primary" onClick={openCreate}>
-                {t('projectsNewProjectPlus')}
-              </Button>
-            ) : null
+          actionLabel={
+            canManage && tab === 'all' && !search ? t('projectsNewProjectPlus') : undefined
           }
+          onAction={canManage && tab === 'all' && !search ? openCreate : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
