@@ -1138,6 +1138,7 @@ export default function TeamPage() {
   const [removingMember, setRemovingMember] = useState(false);
   const [cancellingInvite, setCancellingInvite] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [inviteErrorCode, setInviteErrorCode] = useState<string | null>(null);
 
   // Modals
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -1232,10 +1233,37 @@ export default function TeamPage() {
     [uniqueInvitations],
   );
 
+  const inviteEmailNormalized = inviteForm.email.trim().toLowerCase();
+  const existingMemberByInviteEmail = useMemo(() => {
+    if (!inviteEmailNormalized) return null;
+    return (
+      members.find(
+        (member) =>
+          (member.email ?? '').trim().toLowerCase() === inviteEmailNormalized &&
+          (!member.status || member.status === 'active'),
+      ) ?? null
+    );
+  }, [members, inviteEmailNormalized]);
+
+  useEffect(() => {
+    if (inviteErrorCode === 'ALREADY_MEMBER') {
+      setInviteErrorCode(null);
+      setActionError('');
+    }
+  }, [inviteForm.email, inviteErrorCode]);
+
   // ── Invite ────────────────────────────────────────────────────────────────
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
+    setInviteErrorCode(null);
+
+    if (existingMemberByInviteEmail) {
+      setInviteErrorCode('ALREADY_MEMBER');
+      setActionError('This person is already in your team.');
+      return;
+    }
+
     if (
       !inviteForm.full_name.trim() ||
       !inviteForm.email.trim() ||
@@ -1270,6 +1298,11 @@ export default function TeamPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data?.code === 'ALREADY_MEMBER') {
+          setInviteErrorCode('ALREADY_MEMBER');
+          setActionError('This person is already in your team.');
+          return;
+        }
         const exactDbError =
           process.env.NODE_ENV === 'development' ? (data.dbError ?? data.error ?? '') : '';
         setActionError(exactDbError || data.error || t('teamInviteFailed'));
@@ -1580,6 +1613,7 @@ export default function TeamPage() {
               variant="primary"
               onClick={() => {
                 setActionError('');
+                setInviteErrorCode(null);
                 setInviteOpen(true);
               }}
             >
@@ -1768,12 +1802,37 @@ export default function TeamPage() {
         <form onSubmit={handleInvite} className="space-y-4">
           <InviteForm f={inviteForm} setF={setInviteForm} />
           {actionError && (
-            <p
-              className="rounded-xl px-3 py-2 text-sm"
-              style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
-            >
-              {actionError}
-            </p>
+            <div className="space-y-2">
+              <p
+                className="rounded-xl px-3 py-2 text-sm"
+                style={
+                  inviteErrorCode === 'ALREADY_MEMBER'
+                    ? {
+                        background: 'var(--color-warning-bg, var(--surface-2))',
+                        color: 'var(--color-warning, var(--text))',
+                        border: '1px solid var(--color-warning-border, var(--border))',
+                      }
+                    : { background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }
+                }
+              >
+                {actionError}
+              </p>
+              {inviteErrorCode === 'ALREADY_MEMBER' && existingMemberByInviteEmail ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium underline underline-offset-2"
+                  style={{ color: 'var(--accent)' }}
+                  onClick={() => {
+                    setInviteOpen(false);
+                    setPanelMember(existingMemberByInviteEmail);
+                    setInviteErrorCode(null);
+                    setActionError('');
+                  }}
+                >
+                  View existing team member
+                </button>
+              ) : null}
+            </div>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -1786,7 +1845,7 @@ export default function TeamPage() {
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || inviteErrorCode === 'ALREADY_MEMBER'}
               className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >

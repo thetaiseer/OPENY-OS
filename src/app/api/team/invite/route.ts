@@ -294,7 +294,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (existingMembership?.id) {
       return NextResponse.json(
-        { error: 'This email already belongs to a workspace member.' },
+        {
+          success: false,
+          code: 'ALREADY_MEMBER',
+          error: 'This email is already a member of this workspace.',
+        },
         { status: 409 },
       );
     }
@@ -308,7 +312,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (existingMembershipLegacy?.id) {
       return NextResponse.json(
-        { error: 'This email already belongs to a workspace member.' },
+        {
+          success: false,
+          code: 'ALREADY_MEMBER',
+          error: 'This email is already a member of this workspace.',
+        },
         { status: 409 },
       );
     }
