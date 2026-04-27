@@ -38,6 +38,7 @@ import {
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
 import { taskStatusLabel } from '@/lib/task-status-labels';
+import { applyUtcTimestampRange } from '@/lib/date-range';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -306,11 +307,12 @@ export default function MyTasksPage() {
     queryKey: ['tasks-my', periodStart, periodEnd],
     queryFn: async () => {
       const [tasksRes, teamRes, clientsRes] = await Promise.allSettled([
-        supabase
-          .from('tasks')
-          .select('*, client:clients(id,name,logo,slug)')
-          .gte('due_date', periodStart)
-          .lte('due_date', periodEnd)
+        applyUtcTimestampRange(
+          supabase.from('tasks').select('*, client:clients(id,name,logo,slug)'),
+          'updated_at',
+          periodStart,
+          periodEnd,
+        )
           .order('due_date', { ascending: true })
           .limit(500),
         supabase

@@ -28,6 +28,7 @@ import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
 import { useAppPeriod } from '@/context/app-period-context';
+import { applyUtcTimestampRange } from '@/lib/date-range';
 
 type ProjectTab = 'all' | 'active' | 'completed' | 'archived';
 type ProjectStatus = Project['status'];
@@ -156,13 +157,18 @@ export default function ProjectsPage() {
   });
 
   const { data: projectTasks = [] } = useQuery({
-    queryKey: ['projects-task-metadata'],
+    queryKey: ['projects-task-metadata', periodStart, periodEnd],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('id, project_id, status, priority, due_date, assigned_to')
-        .not('project_id', 'is', null)
-        .limit(2000);
+      const rangeQuery = applyUtcTimestampRange(
+        supabase
+          .from('tasks')
+          .select('id, project_id, status, priority, due_date, assigned_to')
+          .not('project_id', 'is', null),
+        'updated_at',
+        periodStart,
+        periodEnd,
+      );
+      const { data, error } = await rangeQuery.limit(2000);
       if (error) throw new Error(error.message);
       return (data ?? []) as Pick<
         Task,

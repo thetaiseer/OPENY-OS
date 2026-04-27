@@ -69,6 +69,7 @@ import {
 } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, Client, TeamMember, Project } from '@/lib/types';
 import { taskStatusLabel } from '@/lib/task-status-labels';
+import { applyUtcTimestampRange } from '@/lib/date-range';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -1460,11 +1461,14 @@ export default function TasksPage() {
     queryKey: tasksQueryKey,
     queryFn: async () => {
       const [tasksRes, clientsRes, projectsRes, teamRes] = await Promise.allSettled([
-        supabase
-          .from('tasks')
-          .select('*, client:clients(id,name,logo,slug)')
-          .gte('due_date', periodStart)
-          .lte('due_date', periodEnd)
+        // Use updated_at (not due_date) so tasks without due dates are still visible.
+        // This keeps list behavior aligned with dashboard task statistics.
+        applyUtcTimestampRange(
+          supabase.from('tasks').select('*, client:clients(id,name,logo,slug)'),
+          'updated_at',
+          periodStart,
+          periodEnd,
+        )
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('clients').select('id,name,logo,slug').order('name'),

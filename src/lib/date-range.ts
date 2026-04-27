@@ -10,3 +10,27 @@ export function toUtcRangeBounds(from: string, to: string): { startIso: string; 
     endIso: endLocal.toISOString(),
   };
 }
+
+type RangeFilterQuery = {
+  gte: (column: string, value: string) => any;
+  lte: (column: string, value: string) => any;
+};
+
+export function applyUtcTimestampRange<T extends RangeFilterQuery>(
+  query: T,
+  column: string,
+  from: string,
+  to: string,
+): T {
+  const { startIso, endIso } = toUtcRangeBounds(from, to);
+  return query.gte(column, startIso).lte(column, endIso) as T;
+}
+
+export function applyDateOnlyRange<T extends RangeFilterQuery>(
+  query: T,
+  column: string,
+  from: string,
+  to: string,
+): T {
+  return query.gte(column, from).lte(column, to) as T;
+}

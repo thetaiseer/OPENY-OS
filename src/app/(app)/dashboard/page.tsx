@@ -36,7 +36,7 @@ import { useAuth } from '@/context/auth-context';
 import { useLang } from '@/context/lang-context';
 import { useAppPeriod } from '@/context/app-period-context';
 import { useDashboardStats } from '@/hooks/queries';
-import { toUtcRangeBounds } from '@/lib/date-range';
+import { applyDateOnlyRange, applyUtcTimestampRange, toUtcRangeBounds } from '@/lib/date-range';
 import StatCard from '@/components/ui/StatCard';
 import Skeleton, { SkeletonStatGrid } from '@/components/ui/Skeleton';
 import { contentTypeLabel } from '@/lib/asset-utils';
@@ -473,13 +473,13 @@ export default function DashboardPage() {
   const { data: activitiesData } = useQuery<ActivityType[]>({
     queryKey: ['activities', periodStart, periodEnd],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('activities')
-        .select('*')
-        .gte('created_at', periodStartIso)
-        .lte('created_at', periodEndIso)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const rangeQuery = applyUtcTimestampRange(
+        supabase.from('activities').select('*'),
+        'created_at',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await rangeQuery.order('created_at', { ascending: false }).limit(10);
       return (data ?? []) as ActivityType[];
     },
     staleTime: 30_000,
@@ -488,12 +488,13 @@ export default function DashboardPage() {
   const { data: assetRows } = useQuery<{ content_type: string | null }[]>({
     queryKey: ['asset-content-types', periodStart, periodEnd],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('assets')
-        .select('content_type')
-        .gte('created_at', periodStartIso)
-        .lte('created_at', periodEndIso)
-        .limit(500);
+      const rangeQuery = applyUtcTimestampRange(
+        supabase.from('assets').select('content_type'),
+        'created_at',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await rangeQuery.limit(500);
       return (data ?? []) as { content_type: string | null }[];
     },
     staleTime: 60_000,
@@ -503,14 +504,18 @@ export default function DashboardPage() {
   const { data: scheduled } = useQuery<PublishingSchedule[]>({
     queryKey: ['scheduled-posts', periodStart, periodEnd],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('publishing_schedules')
-        .select(
-          'id, scheduled_date, scheduled_time, platforms, client_id, caption, status, asset:assets(id, name, content_type, client_name)',
-        )
-        .in('status', ['scheduled', 'queued'])
-        .gte('scheduled_date', periodStart)
-        .lte('scheduled_date', periodEnd)
+      const rangeQuery = applyDateOnlyRange(
+        supabase
+          .from('publishing_schedules')
+          .select(
+            'id, scheduled_date, scheduled_time, platforms, client_id, caption, status, asset:assets(id, name, content_type, client_name)',
+          )
+          .in('status', ['scheduled', 'queued']),
+        'scheduled_date',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await rangeQuery
         .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true })
         .limit(5);
@@ -555,11 +560,13 @@ export default function DashboardPage() {
     queryKey: ['at-risk-tasks', periodStart, periodEnd],
     queryFn: async () => {
       const soonStr = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, status, client:clients(id,name,slug)')
-        .gte('due_date', periodStart)
-        .lte('due_date', periodEnd)
+      const ranged = applyDateOnlyRange(
+        supabase.from('tasks').select('id, title, due_date, status, client:clients(id,name,slug)'),
+        'due_date',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await ranged
         .lte('due_date', soonStr)
         .not('status', 'in', '("done","delivered","completed","published","cancelled")')
         .order('due_date', { ascending: true })
@@ -578,15 +585,17 @@ export default function DashboardPage() {
   const { data: recentAssets } = useQuery<Asset[]>({
     queryKey: ['dashboard-recent-assets', periodStart, periodEnd],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('assets')
-        .select(
-          'id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id',
-        )
-        .gte('created_at', periodStartIso)
-        .lte('created_at', periodEndIso)
-        .order('created_at', { ascending: false })
-        .limit(6);
+      const rangeQuery = applyUtcTimestampRange(
+        supabase
+          .from('assets')
+          .select(
+            'id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id',
+          ),
+        'created_at',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await rangeQuery.order('created_at', { ascending: false }).limit(6);
       return (data ?? []) as Asset[];
     },
     staleTime: 60_000,
@@ -621,11 +630,12 @@ export default function DashboardPage() {
   const { data: projectRows = [] } = useQuery({
     queryKey: ['dashboard-projects-mini', periodStartIso, periodEndIso],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id,status')
-        .gte('created_at', periodStartIso)
-        .lte('created_at', periodEndIso);
+      const { data, error } = await applyUtcTimestampRange(
+        supabase.from('projects').select('id,status'),
+        'created_at',
+        periodStart,
+        periodEnd,
+      );
       if (error) throw new Error(error.message);
       return (data ?? []) as { id: string; status: string }[];
     },
@@ -668,13 +678,15 @@ export default function DashboardPage() {
       weekLater.setDate(weekLater.getDate() + 7);
       const weekLaterStr = weekLater.toISOString().slice(0, 10);
       const terminal = '("done","delivered","completed","published","cancelled")';
-      const { data } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, client:clients(name, slug)')
+      const inPeriod = applyDateOnlyRange(
+        supabase.from('tasks').select('id, title, due_date, client:clients(name, slug)'),
+        'due_date',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await inPeriod
         .gte('due_date', todayStr)
         .lte('due_date', weekLaterStr)
-        .gte('due_date', periodStart)
-        .lte('due_date', periodEnd)
         .not('status', 'in', terminal)
         .order('due_date', { ascending: true })
         .limit(8);
@@ -688,12 +700,14 @@ export default function DashboardPage() {
     queryFn: async () => {
       const todayStr = new Date().toISOString().slice(0, 10);
       const terminal = '("done","delivered","completed","published","cancelled")';
-      const { data } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, client:clients(name, slug)')
+      const inPeriod = applyDateOnlyRange(
+        supabase.from('tasks').select('id, title, due_date, client:clients(name, slug)'),
+        'due_date',
+        periodStart,
+        periodEnd,
+      );
+      const { data } = await inPeriod
         .lt('due_date', todayStr)
-        .gte('due_date', periodStart)
-        .lte('due_date', periodEnd)
         .not('status', 'in', terminal)
         .order('due_date', { ascending: true })
         .limit(8);
