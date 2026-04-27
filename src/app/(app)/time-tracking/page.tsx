@@ -6,6 +6,7 @@ import { Play, Square, Plus, Clock, Trash2, Check } from 'lucide-react';
 import type { TimeEntry, Task, Client } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -74,6 +75,8 @@ export default function TimeTrackingPage() {
   });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pendingDeleteEntry, setPendingDeleteEntry] = useState<TimeEntry | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState(false);
 
   // Live elapsed for running timer
   const [elapsed, setElapsed] = useState(0);
@@ -158,10 +161,16 @@ export default function TimeTrackingPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this time entry?')) return;
-    await fetch(`/api/time-entries/${id}`, { method: 'DELETE' });
-    void queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+  const handleDelete = async () => {
+    if (!pendingDeleteEntry) return;
+    setDeletingEntry(true);
+    try {
+      await fetch(`/api/time-entries/${pendingDeleteEntry.id}`, { method: 'DELETE' });
+      void queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      setPendingDeleteEntry(null);
+    } finally {
+      setDeletingEntry(false);
+    }
   };
 
   // Total today
@@ -299,7 +308,7 @@ export default function TimeTrackingPage() {
                     {formatDuration(entry.duration_seconds ?? 0)}
                   </span>
                   <button
-                    onClick={() => void handleDelete(entry.id)}
+                    onClick={() => setPendingDeleteEntry(entry)}
                     className="rounded p-1 text-red-500 opacity-0 transition-all hover:bg-[var(--surface)] group-hover:opacity-100"
                   >
                     <Trash2 size={13} />
@@ -455,6 +464,20 @@ export default function TimeTrackingPage() {
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>
       )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteEntry)}
+        title="Delete time entry"
+        description="Delete this time entry? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        loading={deletingEntry}
+        onCancel={() => {
+          if (deletingEntry) return;
+          setPendingDeleteEntry(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

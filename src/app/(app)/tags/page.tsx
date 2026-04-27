@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Tag, Trash2, Pencil, Check, Circle } from 'lucide-react';
 import type { Tag as TagType } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 const TAG_COLORS = [
   '#6366f1',
@@ -33,6 +34,8 @@ export default function TagsPage() {
   const [form, setForm] = useState({ name: '', color: '#6366f1', description: '' });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pendingDeleteTag, setPendingDeleteTag] = useState<TagType | null>(null);
+  const [deletingTag, setDeletingTag] = useState(false);
 
   const { data: tags = [], isLoading } = useQuery<TagType[]>({
     queryKey: ['tags'],
@@ -76,10 +79,16 @@ export default function TagsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this tag? All tag links will also be removed.')) return;
-    await fetch(`/api/tags/${id}`, { method: 'DELETE' });
-    void queryClient.invalidateQueries({ queryKey: ['tags'] });
+  const handleDelete = async () => {
+    if (!pendingDeleteTag) return;
+    setDeletingTag(true);
+    try {
+      await fetch(`/api/tags/${pendingDeleteTag.id}`, { method: 'DELETE' });
+      void queryClient.invalidateQueries({ queryKey: ['tags'] });
+      setPendingDeleteTag(null);
+    } finally {
+      setDeletingTag(false);
+    }
   };
 
   return (
@@ -161,7 +170,7 @@ export default function TagsPage() {
                   <Pencil size={14} />
                 </button>
                 <button
-                  onClick={() => void handleDelete(tag.id)}
+                  onClick={() => setPendingDeleteTag(tag)}
                   className="rounded p-1.5 text-red-500 transition-colors hover:bg-[var(--surface)]"
                 >
                   <Trash2 size={14} />
@@ -269,6 +278,20 @@ export default function TagsPage() {
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>
       )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteTag)}
+        title="Delete tag"
+        description={`Delete "${pendingDeleteTag?.name || 'this tag'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        loading={deletingTag}
+        onCancel={() => {
+          if (deletingTag) return;
+          setPendingDeleteTag(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

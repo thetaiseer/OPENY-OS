@@ -6,6 +6,7 @@ import { Plus, Zap, ToggleLeft, ToggleRight, Pencil, Trash2, Check } from 'lucid
 import type { AutomationRule } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 const TRIGGER_TYPES = [
   { value: 'task.created', label: 'Task Created' },
@@ -36,6 +37,8 @@ export default function AutomationsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pendingDeleteRule, setPendingDeleteRule] = useState<AutomationRule | null>(null);
+  const [deletingRule, setDeletingRule] = useState(false);
 
   const { data: rules = [], isLoading } = useQuery<AutomationRule[]>({
     queryKey: ['automations'],
@@ -93,10 +96,16 @@ export default function AutomationsPage() {
     void queryClient.invalidateQueries({ queryKey: ['automations'] });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this automation rule?')) return;
-    await fetch(`/api/automations/${id}`, { method: 'DELETE' });
-    void queryClient.invalidateQueries({ queryKey: ['automations'] });
+  const handleDelete = async () => {
+    if (!pendingDeleteRule) return;
+    setDeletingRule(true);
+    try {
+      await fetch(`/api/automations/${pendingDeleteRule.id}`, { method: 'DELETE' });
+      void queryClient.invalidateQueries({ queryKey: ['automations'] });
+      setPendingDeleteRule(null);
+    } finally {
+      setDeletingRule(false);
+    }
   };
 
   const triggerLabel = (type: string) => TRIGGER_TYPES.find((t) => t.value === type)?.label ?? type;
@@ -201,7 +210,7 @@ export default function AutomationsPage() {
                   <Pencil size={14} />
                 </button>
                 <button
-                  onClick={() => void handleDelete(rule.id)}
+                  onClick={() => setPendingDeleteRule(rule)}
                   className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-[var(--surface-2)]"
                 >
                   <Trash2 size={14} />
@@ -324,6 +333,20 @@ export default function AutomationsPage() {
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>
       )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteRule)}
+        title="Delete automation rule"
+        description={`Delete "${pendingDeleteRule?.name || 'this rule'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        loading={deletingRule}
+        onCancel={() => {
+          if (deletingRule) return;
+          setPendingDeleteRule(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

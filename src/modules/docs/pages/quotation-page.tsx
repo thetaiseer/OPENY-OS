@@ -33,6 +33,7 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import {
   DocsDocTypeTabs,
   DocsToolbarLayout,
@@ -699,6 +700,8 @@ export default function QuotationPage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FormState>(() => blank('QUO-0001'));
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
+  const [pendingDeleteQuotation, setPendingDeleteQuotation] = useState<string | null>(null);
+  const [deletingQuotation, setDeletingQuotation] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -843,11 +846,21 @@ export default function QuotationPage() {
     }
   }
 
-  async function deleteQ(id: string) {
-    if (!confirm(t('docQtDeleteConfirm'))) return;
-    await fetch(`/api/docs/quotations/${id}`, { method: 'DELETE' });
-    await load();
-    if (editingId === id) resetForm();
+  async function deleteQ() {
+    if (!pendingDeleteQuotation) return;
+    setDeletingQuotation(true);
+    try {
+      await fetch(`/api/docs/quotations/${pendingDeleteQuotation}`, { method: 'DELETE' });
+      await load();
+      if (editingId === pendingDeleteQuotation) resetForm();
+      setPendingDeleteQuotation(null);
+    } finally {
+      setDeletingQuotation(false);
+    }
+  }
+
+  function openDeleteQuotation(id: string) {
+    setPendingDeleteQuotation(id);
   }
 
   async function handleBackup() {
@@ -913,431 +926,183 @@ export default function QuotationPage() {
     'w-full px-3 py-1.5 text-sm rounded-lg border outline-none bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]';
 
   return (
-    <DocsWorkspaceShell
-      toolbar={
-        <DocsToolbarLayout
-          navigation={<DocsDocTypeTabs active="quotation" />}
-          actions={
-            <>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Save size={12} className="me-1 inline" />{' '}
-                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
-              </button>
-              <button
-                onClick={exportPdf}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#0f172a' }}
-              >
-                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
-              </button>
-              <button
-                onClick={() => {
-                  const rows = [
-                    [
-                      t('docQtCsvQuoteNo'),
-                      t('docQtCsvClient'),
-                      t('docQtCsvDate'),
-                      t('docQtCsvCurrency'),
-                      t('docQtCsvValue'),
-                      t('docQtCsvStatus'),
-                    ],
-                    [
-                      form.quote_number,
-                      form.client_name,
-                      form.quote_date,
-                      form.currency,
-                      String(form.total_value),
-                      form.status,
-                    ],
-                  ];
-                  const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
-                  const a = document.createElement('a');
-                  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-                  a.download = `${form.quote_number}.csv`;
-                  a.click();
-                }}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#475569' }}
-              >
-                <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
-              </button>
-            </>
-          }
-        >
-          <div className="docs-workspace-quickbar-grid">
-            <div>
-              <label>{t('docQtQuoteNumber')}</label>
-              <input
-                className={inputCls}
-                value={form.quote_number}
-                readOnly={!editingId}
-                title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                onChange={(e) => setField('quote_number', e.target.value)}
-              />
+    <>
+      <DocsWorkspaceShell
+        toolbar={
+          <DocsToolbarLayout
+            navigation={<DocsDocTypeTabs active="quotation" />}
+            actions={
+              <>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  <Save size={12} className="me-1 inline" />{' '}
+                  {saving
+                    ? t('docCommonSaving')
+                    : editingId
+                      ? t('docQtUpdate')
+                      : t('docCommonSave')}
+                </button>
+                <button
+                  onClick={exportPdf}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#0f172a' }}
+                >
+                  <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
+                </button>
+                <button
+                  onClick={() => {
+                    const rows = [
+                      [
+                        t('docQtCsvQuoteNo'),
+                        t('docQtCsvClient'),
+                        t('docQtCsvDate'),
+                        t('docQtCsvCurrency'),
+                        t('docQtCsvValue'),
+                        t('docQtCsvStatus'),
+                      ],
+                      [
+                        form.quote_number,
+                        form.client_name,
+                        form.quote_date,
+                        form.currency,
+                        String(form.total_value),
+                        form.status,
+                      ],
+                    ];
+                    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                    a.download = `${form.quote_number}.csv`;
+                    a.click();
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#475569' }}
+                >
+                  <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
+                </button>
+              </>
+            }
+          >
+            <div className="docs-workspace-quickbar-grid">
+              <div>
+                <label>{t('docQtQuoteNumber')}</label>
+                <input
+                  className={inputCls}
+                  value={form.quote_number}
+                  readOnly={!editingId}
+                  title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                  onChange={(e) => setField('quote_number', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('date')}</label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={form.quote_date}
+                  onChange={(e) => setField('quote_date', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvClientField')}</label>
+                <input
+                  className={inputCls}
+                  value={form.client_name}
+                  onChange={(e) => setField('client_name', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvHistory')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputCls}
+                  value={editingId ?? ''}
+                  onChange={(v) => {
+                    const selected = quotations.find((q) => q.id === v);
+                    if (selected) loadIntoForm(selected);
+                    else resetForm();
+                  }}
+                  options={[
+                    { value: '', label: t('docQtNewQuote') },
+                    ...quotations.map((q) => ({
+                      value: q.id,
+                      label: `${q.quote_number} · ${q.client_name}`,
+                    })),
+                  ]}
+                />
+              </div>
             </div>
-            <div>
-              <label>{t('date')}</label>
-              <input
-                type="date"
-                className={inputCls}
-                value={form.quote_date}
-                onChange={(e) => setField('quote_date', e.target.value)}
-              />
+          </DocsToolbarLayout>
+        }
+        editor={
+          <div
+            className="flex flex-col overflow-hidden rounded-2xl border"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+              {(['editor', 'history'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx(
+                    'flex-1 border-b-2 py-3 text-sm font-medium capitalize transition-colors',
+                    activeTab === tab
+                      ? 'border-[var(--accent)] text-[var(--accent)]'
+                      : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]',
+                  )}
+                >
+                  {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
+                </button>
+              ))}
             </div>
-            <div>
-              <label>{t('docInvClientField')}</label>
-              <input
-                className={inputCls}
-                value={form.client_name}
-                onChange={(e) => setField('client_name', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docInvHistory')}</label>
-              <SelectDropdown
-                fullWidth
-                className={inputCls}
-                value={editingId ?? ''}
-                onChange={(v) => {
-                  const selected = quotations.find((q) => q.id === v);
-                  if (selected) loadIntoForm(selected);
-                  else resetForm();
-                }}
-                options={[
-                  { value: '', label: t('docQtNewQuote') },
-                  ...quotations.map((q) => ({
-                    value: q.id,
-                    label: `${q.quote_number} · ${q.client_name}`,
-                  })),
-                ]}
-              />
-            </div>
-          </div>
-        </DocsToolbarLayout>
-      }
-      editor={
-        <div
-          className="flex flex-col overflow-hidden rounded-2xl border"
-          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-        >
-          <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
-            {(['editor', 'history'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={clsx(
-                  'flex-1 border-b-2 py-3 text-sm font-medium capitalize transition-colors',
-                  activeTab === tab
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]',
+
+            {activeTab === 'editor' ? (
+              <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                {editingId && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+                  >
+                    <Edit2 size={14} /> {t('docQtEditing')}{' '}
+                    <button onClick={resetForm} className="underline">
+                      {t('docQtCancelEdit')}
+                    </button>
+                  </div>
                 )}
-              >
-                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
-              </button>
-            ))}
-          </div>
+                {error && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                  >
+                    <AlertCircle size={14} /> {error}
+                  </div>
+                )}
 
-          {activeTab === 'editor' ? (
-            <div className="flex-1 space-y-5 overflow-y-auto p-4">
-              {editingId && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
-                >
-                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
-                  <button onClick={resetForm} className="underline">
-                    {t('docQtCancelEdit')}
-                  </button>
-                </div>
-              )}
-              {error && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
-                >
-                  <AlertCircle size={14} /> {error}
-                </div>
-              )}
-
-              <section>
-                <h3
-                  className="mb-3 text-xs font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {t('docCardDocumentSetup')}
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtQuoteNumber')}
-                    </label>
-                    <input
-                      className={inputCls}
-                      value={form.quote_number}
-                      readOnly={!editingId}
-                      title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                      onChange={(e) => setField('quote_number', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('date')}
-                    </label>
-                    <input
-                      type="date"
-                      className={inputCls}
-                      value={form.quote_date}
-                      onChange={(e) => setField('quote_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docInvCurrency')}
-                    </label>
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.currency}
-                      onChange={(v) => setField('currency', v)}
-                      options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docInvStatus')}
-                    </label>
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.status}
-                      onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
-                      options={[
-                        { value: 'unpaid', label: t('docStatusUnpaid') },
-                        { value: 'paid', label: t('docStatusPaid') },
-                      ]}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <h3
-                  className="mb-3 text-xs font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {t('docQtSectionClientId')}
-                </h3>
-                <div className="space-y-3">
-                  <ClientProfileSelector
-                    profiles={profiles}
-                    selectedClientId={
-                      profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
-                    }
-                    onSelectClientId={applyClientProfile}
-                    label={t('docInvClientField')}
-                  />
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtClientNameStar')}
-                    </label>
-                    <input
-                      className={inputCls}
-                      value={form.client_name}
-                      onChange={(e) => setField('client_name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtCompanyBrand')}
-                    </label>
-                    <input
-                      className={inputCls}
-                      value={form.company_brand}
-                      onChange={(e) => setField('company_brand', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtProjectTitle')}
-                    </label>
-                    <input
-                      className={inputCls}
-                      value={form.project_title}
-                      onChange={(e) => setField('project_title', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtProjectDescription')}
-                    </label>
-                    <textarea
-                      className={inputCls}
-                      rows={2}
-                      value={form.project_description}
-                      onChange={(e) => setField('project_description', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div className="mb-3 flex items-center justify-between">
+                <section>
                   <h3
-                    className="text-xs font-bold uppercase tracking-wider"
+                    className="mb-3 text-xs font-bold uppercase tracking-wider"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    {t('docQtDeliverables')}
+                    {t('docCardDocumentSetup')}
                   </h3>
-                  <button
-                    onClick={addDeliverable}
-                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Plus size={12} /> {t('docQtAddLine')}
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {form.deliverables.map((d, i) => (
-                    <div key={d.id} className="flex items-center gap-2">
-                      <input
-                        className="flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
-                        style={{
-                          background: 'var(--surface-2)',
-                          borderColor: 'var(--border)',
-                          color: 'var(--text)',
-                        }}
-                        placeholder={t('docQtDelivPlaceholder')}
-                        value={d.description}
-                        onChange={(e) => {
-                          const nd = [...form.deliverables];
-                          nd[i] = { ...d, description: e.target.value };
-                          setField('deliverables', nd);
-                        }}
-                      />
-                      <input
-                        type="number"
-                        min={1}
-                        className="w-14 rounded-lg border px-2 py-1.5 text-center text-sm outline-none"
-                        style={{
-                          background: 'var(--surface-2)',
-                          borderColor: 'var(--border)',
-                          color: 'var(--text)',
-                        }}
-                        value={d.quantity}
-                        onChange={(e) => {
-                          const q2 = Math.max(1, Number(e.target.value));
-                          const nd = [...form.deliverables];
-                          nd[i] = { ...d, quantity: q2, total: q2 * d.unitPrice };
-                          setField('deliverables', nd);
-                        }}
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-24 rounded-lg border px-2 py-1.5 text-end text-sm outline-none"
-                        style={{
-                          background: 'var(--surface-2)',
-                          borderColor: 'var(--border)',
-                          color: 'var(--text)',
-                        }}
-                        value={d.unitPrice}
-                        onChange={(e) => {
-                          const p = Math.max(0, Number(e.target.value));
-                          const nd = [...form.deliverables];
-                          nd[i] = { ...d, unitPrice: p, total: d.quantity * p };
-                          setField('deliverables', nd);
-                        }}
-                      />
-                      <button
-                        onClick={() =>
-                          setField(
-                            'deliverables',
-                            form.deliverables.filter((_, ii) => ii !== i),
-                          )
-                        }
-                        className="rounded-lg p-1.5 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} style={{ color: '#ef4444' }} />
-                      </button>
-                    </div>
-                  ))}
-                  {form.deliverables.length === 0 && (
-                    <p
-                      className="py-3 text-center text-xs"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtNoDeliverables')}
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              <section>
-                <h3
-                  className="mb-3 text-xs font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {t('docQtPricingTerms')}
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {t('docQtTotalQuoteValue')}
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      className={inputCls}
-                      value={form.total_value}
-                      onChange={(e) => setField('total_value', Number(e.target.value))}
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        {t('docQtPaymentDueDays')}
+                        {t('docQtQuoteNumber')}
                       </label>
                       <input
-                        type="number"
-                        min={1}
                         className={inputCls}
-                        value={form.payment_due_days}
-                        onChange={(e) => setField('payment_due_days', Number(e.target.value))}
+                        value={form.quote_number}
+                        readOnly={!editingId}
+                        title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                        onChange={(e) => setField('quote_number', e.target.value)}
                       />
                     </div>
                     <div>
@@ -1345,94 +1110,362 @@ export default function QuotationPage() {
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        {t('docQtPaymentMethod')}
+                        {t('date')}
+                      </label>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={form.quote_date}
+                        onChange={(e) => setField('quote_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docInvCurrency')}
                       </label>
                       <SelectDropdown
                         fullWidth
                         className={inputCls}
-                        value={form.payment_method}
-                        onChange={(v) => setField('payment_method', v)}
-                        options={DOCS_PAYMENT_METHODS.map((m) => ({
-                          value: m,
-                          label: docsPaymentMethodLabel(m, t),
-                        }))}
+                        value={form.currency}
+                        onChange={(v) => setField('currency', v)}
+                        options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
                       />
                     </div>
-                  </div>
-                  {form.payment_method === 'Custom' && (
                     <div>
                       <label
                         className="mb-1 block text-xs font-medium"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        {t('docQtCustomMethod')}
+                        {t('docInvStatus')}
+                      </label>
+                      <SelectDropdown
+                        fullWidth
+                        className={inputCls}
+                        value={form.status}
+                        onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
+                        options={[
+                          { value: 'unpaid', label: t('docStatusUnpaid') },
+                          { value: 'paid', label: t('docStatusPaid') },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3
+                    className="mb-3 text-xs font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('docQtSectionClientId')}
+                  </h3>
+                  <div className="space-y-3">
+                    <ClientProfileSelector
+                      profiles={profiles}
+                      selectedClientId={
+                        profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
+                      }
+                      onSelectClientId={applyClientProfile}
+                      label={t('docInvClientField')}
+                    />
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtClientNameStar')}
                       </label>
                       <input
                         className={inputCls}
-                        value={form.custom_payment_method}
-                        onChange={(e) => setField('custom_payment_method', e.target.value)}
+                        value={form.client_name}
+                        onChange={(e) => setField('client_name', e.target.value)}
                       />
                     </div>
-                  )}
-                  <div>
-                    <label
-                      className="mb-1 block text-xs font-medium"
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtCompanyBrand')}
+                      </label>
+                      <input
+                        className={inputCls}
+                        value={form.company_brand}
+                        onChange={(e) => setField('company_brand', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtProjectTitle')}
+                      </label>
+                      <input
+                        className={inputCls}
+                        value={form.project_title}
+                        onChange={(e) => setField('project_title', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtProjectDescription')}
+                      </label>
+                      <textarea
+                        className={inputCls}
+                        rows={2}
+                        value={form.project_description}
+                        onChange={(e) => setField('project_description', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3
+                      className="text-xs font-bold uppercase tracking-wider"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      {t('docQtAdditionalNotes')}
-                    </label>
-                    <textarea
-                      className={inputCls}
-                      rows={3}
-                      value={form.additional_notes}
-                      onChange={(e) => setField('additional_notes', e.target.value)}
-                    />
+                      {t('docQtDeliverables')}
+                    </h3>
+                    <button
+                      onClick={addDeliverable}
+                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Plus size={12} /> {t('docQtAddLine')}
+                    </button>
                   </div>
-                </div>
-              </section>
+                  <div className="space-y-2">
+                    {form.deliverables.map((d, i) => (
+                      <div key={d.id} className="flex items-center gap-2">
+                        <input
+                          className="flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
+                          style={{
+                            background: 'var(--surface-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          placeholder={t('docQtDelivPlaceholder')}
+                          value={d.description}
+                          onChange={(e) => {
+                            const nd = [...form.deliverables];
+                            nd[i] = { ...d, description: e.target.value };
+                            setField('deliverables', nd);
+                          }}
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          className="w-14 rounded-lg border px-2 py-1.5 text-center text-sm outline-none"
+                          style={{
+                            background: 'var(--surface-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          value={d.quantity}
+                          onChange={(e) => {
+                            const q2 = Math.max(1, Number(e.target.value));
+                            const nd = [...form.deliverables];
+                            nd[i] = { ...d, quantity: q2, total: q2 * d.unitPrice };
+                            setField('deliverables', nd);
+                          }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          className="w-24 rounded-lg border px-2 py-1.5 text-end text-sm outline-none"
+                          style={{
+                            background: 'var(--surface-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          value={d.unitPrice}
+                          onChange={(e) => {
+                            const p = Math.max(0, Number(e.target.value));
+                            const nd = [...form.deliverables];
+                            nd[i] = { ...d, unitPrice: p, total: d.quantity * p };
+                            setField('deliverables', nd);
+                          }}
+                        />
+                        <button
+                          onClick={() =>
+                            setField(
+                              'deliverables',
+                              form.deliverables.filter((_, ii) => ii !== i),
+                            )
+                          }
+                          className="rounded-lg p-1.5 hover:bg-red-50"
+                        >
+                          <Trash2 size={14} style={{ color: '#ef4444' }} />
+                        </button>
+                      </div>
+                    ))}
+                    {form.deliverables.length === 0 && (
+                      <p
+                        className="py-3 text-center text-xs"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtNoDeliverables')}
+                      </p>
+                    )}
+                  </div>
+                </section>
 
-              <div className="pb-4">
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saved ? (
-                    <>
-                      <Check size={16} /> {t('docQtSaved')}
-                    </>
-                  ) : saving ? (
-                    t('docCommonSaving')
-                  ) : (
-                    <>
-                      <Save size={16} />{' '}
-                      {editingId ? t('docQtUpdateQuotation') : t('docQtSaveQuotation')}
-                    </>
-                  )}
-                </button>
+                <section>
+                  <h3
+                    className="mb-3 text-xs font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {t('docQtPricingTerms')}
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtTotalQuoteValue')}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        className={inputCls}
+                        value={form.total_value}
+                        onChange={(e) => setField('total_value', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          className="mb-1 block text-xs font-medium"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {t('docQtPaymentDueDays')}
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          className={inputCls}
+                          value={form.payment_due_days}
+                          onChange={(e) => setField('payment_due_days', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className="mb-1 block text-xs font-medium"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {t('docQtPaymentMethod')}
+                        </label>
+                        <SelectDropdown
+                          fullWidth
+                          className={inputCls}
+                          value={form.payment_method}
+                          onChange={(v) => setField('payment_method', v)}
+                          options={DOCS_PAYMENT_METHODS.map((m) => ({
+                            value: m,
+                            label: docsPaymentMethodLabel(m, t),
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    {form.payment_method === 'Custom' && (
+                      <div>
+                        <label
+                          className="mb-1 block text-xs font-medium"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {t('docQtCustomMethod')}
+                        </label>
+                        <input
+                          className={inputCls}
+                          value={form.custom_payment_method}
+                          onChange={(e) => setField('custom_payment_method', e.target.value)}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label
+                        className="mb-1 block text-xs font-medium"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {t('docQtAdditionalNotes')}
+                      </label>
+                      <textarea
+                        className={inputCls}
+                        rows={3}
+                        value={form.additional_notes}
+                        onChange={(e) => setField('additional_notes', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <div className="pb-4">
+                  <button
+                    onClick={save}
+                    disabled={saving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {saved ? (
+                      <>
+                        <Check size={16} /> {t('docQtSaved')}
+                      </>
+                    ) : saving ? (
+                      t('docCommonSaving')
+                    ) : (
+                      <>
+                        <Save size={16} />{' '}
+                        {editingId ? t('docQtUpdateQuotation') : t('docQtSaveQuotation')}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <HistoryPanel
-              quotations={quotations}
-              loading={loading}
-              onEdit={loadIntoForm}
-              onDuplicate={duplicateQuotation}
-              onDelete={deleteQ}
-              onReload={load}
-              onBackup={handleBackup}
-              onClearAll={handleClearAll}
-              onRestoreData={handleRestoreData}
-            />
-          )}
-        </div>
-      }
-      preview={
-        <ScaledDocumentPreview>
-          <QuotationPreview form={form} />
-        </ScaledDocumentPreview>
-      }
-    />
+            ) : (
+              <HistoryPanel
+                quotations={quotations}
+                loading={loading}
+                onEdit={loadIntoForm}
+                onDuplicate={duplicateQuotation}
+                onDelete={openDeleteQuotation}
+                onReload={load}
+                onBackup={handleBackup}
+                onClearAll={handleClearAll}
+                onRestoreData={handleRestoreData}
+              />
+            )}
+          </div>
+        }
+        preview={
+          <ScaledDocumentPreview>
+            <QuotationPreview form={form} />
+          </ScaledDocumentPreview>
+        }
+      />
+      <ConfirmDialog
+        open={Boolean(pendingDeleteQuotation)}
+        title="Delete quotation"
+        description="Delete this quotation? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={deletingQuotation}
+        onCancel={() => {
+          if (deletingQuotation) return;
+          setPendingDeleteQuotation(null);
+        }}
+        onConfirm={deleteQ}
+      />
+    </>
   );
 }

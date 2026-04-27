@@ -20,6 +20,7 @@ import {
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import {
   DocsDocTypeTabs,
   DocsToolbarLayout,
@@ -1092,6 +1093,11 @@ export default function AccountingPage() {
   const [editTransfer, setEditTransfer] = useState<DocsAccountingTransfer | null>(null);
   const [search, setSearch] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    type: 'revenue' | 'expense' | 'transfer';
+  } | null>(null);
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const notesDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1199,51 +1205,35 @@ export default function AccountingPage() {
     );
   });
 
-  async function deleteEntry(id: string) {
-    if (!confirm(t('docAcctDeleteRevenueConfirm'))) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeletingEntry(true);
+    const endpoint =
+      pendingDelete.type === 'revenue'
+        ? `/api/docs/accounting/entries/${pendingDelete.id}`
+        : pendingDelete.type === 'expense'
+          ? `/api/docs/accounting/expenses/${pendingDelete.id}`
+          : `/api/docs/accounting/transfers/${pendingDelete.id}`;
+    const label =
+      pendingDelete.type === 'revenue'
+        ? 'Delete revenue'
+        : pendingDelete.type === 'expense'
+          ? 'Delete expense'
+          : 'Delete transfer';
     try {
-      const res = await fetch(`/api/docs/accounting/entries/${id}`, { method: 'DELETE' });
+      const res = await fetch(endpoint, { method: 'DELETE' });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        toast(`Delete revenue: ${data.error ?? `HTTP ${res.status}`}`, 'error');
+        toast(`${label}: ${data.error ?? `HTTP ${res.status}`}`, 'error');
         return;
       }
-      toast('Delete revenue: done', 'success');
+      toast(`${label}: done`, 'success');
+      setPendingDelete(null);
       await loadData();
     } catch (err) {
-      toast(`Delete revenue: ${err instanceof Error ? err.message : t('unknownError')}`, 'error');
-    }
-  }
-
-  async function deleteExpense(id: string) {
-    if (!confirm(t('docAcctDeleteExpenseConfirm'))) return;
-    try {
-      const res = await fetch(`/api/docs/accounting/expenses/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        toast(`Delete expense: ${data.error ?? `HTTP ${res.status}`}`, 'error');
-        return;
-      }
-      toast('Delete expense: done', 'success');
-      await loadData();
-    } catch (err) {
-      toast(`Delete expense: ${err instanceof Error ? err.message : t('unknownError')}`, 'error');
-    }
-  }
-
-  async function deleteTransfer(id: string) {
-    if (!confirm(t('docAcctDeleteTransferConfirm'))) return;
-    try {
-      const res = await fetch(`/api/docs/accounting/transfers/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        toast(`Delete transfer: ${data.error ?? `HTTP ${res.status}`}`, 'error');
-        return;
-      }
-      toast('Delete transfer: done', 'success');
-      await loadData();
-    } catch (err) {
-      toast(`Delete transfer: ${err instanceof Error ? err.message : t('unknownError')}`, 'error');
+      toast(`${label}: ${err instanceof Error ? err.message : t('unknownError')}`, 'error');
+    } finally {
+      setDeletingEntry(false);
     }
   }
 
@@ -1437,7 +1427,7 @@ export default function AccountingPage() {
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-red-50"
-                            onClick={() => void deleteEntry(e.id)}
+                            onClick={() => setPendingDelete({ id: e.id, type: 'revenue' })}
                           >
                             <Trash2 size={13} className="text-red-500" />
                           </button>
@@ -1526,7 +1516,7 @@ export default function AccountingPage() {
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-red-50"
-                            onClick={() => void deleteExpense(e.id)}
+                            onClick={() => setPendingDelete({ id: e.id, type: 'expense' })}
                           >
                             <Trash2 size={13} className="text-red-500" />
                           </button>
@@ -1611,7 +1601,7 @@ export default function AccountingPage() {
                           <button
                             type="button"
                             className="rounded p-1 hover:bg-red-50"
-                            onClick={() => void deleteTransfer(tr.id)}
+                            onClick={() => setPendingDelete({ id: tr.id, type: 'transfer' })}
                           >
                             <Trash2 size={13} className="text-red-500" />
                           </button>
@@ -1715,6 +1705,26 @@ export default function AccountingPage() {
           onDone={loadData}
         />
       ) : null}
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={
+          pendingDelete?.type === 'revenue'
+            ? 'Delete revenue entry'
+            : pendingDelete?.type === 'expense'
+              ? 'Delete expense entry'
+              : 'Delete transfer entry'
+        }
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={deletingEntry}
+        onCancel={() => {
+          if (deletingEntry) return;
+          setPendingDelete(null);
+        }}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

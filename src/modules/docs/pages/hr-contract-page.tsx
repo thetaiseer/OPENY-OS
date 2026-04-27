@@ -43,6 +43,7 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import {
   DocsDocTypeTabs,
   DocsToolbarLayout,
@@ -805,6 +806,8 @@ export default function HrContractPage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<SF>(() => blank('HR-0001'));
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
+  const [pendingDeleteContractId, setPendingDeleteContractId] = useState<string | null>(null);
+  const [deletingContract, setDeletingContract] = useState(false);
   const [newBenefit, setNewBenefit] = useState('');
 
   const load = useCallback(async () => {
@@ -940,11 +943,21 @@ export default function HrContractPage() {
     }));
   }
 
-  async function deleteC(id: string) {
-    if (!confirm(t('docHrDeleteConfirm'))) return;
-    await fetch(`/api/docs/hr-contracts/${id}`, { method: 'DELETE' });
-    await load();
-    if (editingId === id) resetForm();
+  async function deleteC() {
+    if (!pendingDeleteContractId) return;
+    setDeletingContract(true);
+    try {
+      await fetch(`/api/docs/hr-contracts/${pendingDeleteContractId}`, { method: 'DELETE' });
+      await load();
+      if (editingId === pendingDeleteContractId) resetForm();
+      setPendingDeleteContractId(null);
+    } finally {
+      setDeletingContract(false);
+    }
+  }
+
+  function openDeleteContract(id: string) {
+    setPendingDeleteContractId(id);
   }
 
   async function handleBackup() {
@@ -1026,663 +1039,685 @@ export default function HrContractPage() {
   );
 
   return (
-    <DocsWorkspaceShell
-      toolbar={
-        <DocsToolbarLayout
-          navigation={<DocsDocTypeTabs active="hr-contract" />}
-          actions={
-            <>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Save size={12} className="me-1 inline" />{' '}
-                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
-              </button>
-              <button
-                onClick={exportPdf}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#0f172a' }}
-              >
-                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
-              </button>
-              <button
-                onClick={() => {
-                  if (!editingId) {
-                    alert(t('docHrSaveFirstWord'));
-                    return;
-                  }
-                  window.open(
-                    `/api/docs/hr-contracts/${editingId}/export`,
-                    '_blank',
-                    'noopener,noreferrer',
-                  );
-                }}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#475569' }}
-              >
-                <Download size={12} className="me-1 inline" /> {t('docCcWord')}
-              </button>
-            </>
-          }
-        >
-          <div className="docs-workspace-quickbar-grid">
-            <div>
-              <label>{t('docCcContractNumber')}</label>
-              <input
-                className={inp}
-                value={form.contract_number}
-                readOnly={!editingId}
-                title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                onChange={(e) => setField('contract_number', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('date')}</label>
-              <input
-                type="date"
-                className={inp}
-                value={form.contract_date}
-                onChange={(e) => setField('contract_date', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docHrEmployee')}</label>
-              <input
-                className={inp}
-                value={form.employee_full_name}
-                onChange={(e) => setField('employee_full_name', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docInvHistory')}</label>
-              <SelectDropdown
-                fullWidth
-                className={inp}
-                value={editingId ?? ''}
-                onChange={(v) => {
-                  const selected = contracts.find((c) => c.id === v);
-                  if (selected) loadIntoForm(selected);
-                  else resetForm();
-                }}
-                options={[
-                  { value: '', label: t('docHrNewContract') },
-                  ...contracts.map((c) => ({
-                    value: c.id,
-                    label: `${c.contract_number} · ${c.employee_full_name}`,
-                  })),
-                ]}
-              />
-            </div>
-          </div>
-        </DocsToolbarLayout>
-      }
-      editor={
-        <div
-          className="flex flex-col overflow-hidden rounded-2xl border"
-          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-        >
-          <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
-            {(['editor', 'history'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={clsx(
-                  'flex-1 border-b-2 py-3 text-sm font-medium capitalize',
-                  activeTab === tab
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-transparent text-[var(--text-secondary)]',
-                )}
-              >
-                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === 'editor' ? (
-            <div className="flex-1 space-y-5 overflow-y-auto p-4">
-              {editingId && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+    <>
+      <DocsWorkspaceShell
+        toolbar={
+          <DocsToolbarLayout
+            navigation={<DocsDocTypeTabs active="hr-contract" />}
+            actions={
+              <>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  style={{ background: 'var(--accent)' }}
                 >
-                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
-                  <button onClick={resetForm} className="underline">
-                    {t('docQtCancelEdit')}
-                  </button>
-                </div>
-              )}
-              {error && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                  <Save size={12} className="me-1 inline" />{' '}
+                  {saving
+                    ? t('docCommonSaving')
+                    : editingId
+                      ? t('docQtUpdate')
+                      : t('docCommonSave')}
+                </button>
+                <button
+                  onClick={exportPdf}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#0f172a' }}
                 >
-                  <AlertCircle size={14} /> {error}
-                </div>
-              )}
-
-              <Sec title={t('docHrSectionContractInfo')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docCcContractNumber'))}
-                    <input
-                      className={inp}
-                      value={form.contract_number}
-                      readOnly={!editingId}
-                      title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                      onChange={(e) => setField('contract_number', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('date'))}
-                    <input
-                      type="date"
-                      className={inp}
-                      value={form.contract_date}
-                      onChange={(e) => setField('contract_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrFieldDuration'))}
-                    <input
-                      className={inp}
-                      value={form.duration}
-                      onChange={(e) => setField('duration', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('status'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.status}
-                      onChange={(v) => setField('status', v)}
-                      options={['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => ({
-                        value: s,
-                        label: contractStatusLabel(s, t),
-                      }))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docInvCurrency'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.currency}
-                      onChange={(v) => setField('currency', v)}
-                      options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcDocumentLanguage'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.language}
-                      onChange={(v) => setField('language', v as 'ar' | 'en')}
-                      options={[
-                        { value: 'en', label: t('docCcLangEn') },
-                        { value: 'ar', label: t('docCcLangAr') },
-                      ]}
-                    />
-                  </div>
-                </div>
-              </Sec>
-
-              <Sec title={t('docHrCompanyInfo')}>
-                <ClientProfileSelector
-                  profiles={profiles}
-                  selectedClientId={
-                    profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
-                  }
-                  onSelectClientId={applyClientProfile}
-                  label={t('docCcLblClient')}
+                  <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editingId) {
+                      alert(t('docHrSaveFirstWord'));
+                      return;
+                    }
+                    window.open(
+                      `/api/docs/hr-contracts/${editingId}/export`,
+                      '_blank',
+                      'noopener,noreferrer',
+                    );
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#475569' }}
+                >
+                  <Download size={12} className="me-1 inline" /> {t('docCcWord')}
+                </button>
+              </>
+            }
+          >
+            <div className="docs-workspace-quickbar-grid">
+              <div>
+                <label>{t('docCcContractNumber')}</label>
+                <input
+                  className={inp}
+                  value={form.contract_number}
+                  readOnly={!editingId}
+                  title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                  onChange={(e) => setField('contract_number', e.target.value)}
                 />
-                {[
-                  [t('companyName'), 'company_name'],
-                  [t('docCcLblRepresentative'), 'company_representative'],
-                  [t('docCcLblAddress'), 'company_address'],
-                  [t('docCcLblEmail'), 'company_email'],
-                  [t('docCcLblPhone'), 'company_phone'],
-                ].map(([l, f2]) => (
-                  <div key={f2}>
-                    {lbl(l)}
-                    <input
-                      className={inp}
-                      value={(form as unknown as Record<string, string>)[f2]}
-                      onChange={(e) => setField(f2 as keyof SF, e.target.value as never)}
-                    />
-                  </div>
-                ))}
-              </Sec>
+              </div>
+              <div>
+                <label>{t('date')}</label>
+                <input
+                  type="date"
+                  className={inp}
+                  value={form.contract_date}
+                  onChange={(e) => setField('contract_date', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docHrEmployee')}</label>
+                <input
+                  className={inp}
+                  value={form.employee_full_name}
+                  onChange={(e) => setField('employee_full_name', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvHistory')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inp}
+                  value={editingId ?? ''}
+                  onChange={(v) => {
+                    const selected = contracts.find((c) => c.id === v);
+                    if (selected) loadIntoForm(selected);
+                    else resetForm();
+                  }}
+                  options={[
+                    { value: '', label: t('docHrNewContract') },
+                    ...contracts.map((c) => ({
+                      value: c.id,
+                      label: `${c.contract_number} · ${c.employee_full_name}`,
+                    })),
+                  ]}
+                />
+              </div>
+            </div>
+          </DocsToolbarLayout>
+        }
+        editor={
+          <div
+            className="flex flex-col overflow-hidden rounded-2xl border"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+              {(['editor', 'history'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx(
+                    'flex-1 border-b-2 py-3 text-sm font-medium capitalize',
+                    activeTab === tab
+                      ? 'border-[var(--accent)] text-[var(--accent)]'
+                      : 'border-transparent text-[var(--text-secondary)]',
+                  )}
+                >
+                  {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
+                </button>
+              ))}
+            </div>
 
-              <Sec title={t('docHrEmployeeInfo')}>
-                <div>
-                  {lbl(t('docHrFullNameReq'))}
-                  <input
-                    className={inp}
-                    value={form.employee_full_name}
-                    onChange={(e) => setField('employee_full_name', e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docHrNationalId'))}
-                    <input
-                      className={inp}
-                      value={form.employee_national_id}
-                      onChange={(e) => setField('employee_national_id', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblNationality'))}
-                    <input
-                      className={inp}
-                      value={form.employee_nationality}
-                      onChange={(e) => setField('employee_nationality', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('phone'))}
-                    <input
-                      className={inp}
-                      value={form.employee_phone}
-                      onChange={(e) => setField('employee_phone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('email'))}
-                    <input
-                      className={inp}
-                      value={form.employee_email}
-                      onChange={(e) => setField('employee_email', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblMaritalStatus'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.employee_marital_status}
-                      onChange={(v) => setField('employee_marital_status', v)}
-                      options={DOCS_MARITAL_STATUSES.map((s) => ({
-                        value: s,
-                        label: maritalStatusLabel(s, t),
-                      }))}
-                    />
-                  </div>
-                </div>
-                <div>
-                  {lbl(t('docCcLblAddress'))}
-                  <input
-                    className={inp}
-                    value={form.employee_address}
-                    onChange={(e) => setField('employee_address', e.target.value)}
-                  />
-                </div>
-              </Sec>
-
-              <Sec title={t('docHrJobDetails')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docHrLblTitle'))}
-                    <input
-                      className={inp}
-                      value={form.job_title}
-                      onChange={(e) => setField('job_title', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblDepartment'))}
-                    <input
-                      className={inp}
-                      value={form.department}
-                      onChange={(e) => setField('department', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblDirectManager'))}
-                    <input
-                      className={inp}
-                      value={form.direct_manager}
-                      onChange={(e) => setField('direct_manager', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblType'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.employment_type}
-                      onChange={(v) => setField('employment_type', v)}
-                      options={DOCS_EMPLOYMENT_TYPES.map((et) => ({
-                        value: et.value,
-                        label: employmentTypeLabel(et.value, t),
-                      }))}
-                    />
-                  </div>
-                </div>
-              </Sec>
-
-              <Sec title={t('docHrEmploymentTerms')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docHrLblStartDate'))}
-                    <input
-                      type="date"
-                      className={inp}
-                      value={form.start_date}
-                      onChange={(e) => setField('start_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblContractDuration'))}
-                    <input
-                      className={inp}
-                      value={form.contract_duration}
-                      onChange={(e) => setField('contract_duration', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblProbation'))}
-                    <input
-                      className={inp}
-                      value={form.probation_period}
-                      onChange={(e) => setField('probation_period', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrLblWorkplace'))}
-                    <input
-                      className={inp}
-                      value={form.workplace}
-                      onChange={(e) => setField('workplace', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </Sec>
-
-              <Sec title={t('docHrSalaryBenefits')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docEmpColSalary'))}
-                    <input
-                      type="number"
-                      min={0}
-                      className={inp}
-                      value={form.salary}
-                      onChange={(e) => setField('salary', Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docQtPaymentMethod'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inp}
-                      value={form.payment_method}
-                      onChange={(v) => setField('payment_method', v)}
-                      options={DOCS_PAYMENT_METHODS.map((m) => ({
-                        value: m,
-                        label: docsPaymentMethodLabel(m, t),
-                      }))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrPaymentDate'))}
-                    <input
-                      className={inp}
-                      value={form.payment_date}
-                      onChange={(e) => setField('payment_date', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  {lbl(t('docHrLblBenefits'))}
-                  <div className="mb-2 flex gap-2">
-                    <input
-                      className={inp}
-                      placeholder={t('docHrAddBenefitPh')}
-                      value={newBenefit}
-                      onChange={(e) => setNewBenefit(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newBenefit.trim()) {
-                          setField('benefits', [...form.benefits, newBenefit.trim()]);
-                          setNewBenefit('');
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (newBenefit.trim()) {
-                          setField('benefits', [...form.benefits, newBenefit.trim()]);
-                          setNewBenefit('');
-                        }
-                      }}
-                      className="rounded-lg px-3 py-1.5 text-sm"
-                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                    >
-                      <Plus size={14} />
+            {activeTab === 'editor' ? (
+              <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                {editingId && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+                  >
+                    <Edit2 size={14} /> {t('docQtEditing')}{' '}
+                    <button onClick={resetForm} className="underline">
+                      {t('docQtCancelEdit')}
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {form.benefits.map((b, i) => (
-                      <span
-                        key={i}
-                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                        style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+                )}
+                {error && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                  >
+                    <AlertCircle size={14} /> {error}
+                  </div>
+                )}
+
+                <Sec title={t('docHrSectionContractInfo')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docCcContractNumber'))}
+                      <input
+                        className={inp}
+                        value={form.contract_number}
+                        readOnly={!editingId}
+                        title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                        onChange={(e) => setField('contract_number', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('date'))}
+                      <input
+                        type="date"
+                        className={inp}
+                        value={form.contract_date}
+                        onChange={(e) => setField('contract_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrFieldDuration'))}
+                      <input
+                        className={inp}
+                        value={form.duration}
+                        onChange={(e) => setField('duration', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('status'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.status}
+                        onChange={(v) => setField('status', v)}
+                        options={['draft', 'active', 'signed', 'expired', 'terminated'].map(
+                          (s) => ({
+                            value: s,
+                            label: contractStatusLabel(s, t),
+                          }),
+                        )}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docInvCurrency'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.currency}
+                        onChange={(v) => setField('currency', v)}
+                        options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcDocumentLanguage'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.language}
+                        onChange={(v) => setField('language', v as 'ar' | 'en')}
+                        options={[
+                          { value: 'en', label: t('docCcLangEn') },
+                          { value: 'ar', label: t('docCcLangAr') },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </Sec>
+
+                <Sec title={t('docHrCompanyInfo')}>
+                  <ClientProfileSelector
+                    profiles={profiles}
+                    selectedClientId={
+                      profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
+                    }
+                    onSelectClientId={applyClientProfile}
+                    label={t('docCcLblClient')}
+                  />
+                  {[
+                    [t('companyName'), 'company_name'],
+                    [t('docCcLblRepresentative'), 'company_representative'],
+                    [t('docCcLblAddress'), 'company_address'],
+                    [t('docCcLblEmail'), 'company_email'],
+                    [t('docCcLblPhone'), 'company_phone'],
+                  ].map(([l, f2]) => (
+                    <div key={f2}>
+                      {lbl(l)}
+                      <input
+                        className={inp}
+                        value={(form as unknown as Record<string, string>)[f2]}
+                        onChange={(e) => setField(f2 as keyof SF, e.target.value as never)}
+                      />
+                    </div>
+                  ))}
+                </Sec>
+
+                <Sec title={t('docHrEmployeeInfo')}>
+                  <div>
+                    {lbl(t('docHrFullNameReq'))}
+                    <input
+                      className={inp}
+                      value={form.employee_full_name}
+                      onChange={(e) => setField('employee_full_name', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docHrNationalId'))}
+                      <input
+                        className={inp}
+                        value={form.employee_national_id}
+                        onChange={(e) => setField('employee_national_id', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblNationality'))}
+                      <input
+                        className={inp}
+                        value={form.employee_nationality}
+                        onChange={(e) => setField('employee_nationality', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('phone'))}
+                      <input
+                        className={inp}
+                        value={form.employee_phone}
+                        onChange={(e) => setField('employee_phone', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('email'))}
+                      <input
+                        className={inp}
+                        value={form.employee_email}
+                        onChange={(e) => setField('employee_email', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblMaritalStatus'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.employee_marital_status}
+                        onChange={(v) => setField('employee_marital_status', v)}
+                        options={DOCS_MARITAL_STATUSES.map((s) => ({
+                          value: s,
+                          label: maritalStatusLabel(s, t),
+                        }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    {lbl(t('docCcLblAddress'))}
+                    <input
+                      className={inp}
+                      value={form.employee_address}
+                      onChange={(e) => setField('employee_address', e.target.value)}
+                    />
+                  </div>
+                </Sec>
+
+                <Sec title={t('docHrJobDetails')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docHrLblTitle'))}
+                      <input
+                        className={inp}
+                        value={form.job_title}
+                        onChange={(e) => setField('job_title', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblDepartment'))}
+                      <input
+                        className={inp}
+                        value={form.department}
+                        onChange={(e) => setField('department', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblDirectManager'))}
+                      <input
+                        className={inp}
+                        value={form.direct_manager}
+                        onChange={(e) => setField('direct_manager', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblType'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.employment_type}
+                        onChange={(v) => setField('employment_type', v)}
+                        options={DOCS_EMPLOYMENT_TYPES.map((et) => ({
+                          value: et.value,
+                          label: employmentTypeLabel(et.value, t),
+                        }))}
+                      />
+                    </div>
+                  </div>
+                </Sec>
+
+                <Sec title={t('docHrEmploymentTerms')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docHrLblStartDate'))}
+                      <input
+                        type="date"
+                        className={inp}
+                        value={form.start_date}
+                        onChange={(e) => setField('start_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblContractDuration'))}
+                      <input
+                        className={inp}
+                        value={form.contract_duration}
+                        onChange={(e) => setField('contract_duration', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblProbation'))}
+                      <input
+                        className={inp}
+                        value={form.probation_period}
+                        onChange={(e) => setField('probation_period', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrLblWorkplace'))}
+                      <input
+                        className={inp}
+                        value={form.workplace}
+                        onChange={(e) => setField('workplace', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </Sec>
+
+                <Sec title={t('docHrSalaryBenefits')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docEmpColSalary'))}
+                      <input
+                        type="number"
+                        min={0}
+                        className={inp}
+                        value={form.salary}
+                        onChange={(e) => setField('salary', Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docQtPaymentMethod'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inp}
+                        value={form.payment_method}
+                        onChange={(v) => setField('payment_method', v)}
+                        options={DOCS_PAYMENT_METHODS.map((m) => ({
+                          value: m,
+                          label: docsPaymentMethodLabel(m, t),
+                        }))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrPaymentDate'))}
+                      <input
+                        className={inp}
+                        value={form.payment_date}
+                        onChange={(e) => setField('payment_date', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    {lbl(t('docHrLblBenefits'))}
+                    <div className="mb-2 flex gap-2">
+                      <input
+                        className={inp}
+                        placeholder={t('docHrAddBenefitPh')}
+                        value={newBenefit}
+                        onChange={(e) => setNewBenefit(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newBenefit.trim()) {
+                            setField('benefits', [...form.benefits, newBenefit.trim()]);
+                            setNewBenefit('');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (newBenefit.trim()) {
+                            setField('benefits', [...form.benefits, newBenefit.trim()]);
+                            setNewBenefit('');
+                          }
+                        }}
+                        className="rounded-lg px-3 py-1.5 text-sm"
+                        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                       >
-                        {b}
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {form.benefits.map((b, i) => (
+                        <span
+                          key={i}
+                          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
+                        >
+                          {b}
+                          <button
+                            onClick={() =>
+                              setField(
+                                'benefits',
+                                form.benefits.filter((_, ii) => ii !== i),
+                              )
+                            }
+                          >
+                            <Trash2 size={10} style={{ color: '#ef4444' }} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </Sec>
+
+                <Sec title={t('docHrWorkingHours')}>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      {lbl(t('docHrLblDailyHours'))}
+                      <input
+                        type="number"
+                        min={1}
+                        max={24}
+                        className={inp}
+                        value={form.daily_hours}
+                        onChange={(e) => setField('daily_hours', Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrFieldAnnualLeaveDays'))}
+                      <input
+                        type="number"
+                        min={0}
+                        className={inp}
+                        value={form.annual_leave}
+                        onChange={(e) => setField('annual_leave', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      {lbl(t('docHrLblWorkDays'))}
+                      <input
+                        className={inp}
+                        value={form.work_days}
+                        onChange={(e) => setField('work_days', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </Sec>
+
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3
+                      className="text-xs font-bold uppercase tracking-wider"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      {t('docCcLegalClauses')}
+                    </h3>
+                    <button
+                      onClick={() =>
+                        setField('legal_clauses', [
+                          ...form.legal_clauses,
+                          { id: uid(), title: '', content: '' },
+                        ])
+                      }
+                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Plus size={12} /> {t('docQtAddLine')}
+                    </button>
+                  </div>
+                  {form.legal_clauses.map((cl, i) => (
+                    <div
+                      key={cl.id}
+                      className="mb-3 rounded-lg border p-3"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        <input
+                          className="flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
+                          style={{
+                            background: 'var(--surface-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          placeholder={t('docHrClauseTitlePh')}
+                          value={cl.title}
+                          onChange={(e) => {
+                            const cls = [...form.legal_clauses];
+                            cls[i] = { ...cl, title: e.target.value };
+                            setField('legal_clauses', cls);
+                          }}
+                        />
                         <button
                           onClick={() =>
                             setField(
-                              'benefits',
-                              form.benefits.filter((_, ii) => ii !== i),
+                              'legal_clauses',
+                              form.legal_clauses.filter((_, ii) => ii !== i),
                             )
                           }
                         >
-                          <Trash2 size={10} style={{ color: '#ef4444' }} />
+                          <Trash2 size={13} style={{ color: '#ef4444' }} />
                         </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </Sec>
-
-              <Sec title={t('docHrWorkingHours')}>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    {lbl(t('docHrLblDailyHours'))}
-                    <input
-                      type="number"
-                      min={1}
-                      max={24}
-                      className={inp}
-                      value={form.daily_hours}
-                      onChange={(e) => setField('daily_hours', Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docHrFieldAnnualLeaveDays'))}
-                    <input
-                      type="number"
-                      min={0}
-                      className={inp}
-                      value={form.annual_leave}
-                      onChange={(e) => setField('annual_leave', Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    {lbl(t('docHrLblWorkDays'))}
-                    <input
-                      className={inp}
-                      value={form.work_days}
-                      onChange={(e) => setField('work_days', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </Sec>
-
-              <section>
-                <div className="mb-3 flex items-center justify-between">
-                  <h3
-                    className="text-xs font-bold uppercase tracking-wider"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {t('docCcLegalClauses')}
-                  </h3>
-                  <button
-                    onClick={() =>
-                      setField('legal_clauses', [
-                        ...form.legal_clauses,
-                        { id: uid(), title: '', content: '' },
-                      ])
-                    }
-                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Plus size={12} /> {t('docQtAddLine')}
-                  </button>
-                </div>
-                {form.legal_clauses.map((cl, i) => (
-                  <div
-                    key={cl.id}
-                    className="mb-3 rounded-lg border p-3"
-                    style={{ borderColor: 'var(--border)' }}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <input
-                        className="flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
+                      </div>
+                      <textarea
+                        className="w-full rounded border px-2 py-1 text-sm outline-none"
+                        rows={3}
                         style={{
                           background: 'var(--surface-2)',
                           borderColor: 'var(--border)',
                           color: 'var(--text)',
                         }}
-                        placeholder={t('docHrClauseTitlePh')}
-                        value={cl.title}
+                        placeholder={t('docHrClauseContentPh')}
+                        value={cl.content}
                         onChange={(e) => {
                           const cls = [...form.legal_clauses];
-                          cls[i] = { ...cl, title: e.target.value };
+                          cls[i] = { ...cl, content: e.target.value };
                           setField('legal_clauses', cls);
                         }}
                       />
-                      <button
-                        onClick={() =>
-                          setField(
-                            'legal_clauses',
-                            form.legal_clauses.filter((_, ii) => ii !== i),
-                          )
-                        }
-                      >
-                        <Trash2 size={13} style={{ color: '#ef4444' }} />
-                      </button>
                     </div>
-                    <textarea
-                      className="w-full rounded border px-2 py-1 text-sm outline-none"
-                      rows={3}
-                      style={{
-                        background: 'var(--surface-2)',
-                        borderColor: 'var(--border)',
-                        color: 'var(--text)',
-                      }}
-                      placeholder={t('docHrClauseContentPh')}
-                      value={cl.content}
-                      onChange={(e) => {
-                        const cls = [...form.legal_clauses];
-                        cls[i] = { ...cl, content: e.target.value };
-                        setField('legal_clauses', cls);
-                      }}
-                    />
-                  </div>
-                ))}
-              </section>
+                  ))}
+                </section>
 
-              <Sec title={t('docHrSignatures')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docHrCompanyRepresentative'))}
-                    <input
-                      className={inp}
-                      value={form.sig_company_rep}
-                      onChange={(e) => setField('sig_company_rep', e.target.value)}
-                    />
+                <Sec title={t('docHrSignatures')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docHrCompanyRepresentative'))}
+                      <input
+                        className={inp}
+                        value={form.sig_company_rep}
+                        onChange={(e) => setField('sig_company_rep', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docHrEmployeeName'))}
+                      <input
+                        className={inp}
+                        value={form.sig_employee_name}
+                        onChange={(e) => setField('sig_employee_name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcSignatureDate'))}
+                      <input
+                        type="date"
+                        className={inp}
+                        value={form.sig_date}
+                        onChange={(e) => setField('sig_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcPlace'))}
+                      <input
+                        className={inp}
+                        value={form.sig_place}
+                        onChange={(e) => setField('sig_place', e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    {lbl(t('docHrEmployeeName'))}
-                    <input
-                      className={inp}
-                      value={form.sig_employee_name}
-                      onChange={(e) => setField('sig_employee_name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcSignatureDate'))}
-                    <input
-                      type="date"
-                      className={inp}
-                      value={form.sig_date}
-                      onChange={(e) => setField('sig_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcPlace'))}
-                    <input
-                      className={inp}
-                      value={form.sig_place}
-                      onChange={(e) => setField('sig_place', e.target.value)}
-                    />
-                  </div>
+                </Sec>
+
+                <div className="pb-4">
+                  <button
+                    onClick={save}
+                    disabled={saving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {saved ? (
+                      <>
+                        <Check size={16} /> {t('docCcSaved')}
+                      </>
+                    ) : saving ? (
+                      t('docCommonSaving')
+                    ) : (
+                      <>
+                        <Save size={16} />{' '}
+                        {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
+                      </>
+                    )}
+                  </button>
                 </div>
-              </Sec>
-
-              <div className="pb-4">
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saved ? (
-                    <>
-                      <Check size={16} /> {t('docCcSaved')}
-                    </>
-                  ) : saving ? (
-                    t('docCommonSaving')
-                  ) : (
-                    <>
-                      <Save size={16} />{' '}
-                      {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
-                    </>
-                  )}
-                </button>
               </div>
-            </div>
-          ) : (
-            <HistoryPanel
-              contracts={contracts}
-              loading={loading}
-              onEdit={loadIntoForm}
-              onDuplicate={(c) => {
-                loadIntoForm(c);
-                setEditingId(null);
-                setField('contract_number', nextNum(contracts));
-                setField('status', 'draft');
-              }}
-              onDelete={deleteC}
-              onReload={load}
-              onBackup={handleBackup}
-              onClearAll={handleClearAll}
-              onRestoreData={handleRestoreData}
-            />
-          )}
-        </div>
-      }
-      preview={
-        <ScaledDocumentPreview>
-          <HrContractPreview form={form} />
-        </ScaledDocumentPreview>
-      }
-    />
+            ) : (
+              <HistoryPanel
+                contracts={contracts}
+                loading={loading}
+                onEdit={loadIntoForm}
+                onDuplicate={(c) => {
+                  loadIntoForm(c);
+                  setEditingId(null);
+                  setField('contract_number', nextNum(contracts));
+                  setField('status', 'draft');
+                }}
+                onDelete={openDeleteContract}
+                onReload={load}
+                onBackup={handleBackup}
+                onClearAll={handleClearAll}
+                onRestoreData={handleRestoreData}
+              />
+            )}
+          </div>
+        }
+        preview={
+          <ScaledDocumentPreview>
+            <HrContractPreview form={form} />
+          </ScaledDocumentPreview>
+        }
+      />
+      <ConfirmDialog
+        open={Boolean(pendingDeleteContractId)}
+        title="Delete HR contract"
+        description="Delete this contract? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={deletingContract}
+        onCancel={() => {
+          if (deletingContract) return;
+          setPendingDeleteContractId(null);
+        }}
+        onConfirm={deleteC}
+      />
+    </>
   );
 }

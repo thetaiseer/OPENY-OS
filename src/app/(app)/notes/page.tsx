@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Pin, PinOff, Trash2, Pencil, Check } from 'lucide-react';
 import type { Note } from '@/lib/types';
 import FormModal from '@/components/ui/FormModal';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 function formatRelative(iso: string): string {
   try {
@@ -39,6 +40,8 @@ export default function NotesPage() {
   const [form, setForm] = useState({ title: '', content: '' });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<Note | null>(null);
+  const [deletingNote, setDeletingNote] = useState(false);
 
   const handleSearchChange = (v: string) => {
     setSearch(v);
@@ -88,10 +91,16 @@ export default function NotesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this note?')) return;
-    await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-    void queryClient.invalidateQueries({ queryKey: ['notes'] });
+  const handleDelete = async () => {
+    if (!pendingDeleteNote) return;
+    setDeletingNote(true);
+    try {
+      await fetch(`/api/notes/${pendingDeleteNote.id}`, { method: 'DELETE' });
+      void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      setPendingDeleteNote(null);
+    } finally {
+      setDeletingNote(false);
+    }
   };
 
   const handlePin = async (note: Note) => {
@@ -197,7 +206,7 @@ export default function NotesPage() {
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => void handleDelete(note.id)}
+                    onClick={() => setPendingDeleteNote(note)}
                     className="rounded p-1 text-red-500 transition-colors hover:bg-[var(--surface-2)]"
                   >
                     <Trash2 size={13} />
@@ -314,6 +323,20 @@ export default function NotesPage() {
           {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
         </FormModal>
       )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteNote)}
+        title="Delete note"
+        description={`Delete "${pendingDeleteNote?.title || 'Untitled'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        loading={deletingNote}
+        onCancel={() => {
+          if (deletingNote) return;
+          setPendingDeleteNote(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

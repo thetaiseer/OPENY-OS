@@ -41,6 +41,7 @@ import { exportPreviewPdf } from '@/lib/docs-print';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import {
   DocsDocTypeTabs,
   DocsToolbarLayout,
@@ -693,6 +694,8 @@ export default function ClientContractPage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FormState>(() => blank('CC-0001'));
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
+  const [pendingDeleteContractId, setPendingDeleteContractId] = useState<string | null>(null);
+  const [deletingContract, setDeletingContract] = useState(false);
   const [newService, setNewService] = useState('');
 
   const load = useCallback(async () => {
@@ -843,11 +846,21 @@ export default function ClientContractPage() {
     }
   }
 
-  async function deleteC(id: string) {
-    if (!confirm(t('docCcDeleteConfirm'))) return;
-    await fetch(`/api/docs/client-contracts/${id}`, { method: 'DELETE' });
-    await load();
-    if (editingId === id) resetForm();
+  async function deleteC() {
+    if (!pendingDeleteContractId) return;
+    setDeletingContract(true);
+    try {
+      await fetch(`/api/docs/client-contracts/${pendingDeleteContractId}`, { method: 'DELETE' });
+      await load();
+      if (editingId === pendingDeleteContractId) resetForm();
+      setPendingDeleteContractId(null);
+    } finally {
+      setDeletingContract(false);
+    }
+  }
+
+  function openDeleteContract(id: string) {
+    setPendingDeleteContractId(id);
   }
 
   async function handleBackup() {
@@ -932,497 +945,523 @@ export default function ClientContractPage() {
   }
 
   return (
-    <DocsWorkspaceShell
-      toolbar={
-        <DocsToolbarLayout
-          navigation={<DocsDocTypeTabs active="client-contract" />}
-          actions={
-            <>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Save size={12} className="me-1 inline" />{' '}
-                {saving ? t('docCommonSaving') : editingId ? t('docQtUpdate') : t('docCommonSave')}
-              </button>
-              <button
-                onClick={exportPdf}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#0f172a' }}
-              >
-                <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
-              </button>
-              <button
-                onClick={() => {
-                  if (!editingId) {
-                    alert(t('docCcSaveFirstWord'));
-                    return;
-                  }
-                  window.open(
-                    `/api/docs/client-contracts/${editingId}/export`,
-                    '_blank',
-                    'noopener,noreferrer',
-                  );
-                }}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#475569' }}
-              >
-                <Download size={12} className="me-1 inline" /> {t('docCcWord')}
-              </button>
-            </>
-          }
-        >
-          <div className="docs-workspace-quickbar-grid">
-            <div>
-              <label>{t('docCcContractNumber')}</label>
-              <input
-                className={inputCls}
-                value={form.contract_number}
-                readOnly={!editingId}
-                title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                onChange={(e) => setField('contract_number', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('date')}</label>
-              <input
-                type="date"
-                className={inputCls}
-                value={form.contract_date}
-                onChange={(e) => setField('contract_date', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docInvClientField')}</label>
-              <input
-                className={inputCls}
-                value={form.party2_client_name}
-                onChange={(e) => setField('party2_client_name', e.target.value)}
-              />
-            </div>
-            <div>
-              <label>{t('docInvHistory')}</label>
-              <SelectDropdown
-                fullWidth
-                className={inputCls}
-                value={editingId ?? ''}
-                onChange={(v) => {
-                  const selected = contracts.find((c) => c.id === v);
-                  if (selected) loadIntoForm(selected);
-                  else resetForm();
-                }}
-                options={[
-                  { value: '', label: t('docCcNewContract') },
-                  ...contracts.map((c) => ({
-                    value: c.id,
-                    label: `${c.contract_number} · ${c.party2_client_name}`,
-                  })),
-                ]}
-              />
-            </div>
-          </div>
-        </DocsToolbarLayout>
-      }
-      editor={
-        <div
-          className="flex flex-col overflow-hidden rounded-2xl border"
-          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-        >
-          <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
-            {(['editor', 'history'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={clsx(
-                  'flex-1 border-b-2 py-3 text-sm font-medium capitalize',
-                  activeTab === tab
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-transparent text-[var(--text-secondary)]',
-                )}
-              >
-                {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === 'editor' ? (
-            <div className="flex-1 space-y-5 overflow-y-auto p-4">
-              {editingId && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+    <>
+      <DocsWorkspaceShell
+        toolbar={
+          <DocsToolbarLayout
+            navigation={<DocsDocTypeTabs active="client-contract" />}
+            actions={
+              <>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  style={{ background: 'var(--accent)' }}
                 >
-                  <Edit2 size={14} /> {t('docQtEditing')}{' '}
-                  <button onClick={resetForm} className="underline">
-                    {t('docQtCancelEdit')}
-                  </button>
-                </div>
-              )}
-              {error && (
-                <div
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                  <Save size={12} className="me-1 inline" />{' '}
+                  {saving
+                    ? t('docCommonSaving')
+                    : editingId
+                      ? t('docQtUpdate')
+                      : t('docCommonSave')}
+                </button>
+                <button
+                  onClick={exportPdf}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#0f172a' }}
                 >
-                  <AlertCircle size={14} /> {error}
-                </div>
-              )}
-
-              <Section title={t('docCcSectionContractInfo')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docCcContractNumber'))}
-                    <input
-                      className={inputCls}
-                      value={form.contract_number}
-                      readOnly={!editingId}
-                      title={!editingId ? t('docDocNumberAutoHint') : undefined}
-                      onChange={(e) => setField('contract_number', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('date'))}
-                    <input
-                      type="date"
-                      className={inputCls}
-                      value={form.contract_date}
-                      onChange={(e) => setField('contract_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcDurationMonths'))}
-                    <input
-                      type="number"
-                      min={1}
-                      className={inputCls}
-                      value={form.duration_months}
-                      onChange={(e) => setField('duration_months', Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('status'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.status}
-                      onChange={(v) => setField('status', v)}
-                      options={['draft', 'active', 'signed', 'expired', 'terminated'].map((s) => ({
-                        value: s,
-                        label: contractStatusLabel(s, t),
-                      }))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docInvCurrency'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.currency}
-                      onChange={(v) => setField('currency', v)}
-                      options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcDocumentLanguage'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.language}
-                      onChange={(v) => setField('language', v as 'ar' | 'en')}
-                      options={[
-                        { value: 'en', label: t('docCcLangEn') },
-                        { value: 'ar', label: t('docCcLangAr') },
-                      ]}
-                    />
-                  </div>
-                </div>
-              </Section>
-
-              <Section title={t('docCcParty1Section')}>
-                {[
-                  [t('companyName'), 'party1_company_name'],
-                  [t('docCcLblRepresentative'), 'party1_representative'],
-                  [t('docCcLblAddress'), 'party1_address'],
-                  [t('email'), 'party1_email'],
-                  [t('phone'), 'party1_phone'],
-                  [t('website'), 'party1_website'],
-                  [t('docCcTaxRegistration'), 'party1_tax_reg'],
-                ].map(([label, field]) => (
-                  <div key={field}>
-                    {lbl(label)}
-                    <input
-                      className={inputCls}
-                      value={(form as unknown as Record<string, string>)[field]}
-                      onChange={(e) => setField(field as keyof FormState, e.target.value as never)}
-                    />
-                  </div>
-                ))}
-              </Section>
-
-              <Section title={t('docCcParty2Section')}>
-                <ClientProfileSelector
-                  profiles={profiles}
-                  selectedClientId={
-                    profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
-                  }
-                  onSelectClientId={applyClientProfile}
-                  label={t('docInvClientField')}
+                  <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editingId) {
+                      alert(t('docCcSaveFirstWord'));
+                      return;
+                    }
+                    window.open(
+                      `/api/docs/client-contracts/${editingId}/export`,
+                      '_blank',
+                      'noopener,noreferrer',
+                    );
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: '#475569' }}
+                >
+                  <Download size={12} className="me-1 inline" /> {t('docCcWord')}
+                </button>
+              </>
+            }
+          >
+            <div className="docs-workspace-quickbar-grid">
+              <div>
+                <label>{t('docCcContractNumber')}</label>
+                <input
+                  className={inputCls}
+                  value={form.contract_number}
+                  readOnly={!editingId}
+                  title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                  onChange={(e) => setField('contract_number', e.target.value)}
                 />
-                {[
-                  [t('docCcClientCompanyName'), 'party2_client_name'],
-                  [t('docCcContactPerson'), 'party2_contact_person'],
-                  [t('docCcLblAddress'), 'party2_address'],
-                  [t('email'), 'party2_email'],
-                  [t('phone'), 'party2_phone'],
-                  [t('website'), 'party2_website'],
-                  [t('docCcTaxRegistration'), 'party2_tax_reg'],
-                ].map(([label, field]) => (
-                  <div key={field}>
-                    {lbl(label)}
-                    <input
-                      className={inputCls}
-                      value={(form as unknown as Record<string, string>)[field]}
-                      onChange={(e) => setField(field as keyof FormState, e.target.value as never)}
-                    />
-                  </div>
-                ))}
-              </Section>
+              </div>
+              <div>
+                <label>{t('date')}</label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={form.contract_date}
+                  onChange={(e) => setField('contract_date', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvClientField')}</label>
+                <input
+                  className={inputCls}
+                  value={form.party2_client_name}
+                  onChange={(e) => setField('party2_client_name', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvHistory')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputCls}
+                  value={editingId ?? ''}
+                  onChange={(v) => {
+                    const selected = contracts.find((c) => c.id === v);
+                    if (selected) loadIntoForm(selected);
+                    else resetForm();
+                  }}
+                  options={[
+                    { value: '', label: t('docCcNewContract') },
+                    ...contracts.map((c) => ({
+                      value: c.id,
+                      label: `${c.contract_number} · ${c.party2_client_name}`,
+                    })),
+                  ]}
+                />
+              </div>
+            </div>
+          </DocsToolbarLayout>
+        }
+        editor={
+          <div
+            className="flex flex-col overflow-hidden rounded-2xl border"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+              {(['editor', 'history'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx(
+                    'flex-1 border-b-2 py-3 text-sm font-medium capitalize',
+                    activeTab === tab
+                      ? 'border-[var(--accent)] text-[var(--accent)]'
+                      : 'border-transparent text-[var(--text-secondary)]',
+                  )}
+                >
+                  {tab === 'editor' ? t('docQtTabEditor') : t('docQtTabHistory')}
+                </button>
+              ))}
+            </div>
 
-              <section>
-                <div className="mb-3 flex items-center justify-between">
-                  <h3
-                    className="text-xs font-bold uppercase tracking-wider"
-                    style={{ color: 'var(--text-secondary)' }}
+            {activeTab === 'editor' ? (
+              <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                {editingId && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
                   >
-                    {t('docCcIncludedServices')}
-                  </h3>
-                </div>
-                <div className="mb-2 flex gap-2">
-                  <input
-                    className={inputCls}
-                    placeholder={t('docCcAddServicePh')}
-                    value={newService}
-                    onChange={(e) => setNewService(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newService.trim()) {
-                        setField('services', [...form.services, newService.trim()]);
-                        setNewService('');
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (newService.trim()) {
-                        setField('services', [...form.services, newService.trim()]);
-                        setNewService('');
-                      }
-                    }}
-                    className="rounded-lg px-3 py-1.5 text-sm font-medium"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-                {form.services.map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1">
-                    <span className="flex-1 text-sm" style={{ color: 'var(--text)' }}>
-                      • {s}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setField(
-                          'services',
-                          form.services.filter((_, ii) => ii !== i),
-                        )
-                      }
-                    >
-                      <Trash2 size={13} style={{ color: '#ef4444' }} />
+                    <Edit2 size={14} /> {t('docQtEditing')}{' '}
+                    <button onClick={resetForm} className="underline">
+                      {t('docQtCancelEdit')}
                     </button>
                   </div>
-                ))}
-              </section>
-
-              <Section title={t('docCcFinancialDetails')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docCcTotalContractValue'))}
-                    <input
-                      type="number"
-                      min={0}
-                      className={inputCls}
-                      value={form.total_value}
-                      onChange={(e) => setField('total_value', Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docQtPaymentMethod'))}
-                    <SelectDropdown
-                      fullWidth
-                      className={inputCls}
-                      value={form.payment_method}
-                      onChange={(v) => setField('payment_method', v)}
-                      options={DOCS_PAYMENT_METHODS.map((m) => ({
-                        value: m,
-                        label: docsPaymentMethodLabel(m, t),
-                      }))}
-                    />
-                  </div>
-                </div>
-                <div>
-                  {lbl(t('docQtPaymentTerms'))}
-                  <textarea
-                    className={inputCls}
-                    rows={2}
-                    value={form.payment_terms}
-                    onChange={(e) => setField('payment_terms', e.target.value)}
-                  />
-                </div>
-                <div>
-                  {lbl(t('notes'))}
-                  <textarea
-                    className={inputCls}
-                    rows={2}
-                    value={form.notes}
-                    onChange={(e) => setField('notes', e.target.value)}
-                  />
-                </div>
-              </Section>
-
-              <section>
-                <div className="mb-3 flex items-center justify-between">
-                  <h3
-                    className="text-xs font-bold uppercase tracking-wider"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {t('docCcLegalClauses')}
-                  </h3>
-                  <button
-                    onClick={addClause}
-                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                  >
-                    <Plus size={12} /> {t('docQtAddLine')}
-                  </button>
-                </div>
-                {form.legal_clauses.map((cl, i) => (
+                )}
+                {error && (
                   <div
-                    key={cl.id}
-                    className="mb-3 rounded-lg border p-3"
-                    style={{ borderColor: 'var(--border)' }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
                   >
-                    <div className="mb-2 flex items-center justify-between">
+                    <AlertCircle size={14} /> {error}
+                  </div>
+                )}
+
+                <Section title={t('docCcSectionContractInfo')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docCcContractNumber'))}
                       <input
-                        className="me-2 flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
+                        className={inputCls}
+                        value={form.contract_number}
+                        readOnly={!editingId}
+                        title={!editingId ? t('docDocNumberAutoHint') : undefined}
+                        onChange={(e) => setField('contract_number', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('date'))}
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={form.contract_date}
+                        onChange={(e) => setField('contract_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcDurationMonths'))}
+                      <input
+                        type="number"
+                        min={1}
+                        className={inputCls}
+                        value={form.duration_months}
+                        onChange={(e) => setField('duration_months', Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('status'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inputCls}
+                        value={form.status}
+                        onChange={(v) => setField('status', v)}
+                        options={['draft', 'active', 'signed', 'expired', 'terminated'].map(
+                          (s) => ({
+                            value: s,
+                            label: contractStatusLabel(s, t),
+                          }),
+                        )}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docInvCurrency'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inputCls}
+                        value={form.currency}
+                        onChange={(v) => setField('currency', v)}
+                        options={DOCS_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcDocumentLanguage'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inputCls}
+                        value={form.language}
+                        onChange={(v) => setField('language', v as 'ar' | 'en')}
+                        options={[
+                          { value: 'en', label: t('docCcLangEn') },
+                          { value: 'ar', label: t('docCcLangAr') },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </Section>
+
+                <Section title={t('docCcParty1Section')}>
+                  {[
+                    [t('companyName'), 'party1_company_name'],
+                    [t('docCcLblRepresentative'), 'party1_representative'],
+                    [t('docCcLblAddress'), 'party1_address'],
+                    [t('email'), 'party1_email'],
+                    [t('phone'), 'party1_phone'],
+                    [t('website'), 'party1_website'],
+                    [t('docCcTaxRegistration'), 'party1_tax_reg'],
+                  ].map(([label, field]) => (
+                    <div key={field}>
+                      {lbl(label)}
+                      <input
+                        className={inputCls}
+                        value={(form as unknown as Record<string, string>)[field]}
+                        onChange={(e) =>
+                          setField(field as keyof FormState, e.target.value as never)
+                        }
+                      />
+                    </div>
+                  ))}
+                </Section>
+
+                <Section title={t('docCcParty2Section')}>
+                  <ClientProfileSelector
+                    profiles={profiles}
+                    selectedClientId={
+                      profiles.find((p) => p.id === form.client_profile_id)?.client_id ?? ''
+                    }
+                    onSelectClientId={applyClientProfile}
+                    label={t('docInvClientField')}
+                  />
+                  {[
+                    [t('docCcClientCompanyName'), 'party2_client_name'],
+                    [t('docCcContactPerson'), 'party2_contact_person'],
+                    [t('docCcLblAddress'), 'party2_address'],
+                    [t('email'), 'party2_email'],
+                    [t('phone'), 'party2_phone'],
+                    [t('website'), 'party2_website'],
+                    [t('docCcTaxRegistration'), 'party2_tax_reg'],
+                  ].map(([label, field]) => (
+                    <div key={field}>
+                      {lbl(label)}
+                      <input
+                        className={inputCls}
+                        value={(form as unknown as Record<string, string>)[field]}
+                        onChange={(e) =>
+                          setField(field as keyof FormState, e.target.value as never)
+                        }
+                      />
+                    </div>
+                  ))}
+                </Section>
+
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3
+                      className="text-xs font-bold uppercase tracking-wider"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      {t('docCcIncludedServices')}
+                    </h3>
+                  </div>
+                  <div className="mb-2 flex gap-2">
+                    <input
+                      className={inputCls}
+                      placeholder={t('docCcAddServicePh')}
+                      value={newService}
+                      onChange={(e) => setNewService(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newService.trim()) {
+                          setField('services', [...form.services, newService.trim()]);
+                          setNewService('');
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (newService.trim()) {
+                          setField('services', [...form.services, newService.trim()]);
+                          setNewService('');
+                        }
+                      }}
+                      className="rounded-lg px-3 py-1.5 text-sm font-medium"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  {form.services.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 py-1">
+                      <span className="flex-1 text-sm" style={{ color: 'var(--text)' }}>
+                        • {s}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setField(
+                            'services',
+                            form.services.filter((_, ii) => ii !== i),
+                          )
+                        }
+                      >
+                        <Trash2 size={13} style={{ color: '#ef4444' }} />
+                      </button>
+                    </div>
+                  ))}
+                </section>
+
+                <Section title={t('docCcFinancialDetails')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docCcTotalContractValue'))}
+                      <input
+                        type="number"
+                        min={0}
+                        className={inputCls}
+                        value={form.total_value}
+                        onChange={(e) => setField('total_value', Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docQtPaymentMethod'))}
+                      <SelectDropdown
+                        fullWidth
+                        className={inputCls}
+                        value={form.payment_method}
+                        onChange={(v) => setField('payment_method', v)}
+                        options={DOCS_PAYMENT_METHODS.map((m) => ({
+                          value: m,
+                          label: docsPaymentMethodLabel(m, t),
+                        }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    {lbl(t('docQtPaymentTerms'))}
+                    <textarea
+                      className={inputCls}
+                      rows={2}
+                      value={form.payment_terms}
+                      onChange={(e) => setField('payment_terms', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    {lbl(t('notes'))}
+                    <textarea
+                      className={inputCls}
+                      rows={2}
+                      value={form.notes}
+                      onChange={(e) => setField('notes', e.target.value)}
+                    />
+                  </div>
+                </Section>
+
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3
+                      className="text-xs font-bold uppercase tracking-wider"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      {t('docCcLegalClauses')}
+                    </h3>
+                    <button
+                      onClick={addClause}
+                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Plus size={12} /> {t('docQtAddLine')}
+                    </button>
+                  </div>
+                  {form.legal_clauses.map((cl, i) => (
+                    <div
+                      key={cl.id}
+                      className="mb-3 rounded-lg border p-3"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <input
+                          className="me-2 flex-1 rounded border px-2 py-1 text-sm font-semibold outline-none"
+                          style={{
+                            background: 'var(--surface-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          placeholder={t('docCcClauseTitlePh', { n: i + 1 })}
+                          value={cl.title}
+                          onChange={(e) => updateClause(i, { ...cl, title: e.target.value })}
+                        />
+                        <button onClick={() => removeClause(i)}>
+                          <Trash2 size={13} style={{ color: '#ef4444' }} />
+                        </button>
+                      </div>
+                      <textarea
+                        className="w-full rounded border px-2 py-1 text-sm outline-none"
+                        rows={3}
                         style={{
                           background: 'var(--surface-2)',
                           borderColor: 'var(--border)',
                           color: 'var(--text)',
                         }}
-                        placeholder={t('docCcClauseTitlePh', { n: i + 1 })}
-                        value={cl.title}
-                        onChange={(e) => updateClause(i, { ...cl, title: e.target.value })}
+                        placeholder={t('docCcClauseContentPh')}
+                        value={cl.content}
+                        onChange={(e) => updateClause(i, { ...cl, content: e.target.value })}
                       />
-                      <button onClick={() => removeClause(i)}>
-                        <Trash2 size={13} style={{ color: '#ef4444' }} />
-                      </button>
                     </div>
-                    <textarea
-                      className="w-full rounded border px-2 py-1 text-sm outline-none"
-                      rows={3}
-                      style={{
-                        background: 'var(--surface-2)',
-                        borderColor: 'var(--border)',
-                        color: 'var(--text)',
-                      }}
-                      placeholder={t('docCcClauseContentPh')}
-                      value={cl.content}
-                      onChange={(e) => updateClause(i, { ...cl, content: e.target.value })}
-                    />
-                  </div>
-                ))}
-              </section>
+                  ))}
+                </section>
 
-              <Section title={t('docCcSignatures')}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {lbl(t('docCcParty1Representative'))}
-                    <input
-                      className={inputCls}
-                      value={form.sig_party1}
-                      onChange={(e) => setField('sig_party1', e.target.value)}
-                    />
+                <Section title={t('docCcSignatures')}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      {lbl(t('docCcParty1Representative'))}
+                      <input
+                        className={inputCls}
+                        value={form.sig_party1}
+                        onChange={(e) => setField('sig_party1', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcParty2Representative'))}
+                      <input
+                        className={inputCls}
+                        value={form.sig_party2}
+                        onChange={(e) => setField('sig_party2', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcSignatureDate'))}
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={form.sig_date}
+                        onChange={(e) => setField('sig_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      {lbl(t('docCcPlace'))}
+                      <input
+                        className={inputCls}
+                        value={form.sig_place}
+                        onChange={(e) => setField('sig_place', e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    {lbl(t('docCcParty2Representative'))}
-                    <input
-                      className={inputCls}
-                      value={form.sig_party2}
-                      onChange={(e) => setField('sig_party2', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcSignatureDate'))}
-                    <input
-                      type="date"
-                      className={inputCls}
-                      value={form.sig_date}
-                      onChange={(e) => setField('sig_date', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {lbl(t('docCcPlace'))}
-                    <input
-                      className={inputCls}
-                      value={form.sig_place}
-                      onChange={(e) => setField('sig_place', e.target.value)}
-                    />
-                  </div>
+                </Section>
+
+                <div className="pb-4">
+                  <button
+                    onClick={save}
+                    disabled={saving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {saved ? (
+                      <>
+                        <Check size={16} /> {t('docCcSaved')}
+                      </>
+                    ) : saving ? (
+                      t('docCommonSaving')
+                    ) : (
+                      <>
+                        <Save size={16} />{' '}
+                        {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
+                      </>
+                    )}
+                  </button>
                 </div>
-              </Section>
-
-              <div className="pb-4">
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saved ? (
-                    <>
-                      <Check size={16} /> {t('docCcSaved')}
-                    </>
-                  ) : saving ? (
-                    t('docCommonSaving')
-                  ) : (
-                    <>
-                      <Save size={16} />{' '}
-                      {editingId ? t('docCcUpdateContract') : t('docCcSaveContract')}
-                    </>
-                  )}
-                </button>
               </div>
-            </div>
-          ) : (
-            <HistoryPanel
-              contracts={contracts}
-              loading={loading}
-              onEdit={loadIntoForm}
-              onDuplicate={duplicateContract}
-              onDelete={deleteC}
-              onReload={load}
-              onBackup={handleBackup}
-              onClearAll={handleClearAll}
-              onRestoreData={handleRestoreData}
-            />
-          )}
-        </div>
-      }
-      preview={
-        <ScaledDocumentPreview>
-          <ContractPreview form={form} />
-        </ScaledDocumentPreview>
-      }
-    />
+            ) : (
+              <HistoryPanel
+                contracts={contracts}
+                loading={loading}
+                onEdit={loadIntoForm}
+                onDuplicate={duplicateContract}
+                onDelete={openDeleteContract}
+                onReload={load}
+                onBackup={handleBackup}
+                onClearAll={handleClearAll}
+                onRestoreData={handleRestoreData}
+              />
+            )}
+          </div>
+        }
+        preview={
+          <ScaledDocumentPreview>
+            <ContractPreview form={form} />
+          </ScaledDocumentPreview>
+        }
+      />
+      <ConfirmDialog
+        open={Boolean(pendingDeleteContractId)}
+        title="Delete client contract"
+        description="Delete this contract? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={deletingContract}
+        onCancel={() => {
+          if (deletingContract) return;
+          setPendingDeleteContractId(null);
+        }}
+        onConfirm={deleteC}
+      />
+    </>
   );
 }

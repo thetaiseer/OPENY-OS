@@ -1136,12 +1136,14 @@ export default function TeamPage() {
 
   const [saving, setSaving] = useState(false);
   const [removingMember, setRemovingMember] = useState(false);
+  const [cancellingInvite, setCancellingInvite] = useState(false);
   const [actionError, setActionError] = useState('');
 
   // Modals
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
+  const [pendingCancelInvite, setPendingCancelInvite] = useState<TeamInvitation | null>(null);
   const removeMemberMutation = useRemoveTeamMember();
 
   // Member profile side panel
@@ -1477,26 +1479,33 @@ export default function TeamPage() {
   };
 
   // ── Cancel invite ─────────────────────────────────────────────────────────
-  const handleCancelInvite = async (invitation: TeamInvitation) => {
-    if (!confirm(t('teamCancelInviteConfirm', { email: invitation.email }))) return;
+  const handleCancelInvite = async () => {
+    if (!pendingCancelInvite) return;
+    setCancellingInvite(true);
     try {
       const res = await fetch('/api/team/invite/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team_member_id: invitation.team_member_id }),
+        body: JSON.stringify({ team_member_id: pendingCancelInvite.team_member_id }),
       });
       const data = await res.json();
       if (!res.ok) {
         toast(
-          `Cancel invite / ${invitation.email}: ${data.error ?? t('teamFailedRevokeInvite')}`,
+          `Cancel invite / ${pendingCancelInvite.email}: ${data.error ?? t('teamFailedRevokeInvite')}`,
           'error',
         );
         return;
       }
-      toast(`Cancel invite / ${invitation.email}: ${t('teamInvitationCancelled')}`, 'info');
+      toast(
+        `Cancel invite / ${pendingCancelInvite.email}: ${t('teamInvitationCancelled')}`,
+        'info',
+      );
+      setPendingCancelInvite(null);
       void queryClient.invalidateQueries({ queryKey: ['team-data'] });
     } catch {
-      toast(`Cancel invite / ${invitation.email}: ${t('teamNetworkErrorRetry')}`, 'error');
+      toast(`Cancel invite / ${pendingCancelInvite.email}: ${t('teamNetworkErrorRetry')}`, 'error');
+    } finally {
+      setCancellingInvite(false);
     }
   };
 
@@ -1706,7 +1715,7 @@ export default function TeamPage() {
                       canManage={canManage}
                       onResend={handleResend}
                       onCopyLink={handleCopyInviteLink}
-                      onCancel={handleCancelInvite}
+                      onCancel={(invitation) => setPendingCancelInvite(invitation)}
                     />
                   ))}
                 </div>
@@ -1881,6 +1890,24 @@ export default function TeamPage() {
         loading={removingMember}
         onCancel={() => setDeleteMember(null)}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingCancelInvite)}
+        title="Cancel invitation"
+        description={
+          pendingCancelInvite
+            ? `Cancel invitation for "${pendingCancelInvite.email}"? This action cannot be undone.`
+            : 'Cancel invitation?'
+        }
+        confirmLabel="Cancel invitation"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={cancellingInvite}
+        onCancel={() => {
+          if (cancellingInvite) return;
+          setPendingCancelInvite(null);
+        }}
+        onConfirm={handleCancelInvite}
       />
 
       {/* ── Member Profile Side Panel ─────────────────────────────────────── */}

@@ -17,6 +17,7 @@ import {
 import { DocsDateField } from '@/components/docs/DocsUi';
 import AppModal from '@/components/ui/AppModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
+import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import {
   DocsDocTypeTabs,
   DocsEditorCard,
@@ -483,6 +484,8 @@ export default function EmployeesPage() {
   const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
   const [profiles, setProfiles] = useState<DocsClientProfile[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [pendingDeleteEmployee, setPendingDeleteEmployee] = useState<DocsEmployee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -509,10 +512,16 @@ export default function EmployeesPage() {
   }, []);
   const selectedProfile = profiles.find((p) => p.client_id === selectedClientId) ?? null;
 
-  async function deleteEmp(id: string) {
-    if (!confirm(t('docEmpDeleteConfirm'))) return;
-    await fetch(`/api/docs/employees/${id}`, { method: 'DELETE' });
-    await load();
+  async function deleteEmp() {
+    if (!pendingDeleteEmployee) return;
+    setDeletingEmployee(true);
+    try {
+      await fetch(`/api/docs/employees/${pendingDeleteEmployee.id}`, { method: 'DELETE' });
+      setPendingDeleteEmployee(null);
+      await load();
+    } finally {
+      setDeletingEmployee(false);
+    }
   }
 
   function exportPayrollCSV() {
@@ -947,7 +956,7 @@ export default function EmployeesPage() {
                                   <Edit2 size={13} style={{ color: 'var(--accent)' }} />
                                 </button>
                                 <button
-                                  onClick={() => deleteEmp(e.id)}
+                                  onClick={() => setPendingDeleteEmployee(e)}
                                   className="rounded-lg p-1.5 hover:bg-red-50"
                                 >
                                   <Trash2 size={13} style={{ color: '#ef4444' }} />
@@ -1278,6 +1287,20 @@ export default function EmployeesPage() {
       {salaryModal && (
         <SalaryModal employee={salaryModal} onClose={() => setSalaryModal(null)} onDone={load} />
       )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteEmployee)}
+        title="Delete employee"
+        description={`Delete "${pendingDeleteEmployee?.full_name ?? ''}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel={t('cancel')}
+        destructive
+        loading={deletingEmployee}
+        onCancel={() => {
+          if (deletingEmployee) return;
+          setPendingDeleteEmployee(null);
+        }}
+        onConfirm={deleteEmp}
+      />
     </>
   );
 }
