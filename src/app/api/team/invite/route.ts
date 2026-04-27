@@ -26,6 +26,12 @@ import {
 const INVITE_EXPIRY_DAYS = 7;
 const ACTIVE_INVITATION_STATUSES = [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED] as const;
 
+function normalizeInviteRole(input: string): 'admin' | 'manager' | 'team_member' | 'viewer' | null {
+  if (input === 'admin' || input === 'manager' || input === 'viewer') return input;
+  if (input === 'member' || input === 'team_member') return 'team_member';
+  return null;
+}
+
 type InsertResult = {
   invitation: Record<string, unknown> | null;
   errorMessage: string | null;
@@ -167,7 +173,8 @@ export async function POST(request: NextRequest) {
   const full_name = (body.full_name ?? body.name ?? '').trim();
   const email = (body.email ?? '').trim().toLowerCase();
   // access_role: the system permission level (admin|manager|team|viewer)
-  const access_role = (body.access_role ?? body.role ?? '').trim().toLowerCase();
+  const access_role_raw = (body.access_role ?? body.role ?? '').trim().toLowerCase();
+  const access_role = normalizeInviteRole(access_role_raw);
   // job_title: the human-readable job description (Graphic Designer, etc.)
   const job_title = (body.job_title ?? '').trim();
   const requestedWorkspaceAccess = Array.isArray(body.workspace_access)
@@ -178,7 +185,7 @@ export async function POST(request: NextRequest) {
       ? (body.workspace_roles as Record<string, string>)
       : {};
 
-  if (!full_name || !email || !access_role) {
+  if (!full_name || !email || !access_role_raw) {
     return NextResponse.json(
       { error: 'full_name, email, and access_role are required' },
       { status: 400 },
@@ -187,11 +194,11 @@ export async function POST(request: NextRequest) {
 
   // Validate access_role strictly.
   // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
-  const VALID_ACCESS_ROLES = ['admin', 'manager', 'team_member', 'viewer'];
-  if (!VALID_ACCESS_ROLES.includes(access_role)) {
+  const VALID_ACCESS_ROLES = ['admin', 'manager', 'member', 'team_member', 'viewer'];
+  if (!access_role) {
     return NextResponse.json(
       {
-        error: `Invalid access role "${access_role}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}`,
+        error: `Invalid access role "${access_role_raw}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}`,
       },
       { status: 400 },
     );
@@ -244,23 +251,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 1. Check for active invite already sent to this email ────────────────
-  const { data: existingInvite } = await db
-    .from('team_invitations')
-    .select('id, status, expires_at')
-    .eq('email', email)
-    .in('status', [...ACTIVE_INVITATION_STATUSES])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingInvite && new Date(existingInvite.expires_at) > new Date()) {
-    return NextResponse.json(
-      { error: 'An active invitation has already been sent to this email address.' },
-      { status: 409 },
-    );
-  }
-
   const { data: existingWorkspaceInvite } = await db
     .from('workspace_invitations')
     .select('id, status, expires_at')
@@ -270,12 +260,9 @@ export async function POST(request: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (existingWorkspaceInvite && new Date(existingWorkspaceInvite.expires_at) > new Date()) {
-    return NextResponse.json(
-      { error: 'An active invitation has already been sent to this email address.' },
-      { status: 409 },
-    );
-  }
+  const regenerateExistingInvite = Boolean(
+    existingWorkspaceInvite && new Date(existingWorkspaceInvite.expires_at) > new Date(),
+  );
 
   // ── 2. Existing auth user handling (invite-only flow) ────────────────────
   const { data: existingAuthUsers } = await db.auth.admin.listUsers();
@@ -284,10 +271,10 @@ export async function POST(request: NextRequest) {
   // Existing auth users are allowed, but users already in a workspace are not.
   if (existingUser?.id) {
     const { data: existingMembership } = await db
-      .from('workspace_memberships')
+      .from('workspace_members')
       .select('id')
       .eq('user_id', existingUser.id)
-      .eq('is_active', true)
+      .eq('workspace_id', workspaceId)
       .limit(1)
       .maybeSingle();
     if (existingMembership?.id) {
@@ -296,9 +283,68 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+    const { data: existingMembershipLegacy } = await db
+      .from('workspace_memberships')
+      .select('id')
+      .eq('user_id', existingUser.id)
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (existingMembershipLegacy?.id) {
+      return NextResponse.json(
+        { error: 'This email already belongs to a workspace member.' },
+        { status: 409 },
+      );
+    }
   }
 
-  // ── 3. Create team_member record with status='invited' ──────────────────
+  // ── 3. Generate secure single-use token ──────────────────────────────────
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const workspaceName =
+    effectiveWorkspaceAccess.length === 2
+      ? 'OPENY PLATFORM'
+      : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`;
+  const inviteUrl = `${INVITE_BASE_URL}/invite/${encodeURIComponent(token)}`;
+
+  if (regenerateExistingInvite && existingWorkspaceInvite) {
+    const { error: regenWorkspaceInviteError } = await db
+      .from('workspace_invitations')
+      .update({ token, expires_at: expiresAt, status: 'pending', role: access_role })
+      .eq('id', existingWorkspaceInvite.id);
+
+    if (regenWorkspaceInviteError) {
+      return NextResponse.json(
+        { error: regenWorkspaceInviteError.message ?? 'Failed to regenerate existing invitation' },
+        { status: 500 },
+      );
+    }
+
+    await db
+      .from('team_invitations')
+      .update({ token, expires_at: expiresAt, status: INVITATION_STATUS.PENDING })
+      .eq('email', email)
+      .in('status', [...ACTIVE_INVITATION_STATUSES]);
+
+    try {
+      await sendInviteEmail({
+        to: email,
+        inviteUrl,
+        workspaceName,
+        role: access_role,
+      });
+      return NextResponse.json({ success: true, regenerated: true }, { status: 200 });
+    } catch (emailErr) {
+      const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+      return NextResponse.json(
+        { error: `Failed to send invitation email: ${errMsg}` },
+        { status: 502 },
+      );
+    }
+  }
+
+  // ── 4. Create team_member record with status='invited' ──────────────────
   const { data: member, error: memberError } = await db
     .from('team_members')
     .insert({
@@ -318,10 +364,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-
-  // ── 4. Generate secure single-use token ──────────────────────────────────
-  const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const {
     invitation,
@@ -356,7 +398,7 @@ export async function POST(request: NextRequest) {
   const workspaceInvitePayload = {
     workspace_id: workspaceId,
     email,
-    role: access_role === 'viewer' ? 'team_member' : access_role,
+    role: access_role,
     token,
     status: 'pending',
     invited_by: auth.profile.id,
@@ -378,21 +420,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── 5. Send invite email (Resend SDK) ─────────────────────────────────────
-  const inviteUrl = `${INVITE_BASE_URL}/invite/${encodeURIComponent(token)}`;
-  const workspaceName =
-    effectiveWorkspaceAccess.length === 2
-      ? 'OPENY PLATFORM'
-      : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`;
-
   try {
     await sendInviteEmail({
       to: email,
       inviteUrl,
       workspaceName,
       role: access_role,
-      recipientName: full_name,
-      inviterName: auth.profile.name,
     });
 
     await logEmailSent({

@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
   const memberData = Array.isArray(invitation.team_member)
     ? invitation.team_member[0]
     : invitation.team_member;
-  const memberFullName = (memberData as { full_name?: string } | null)?.full_name ?? '';
   const memberRole =
     (memberData as { role?: string } | null)?.role ??
     // Fallback to invitation.role while `role` still exists on team_invitations
@@ -102,8 +101,6 @@ export async function POST(request: NextRequest) {
       inviteUrl,
       workspaceName: 'OPENY OS',
       role: memberRole,
-      recipientName: memberFullName,
-      inviterName: auth.profile.name,
     });
     await logEmailSent({
       to: invitation.email,
