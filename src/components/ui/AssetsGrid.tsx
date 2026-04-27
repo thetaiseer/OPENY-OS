@@ -7,6 +7,8 @@ import {
   Check,
   Copy,
   Eye,
+  FileCode2,
+  FileSpreadsheet,
   FileText,
   Film,
   Image as ImageIcon,
@@ -103,6 +105,12 @@ function AssetTile({
   const video = isVideo(asset.name, mime);
   const pdf = isPdf(asset.name, mime);
   const audio = isAudio(asset.name, mime);
+  const extension = asset.name.split('.').pop()?.toLowerCase() ?? '';
+  const isDoc = ['doc', 'docx'].includes(extension);
+  const isSheet = ['xls', 'xlsx', 'csv'].includes(extension);
+  const isCode = ['ts', 'tsx', 'js', 'jsx', 'py', 'sql', 'json', 'xml', 'yml', 'yaml'].includes(
+    extension,
+  );
   const selected = selectedIds?.has(asset.id) ?? false;
   const sched = scheduleCounts?.[asset.id];
   const showSched = sched && sched.count > 0;
@@ -148,9 +156,15 @@ function AssetTile({
             {video ? (
               <Film size={28} className="text-[var(--text-secondary)]" />
             ) : pdf ? (
-              <FileText size={28} className="text-[var(--text-secondary)]" />
+              <FileText size={28} className="text-rose-500" />
             ) : audio ? (
               <Music size={28} className="text-[var(--text-secondary)]" />
+            ) : isSheet ? (
+              <FileSpreadsheet size={28} className="text-emerald-500" />
+            ) : isDoc ? (
+              <FileText size={28} className="text-blue-500" />
+            ) : isCode ? (
+              <FileCode2 size={28} className="text-violet-500" />
             ) : (
               <ImageIcon size={28} className="text-[var(--text-secondary)]" />
             )}
@@ -166,7 +180,7 @@ function AssetTile({
               className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg"
               style={{ background: 'rgba(15,23,42,0.55)' }}
             >
-              <Film size={22} />
+              <span className="ms-0.5 text-lg">▶</span>
             </div>
           </div>
         ) : null}
