@@ -67,6 +67,7 @@ function makeInvitation(overrides: Partial<ResolvedInvitation> = {}): ResolvedIn
     status: 'pending',
     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
     team_member_id: 'tm-1',
+    workspace_id: 'test-workspace-id',
     ...overrides,
   };
 }
