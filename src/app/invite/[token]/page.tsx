@@ -9,7 +9,7 @@ export default async function InviteTokenPage({ params }: PageProps) {
   const db = getServiceClient();
 
   const { data: invitation } = await db
-    .from('workspace_invitations')
+    .from('invitations')
     .select('email, role, status, expires_at, workspace:workspaces(name)')
     .eq('token', normalizedToken)
     .maybeSingle();

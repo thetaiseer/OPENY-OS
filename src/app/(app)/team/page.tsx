@@ -1184,7 +1184,7 @@ export default function TeamPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_members' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_invitations' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invitations' }, () => {
         void queryClient.invalidateQueries({ queryKey: ['team-data'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_permissions' }, () => {

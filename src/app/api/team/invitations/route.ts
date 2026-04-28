@@ -6,6 +6,7 @@ import type { TeamInvitation } from '@/lib/types';
 type InvitationRow = {
   id: string;
   team_member_id: string;
+  workspace_id?: string | null;
   email: string;
   token: string;
   role?: string | null;
@@ -36,29 +37,10 @@ type InvitationRow = {
     | null;
 };
 
-// Prefer flat selects first: embedded `team_member:team_members(...)` can fail if the FK
-// hint or PostgREST relationship name differs across deployments, which previously
-// caused GET to 500 and the Team page to drop pending invites after refetch.
-//
-// Some production DBs were created without `accepted_at` (or `updated_at` / workspace JSON);
-// try those shapes before selects that reference missing columns.
 const selectVariants = [
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at, updated_at',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, created_at',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at, updated_at',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, created_at',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(full_name, job_title, role, status)',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(full_name, job_title, role, status)',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(full_name, job_title, role, status)',
-  'id, team_member_id, email, token, role, status, invited_by, expires_at, accepted_at, created_at, updated_at, workspace_access, workspace_roles, team_member:team_members(name, role, status)',
-  'id, team_member_id, email, token, role:access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at, team_member:team_members(name, role, status)',
+  'id, workspace_id, team_member_id, email, token, role, access_role, status, invited_by, expires_at, accepted_at, created_at, updated_at',
+  'id, workspace_id, team_member_id, email, token, role, access_role, status, invited_by, expires_at, created_at, updated_at',
+  'id, workspace_id, team_member_id, email, token, role, access_role, status, invited_by, expires_at, created_at',
   '*',
 ];
 
@@ -95,13 +77,21 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = getServiceClient();
+  const { data: inviterWorkspace } = await db
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', auth.profile.id)
+    .limit(1)
+    .maybeSingle();
+
   let rows: InvitationRow[] | null = null;
   let lastErrorMessage: string | null = null;
 
   for (const selectClause of selectVariants) {
     const { data, error } = await db
-      .from('team_invitations')
+      .from('invitations')
       .select(selectClause)
+      .eq('workspace_id', inviterWorkspace?.workspace_id ?? '')
       .order('created_at', { ascending: false });
 
     if (!error) {
@@ -118,6 +108,31 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const invitations = rows.map(normalizeInvitationRow);
+  const teamMemberIds = rows
+    .map((row) => row.team_member_id)
+    .filter((value): value is string => Boolean(value));
+  const { data: teamMembers } =
+    teamMemberIds.length > 0
+      ? await db
+          .from('team_members')
+          .select('id, full_name, name, job_title, role, status')
+          .in('id', teamMemberIds)
+      : { data: [] };
+  const teamMemberById = new Map((teamMembers ?? []).map((row) => [row.id, row]));
+
+  const invitations = rows.map((row) => {
+    const tm = teamMemberById.get(row.team_member_id);
+    return normalizeInvitationRow({
+      ...row,
+      team_member: tm
+        ? {
+            full_name: tm.full_name ?? tm.name ?? null,
+            job_title: tm.job_title ?? null,
+            role: tm.role ?? null,
+            status: tm.status ?? null,
+          }
+        : null,
+    });
+  });
   return NextResponse.json({ invitations });
 }

@@ -13,7 +13,6 @@ import { randomBytes } from 'crypto';
 import { requireRole } from '@/lib/api-auth';
 import { logEmailSent } from '@/lib/email';
 import { sendInviteEmail } from '@/lib/email/sendInviteEmail';
-import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -41,10 +40,10 @@ export async function POST(request: NextRequest) {
 
   // Find the most recent non-accepted invitation (with team_member join for full_name)
   const { data: invitation, error } = await db
-    .from('team_invitations')
-    .select('*, team_member:team_members(full_name, role)')
+    .from('invitations')
+    .select('*')
     .eq('team_member_id', teamMemberId)
-    .in('status', [INVITATION_STATUS.PENDING, INVITATION_STATUS.INVITED, INVITATION_STATUS.EXPIRED])
+    .in('status', ['pending', 'invited', 'expired'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -57,14 +56,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve full_name and role from the team_member join
-  const memberData = Array.isArray(invitation.team_member)
-    ? invitation.team_member[0]
-    : invitation.team_member;
   const memberRole =
-    (memberData as { role?: string } | null)?.role ??
-    // Fallback to invitation.role while `role` still exists on team_invitations
-    // for backward compatibility with rows created before the schema migration.
-    (invitation as { role?: string }).role ??
+    (invitation as { access_role?: string | null; role?: string | null }).access_role ??
+    invitation.role ??
     '';
 
   // Generate a fresh token and extend expiry
@@ -74,10 +68,10 @@ export async function POST(request: NextRequest) {
   ).toISOString();
 
   const { error: updateError } = await db
-    .from('team_invitations')
+    .from('invitations')
     .update({
       token: newToken,
-      status: INVITATION_STATUS.PENDING,
+      status: 'pending',
       expires_at: newExpiresAt,
       updated_at: new Date().toISOString(),
     })
@@ -90,10 +84,10 @@ export async function POST(request: NextRequest) {
   // Also reset team_member status to invited in case it was changed
   await db
     .from('team_members')
-    .update({ status: MEMBER_STATUS.INVITED, updated_at: new Date().toISOString() })
+    .update({ status: 'invited', updated_at: new Date().toISOString() })
     .eq('id', teamMemberId);
 
-  const inviteUrl = `${inviteBaseUrl}/invite/${encodeURIComponent(newToken)}`;
+  const inviteUrl = `${inviteBaseUrl}/invite/accept?token=${encodeURIComponent(newToken)}`;
 
   try {
     await sendInviteEmail({
@@ -104,9 +98,9 @@ export async function POST(request: NextRequest) {
     });
     await logEmailSent({
       to: invitation.email,
-      subject: "You're invited to OPENY",
+      subject: "You're invited to join OPENY OS",
       eventType: 'team_invite_resend',
-      entityType: 'team_invitation',
+      entityType: 'invitation',
       entityId: invitation.id,
       status: 'sent',
     });
@@ -120,9 +114,9 @@ export async function POST(request: NextRequest) {
     });
     await logEmailSent({
       to: invitation.email,
-      subject: "You're invited to OPENY",
+      subject: "You're invited to join OPENY OS",
       eventType: 'team_invite_resend',
-      entityType: 'team_invitation',
+      entityType: 'invitation',
       entityId: invitation.id,
       status: 'failed',
       error: errMsg,
