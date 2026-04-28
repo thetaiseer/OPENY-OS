@@ -65,7 +65,7 @@ export default async function InviteTokenPage({ params }: PageProps) {
                 Continue with email login
               </Link>
               <Link
-                href={`/invite?token=${encodeURIComponent(normalizedToken)}`}
+                href={`/invite/accept?token=${encodeURIComponent(normalizedToken)}`}
                 className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-medium text-primary"
               >
                 Open accept invitation

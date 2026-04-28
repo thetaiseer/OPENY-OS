@@ -73,7 +73,9 @@ async function insertInvitationWithFallback(
   db: ReturnType<typeof getServiceClient>,
   payload: {
     team_member_id: string;
+    workspace_id: string;
     email: string;
+    job_title: string | null;
     role: string;
     token: string;
     invited_by: string;
@@ -81,12 +83,16 @@ async function insertInvitationWithFallback(
     full_name: string;
     workspace_access: WorkspaceKey[];
     workspace_roles: Record<WorkspaceKey, string>;
+    module_permissions?: Record<string, unknown>;
   },
 ): Promise<InsertResult> {
   const nowIso = new Date().toISOString();
   const commonPayload = {
+    workspace_id: payload.workspace_id,
     team_member_id: payload.team_member_id,
     email: payload.email,
+    full_name: payload.full_name,
+    job_title: payload.job_title,
     token: payload.token,
     invited_by: payload.invited_by,
     expires_at: payload.expires_at,
@@ -106,6 +112,7 @@ async function insertInvitationWithFallback(
       status: INVITATION_STATUS.PENDING,
       workspace_access: payload.workspace_access,
       workspace_roles: payload.workspace_roles,
+      module_permissions: payload.module_permissions ?? {},
     },
     {
       ...commonPayload,
@@ -114,6 +121,7 @@ async function insertInvitationWithFallback(
       status: INVITATION_STATUS.PENDING,
       workspace_access: payload.workspace_access,
       workspace_roles: payload.workspace_roles,
+      module_permissions: payload.module_permissions ?? {},
     },
     {
       ...commonPayload,
@@ -121,6 +129,7 @@ async function insertInvitationWithFallback(
       status: INVITATION_STATUS.PENDING,
       workspace_access: payload.workspace_access,
       workspace_roles: payload.workspace_roles,
+      module_permissions: payload.module_permissions ?? {},
     },
     {
       ...commonPayload,
@@ -133,6 +142,7 @@ async function insertInvitationWithFallback(
       status: INVITATION_STATUS.INVITED,
       workspace_access: payload.workspace_access,
       workspace_roles: payload.workspace_roles,
+      module_permissions: payload.module_permissions ?? {},
     },
     {
       ...commonPayload,
@@ -145,6 +155,7 @@ async function insertInvitationWithFallback(
       status: INVITATION_STATUS.PENDING,
       workspace_access: payload.workspace_access,
       workspace_roles: payload.workspace_roles,
+      module_permissions: payload.module_permissions ?? {},
     },
     {
       ...commonPayload,
@@ -204,24 +215,38 @@ export async function POST(request: NextRequest) {
   const fullNameRaw =
     typeof body.full_name === 'string'
       ? body.full_name
-      : typeof body.name === 'string'
-        ? body.name
-        : '';
+      : typeof body.fullName === 'string'
+        ? body.fullName
+        : typeof body.name === 'string'
+          ? body.name
+          : '';
   const emailRaw = typeof body.email === 'string' ? body.email : '';
   const full_name = fullNameRaw.trim();
   const email = emailRaw.trim().toLowerCase();
   // access_role: the system permission level (admin|manager|team|viewer)
-  const access_role_raw = (body.access_role ?? body.role ?? '').trim().toLowerCase();
+  const access_role_raw = (body.access_role ?? body.accessRole ?? body.role ?? '')
+    .trim()
+    .toLowerCase();
   const access_role = normalizeInviteRole(access_role_raw);
   // job_title: the human-readable job description (Graphic Designer, etc.)
-  const job_title = normalizeJobTitle(body.job_title);
+  const job_title = normalizeJobTitle(body.job_title ?? body.jobTitle);
   const requestedWorkspaceAccess = Array.isArray(body.workspace_access)
     ? body.workspace_access
-    : ['os'];
+    : Array.isArray(body.workspaceAccess)
+      ? body.workspaceAccess
+      : ['os'];
   const requestedWorkspaceRoles =
     body.workspace_roles && typeof body.workspace_roles === 'object'
       ? (body.workspace_roles as Record<string, string>)
-      : {};
+      : body.workspaceRoles && typeof body.workspaceRoles === 'object'
+        ? (body.workspaceRoles as Record<string, string>)
+        : {};
+  const requestedModulePermissions =
+    body.module_permissions && typeof body.module_permissions === 'object'
+      ? (body.module_permissions as Record<string, unknown>)
+      : body.modulePermissions && typeof body.modulePermissions === 'object'
+        ? (body.modulePermissions as Record<string, unknown>)
+        : {};
 
   if (!full_name || !email || !access_role_raw) {
     return NextResponse.json(
@@ -290,6 +315,21 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle();
     workspaceId = memberRow?.workspace_id ?? null;
+  }
+
+  const { data: inviterWorkspaceMember, error: inviterWorkspaceMemberError } = await db
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', auth.profile.id)
+    .limit(1)
+    .maybeSingle();
+  const inviterRole = (inviterWorkspaceMember?.role ?? '').toLowerCase();
+  if (inviterWorkspaceMemberError || (inviterRole !== 'owner' && inviterRole !== 'admin')) {
+    return NextResponse.json(
+      { error: 'Only workspace owners/admins can invite team members.' },
+      { status: 403 },
+    );
   }
 
   if (!workspaceId) {
@@ -373,7 +413,7 @@ export async function POST(request: NextRequest) {
     effectiveWorkspaceAccess.length === 2
       ? 'OPENY PLATFORM'
       : `OPENY ${effectiveWorkspaceAccess[0].toUpperCase()}`;
-  const inviteUrl = `${INVITE_BASE_URL}/invite/${encodeURIComponent(token)}`;
+  const inviteUrl = `${INVITE_BASE_URL}/invite/accept?token=${encodeURIComponent(token)}`;
 
   const workspaceInvitationRole = mapAccessRoleToWorkspaceInvitationRole(access_role);
 
@@ -419,6 +459,7 @@ export async function POST(request: NextRequest) {
         inviteUrl,
         workspaceName,
         role: access_role,
+        inviterName: auth.profile.name,
       });
       return NextResponse.json(
         { success: true, regenerated: true, emailSent: true, emailProvider: 'resend' },
@@ -433,7 +474,7 @@ export async function POST(request: NextRequest) {
       });
       await logEmailSent({
         to: email,
-        subject: "You're invited to OPENY",
+        subject: "You're invited to join OPENY OS",
         eventType: 'team_invite',
         entityType: 'workspace_invitation',
         entityId: String(existingWorkspaceInvite.id),
@@ -479,7 +520,9 @@ export async function POST(request: NextRequest) {
     attemptedErrors,
   } = await insertInvitationWithFallback(db, {
     team_member_id: member.id,
+    workspace_id: workspaceId,
     email,
+    job_title,
     role: access_role,
     token,
     invited_by: auth.profile.id,
@@ -487,6 +530,7 @@ export async function POST(request: NextRequest) {
     full_name,
     workspace_access: effectiveWorkspaceAccess,
     workspace_roles,
+    module_permissions: requestedModulePermissions,
   });
 
   if (!invitation) {
@@ -542,11 +586,12 @@ export async function POST(request: NextRequest) {
       inviteUrl,
       workspaceName,
       role: access_role,
+      inviterName: auth.profile.name,
     });
     emailSent = true;
     await logEmailSent({
       to: email,
-      subject: "You're invited to OPENY",
+      subject: "You're invited to join OPENY OS",
       eventType: 'team_invite',
       entityType: 'team_invitation',
       entityId: String(invitation.id),
@@ -564,7 +609,7 @@ export async function POST(request: NextRequest) {
     });
     await logEmailSent({
       to: email,
-      subject: "You're invited to OPENY",
+      subject: "You're invited to join OPENY OS",
       eventType: 'team_invite',
       entityType: 'team_invitation',
       entityId: String(invitation.id),

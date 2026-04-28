@@ -1316,17 +1316,21 @@ export default function TeamPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          full_name: inviteForm.full_name,
+          fullName: inviteForm.full_name,
           email: inviteForm.email,
-          access_role: inviteForm.access_role,
-          job_title: normalizeInviteJobTitle(inviteForm.job_title),
-          workspace_access: [
+          accessRole: inviteForm.access_role,
+          jobTitle: normalizeInviteJobTitle(inviteForm.job_title),
+          workspaceAccess: [
             ...(inviteForm.os_access ? ['os'] : []),
             ...(inviteForm.docs_access ? ['docs'] : []),
           ],
-          workspace_roles: {
+          workspaceRoles: {
             os: inviteForm.os_role,
             docs: inviteForm.docs_role,
+          },
+          modulePermissions: {
+            os: inviteForm.os_permissions,
+            docs: inviteForm.docs_permissions,
           },
         }),
       });
@@ -1617,7 +1621,7 @@ export default function TeamPage() {
       return;
     }
 
-    const inviteUrl = `${window.location.origin}/invite/${encodeURIComponent(invitation.token)}`;
+    const inviteUrl = `${window.location.origin}/invite/accept?token=${encodeURIComponent(invitation.token)}`;
     try {
       await navigator.clipboard.writeText(inviteUrl);
       toast(`Copy invite link / ${invitation.email}: ${t('teamInviteLinkCopied')}`, 'success');

@@ -5,6 +5,7 @@ type SendInviteEmailInput = {
   inviteUrl: string;
   workspaceName: string;
   role: string;
+  inviterName?: string | null;
 };
 
 export async function sendInviteEmail({
@@ -12,13 +13,17 @@ export async function sendInviteEmail({
   inviteUrl,
   workspaceName,
   role,
+  inviterName,
 }: SendInviteEmailInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     throw new Error('RESEND_API_KEY is not configured');
   }
 
-  const from = process.env.EMAIL_FROM?.trim() || 'OPENY <noreply@yourdomain.com>';
+  const from =
+    process.env.RESEND_FROM_EMAIL?.trim() ||
+    process.env.EMAIL_FROM?.trim() ||
+    'OPENY OS <noreply@openy-os.com>';
   const safeWorkspaceName = workspaceName || 'OPENY';
   const safeRole = role || 'member';
   const resend = new Resend(apiKey);
@@ -28,9 +33,15 @@ export async function sendInviteEmail({
   <body style="margin:0;padding:24px;background:#f6f7fb;font-family:Inter,Arial,sans-serif;color:#111827;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
       <div style="padding:24px 24px 8px 24px;">
-        <h2 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;">You're invited to OPENY</h2>
+        <h2 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;">You're invited to join OPENY OS</h2>
         <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">
           You were invited to join <strong>${safeWorkspaceName}</strong>.
+        </p>
+        <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">
+          Invited email: <strong>${to}</strong>
+        </p>
+        <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">
+          Inviter: <strong>${inviterName ?? 'Workspace admin'}</strong>
         </p>
         <p style="margin:0 0 18px 0;font-size:14px;color:#4b5563;">
           Your role: <strong>${safeRole}</strong>
@@ -50,7 +61,7 @@ export async function sendInviteEmail({
   const { error } = await resend.emails.send({
     from,
     to: [to],
-    subject: "You're invited to OPENY",
+    subject: "You're invited to join OPENY OS",
     html: html,
   });
   if (error) {

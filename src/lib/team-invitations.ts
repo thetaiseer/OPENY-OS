@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { INVITATION_STATUS, MEMBER_STATUS } from '@/lib/invitation-status';
@@ -32,6 +33,8 @@ export type ResolvedInvitation = {
   status: string;
   expires_at: string;
   team_member_id: string;
+  workspace_id?: string | null;
+  job_title?: string | null;
   workspace_access?: unknown;
   workspace_roles?: unknown;
   team_member?: { full_name?: string | null } | Array<{ full_name?: string | null }> | null;
@@ -49,6 +52,8 @@ type InvitationBaseRow = {
 type InvitationDetailRow = {
   role?: string | null;
   access_role?: string | null;
+  workspace_id?: string | null;
+  job_title?: string | null;
   workspace_access?: unknown;
   workspace_roles?: unknown;
 };
@@ -88,9 +93,9 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
   if (!baseRow) return null;
 
   const detailSelectVariants = [
-    'role, workspace_access, workspace_roles',
+    'role, workspace_id, job_title, workspace_access, workspace_roles',
     'role',
-    'access_role, workspace_access, workspace_roles',
+    'access_role, workspace_id, job_title, workspace_access, workspace_roles',
     'access_role',
   ];
 
@@ -131,6 +136,8 @@ export async function getInvitationByToken(token: string): Promise<ResolvedInvit
   return {
     ...(baseRow as InvitationBaseRow),
     role: detail.role ?? detail.access_role ?? null,
+    workspace_id: detail.workspace_id ?? null,
+    job_title: detail.job_title ?? null,
     workspace_access: detail.workspace_access ?? null,
     workspace_roles: detail.workspace_roles ?? null,
     team_member: teamMember,
@@ -450,6 +457,26 @@ export async function acceptInvitationToken(
         error: 'You are signed in as a different account. Sign out and use the invited email.',
       },
     };
+  } else if (!requestUserId) {
+    if (!password || password.length < 8) {
+      return {
+        ok: false as const,
+        status: 400,
+        body: { error: 'Password is required for existing users.' },
+      };
+    }
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+    const { error: signInError } = await anonClient.auth.signInWithPassword({
+      email: invitationEmail,
+      password,
+    });
+    if (signInError) {
+      return {
+        ok: false as const,
+        status: 401,
+        body: { error: 'Invalid credentials for invited email.' },
+      };
+    }
   }
 
   if (!authUserId) {
@@ -539,6 +566,36 @@ export async function acceptInvitationToken(
       workspaceMemberInsertError,
     );
     return { ok: false as const, status: 500, body: { error: workspaceMemberInsertError } };
+  }
+
+  // Best-effort profile metadata sync on workspace_members for schemas that include these columns.
+  for (const memberRow of membersToInsert) {
+    const updateVariants: Array<Record<string, unknown>> = [
+      {
+        role: memberRow.role,
+        status: MEMBER_STATUS.ACTIVE,
+        email: invitationEmail,
+        full_name: profileName,
+        job_title: validInvitation.job_title ?? null,
+      },
+      {
+        role: memberRow.role,
+        status: MEMBER_STATUS.ACTIVE,
+        email: invitationEmail,
+        full_name: profileName,
+      },
+      { role: memberRow.role, status: MEMBER_STATUS.ACTIVE, email: invitationEmail },
+      { role: memberRow.role, status: MEMBER_STATUS.ACTIVE },
+      { role: memberRow.role },
+    ];
+    for (const updatePayload of updateVariants) {
+      const { error } = await db
+        .from('workspace_members')
+        .update(updatePayload)
+        .eq('workspace_id', memberRow.workspace_id)
+        .eq('user_id', memberRow.user_id);
+      if (!error) break;
+    }
   }
 
   const membershipRowsByKey = new Map<WorkspaceKey, WorkspaceMembershipUpsertPayload>();
