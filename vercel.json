@@ -8,10 +8,6 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/assets/sync-r2/cron",
-      "schedule": "0 */6 * * *"
-    },
-    {
       "path": "/api/reminders/cron",
       "schedule": "0 8 * * *"
     }
