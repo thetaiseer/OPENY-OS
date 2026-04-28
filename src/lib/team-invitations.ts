@@ -203,18 +203,16 @@ export async function acceptInvitationToken(
 
   const userId = authUserId as string;
 
-  await db
-    .from('profiles')
-    .upsert(
-      {
-        id: userId,
-        email: invitationEmail,
-        name: profileName,
-        full_name: profileName,
-        role: 'team',
-      },
-      { onConflict: 'id' },
-    );
+  await db.from('profiles').upsert(
+    {
+      id: userId,
+      email: invitationEmail,
+      name: profileName,
+      full_name: profileName,
+      role: 'team',
+    },
+    { onConflict: 'id' },
+  );
 
   const memberRole = toWorkspaceMemberRole(validInvitation.role);
   const { error: workspaceMemberError } = await db.from('workspace_members').upsert(
