@@ -49,7 +49,12 @@ export default function DashboardQuickActionFab() {
       title: t('quickActionSectionContent'),
       items: [
         { type: 'action', id: 'add-content', label: t('newContent'), icon: FileText },
-        { type: 'link', href: '/calendar', label: t('quickActionSchedulePost'), icon: CalendarClock },
+        {
+          type: 'link',
+          href: '/calendar',
+          label: t('quickActionSchedulePost'),
+          icon: CalendarClock,
+        },
       ],
     },
     {
@@ -78,7 +83,12 @@ export default function DashboardQuickActionFab() {
     {
       title: t('quickActionSectionTeam'),
       items: [
-        { type: 'link', href: '/team?invite=1', label: t('teamInviteMember'), icon: UserPlus },
+        {
+          type: 'link',
+          href: '/team?invite=1',
+          label: t('teamInviteMember'),
+          icon: UserPlus,
+        },
       ],
     },
   ];
@@ -118,118 +128,101 @@ export default function DashboardQuickActionFab() {
   };
 
   return (
-    <>
-      <style>{`
-        @keyframes fab-menu-in {
-          from { opacity: 0; transform: translateY(10px) scale(0.96); }
-          to   { opacity: 1; transform: translateY(0)   scale(1); }
-        }
-        @keyframes fab-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); }
-          50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent); }
-        }
-        .fab-menu-enter { animation: fab-menu-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
-        .fab-pulse-once  { animation: fab-pulse 0.6s ease-out 1; }
-      `}</style>
-
+    <div
+      ref={rootRef}
+      className={cn(
+        'pointer-events-none fixed z-50 flex flex-col items-end gap-3',
+        'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] end-4',
+        'md:bottom-6 md:end-6',
+      )}
+    >
+      {/* Menu panel — toggled via opacity/transform for smooth animation */}
       <div
-        ref={rootRef}
+        id={menuId}
+        role="menu"
+        aria-label={t('quickActions') ?? 'Quick actions'}
         className={cn(
-          'pointer-events-none fixed z-50 flex flex-col items-end gap-3',
-          /* mobile: above bottom nav */
-          'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] end-4',
-          /* desktop: simple corner */
-          'md:bottom-6 md:end-6',
+          'mb-1 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),17rem)]',
+          'overflow-y-auto overscroll-contain rounded-2xl border p-2',
+          'origin-bottom-right transition-all duration-200 ease-out',
+          open
+            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+            : 'pointer-events-none translate-y-2 scale-95 opacity-0',
         )}
+        style={{
+          background: 'color-mix(in srgb, var(--surface) 96%, white 4%)',
+          borderColor: 'var(--border)',
+          boxShadow: '0 20px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)',
+          backdropFilter: 'blur(12px)',
+        }}
       >
-        {/* Menu panel */}
-        {open && (
-          <div
-            id={menuId}
-            role="menu"
-            aria-label={t('quickActions') ?? 'Quick actions'}
-            className="fab-menu-enter pointer-events-auto mb-1 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),17rem)] overflow-y-auto overscroll-contain rounded-2xl border p-2"
-            style={{
-              background: 'color-mix(in srgb, var(--surface) 96%, white 4%)',
-              borderColor: 'var(--border)',
-              boxShadow: '0 20px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)',
-              backdropFilter: 'blur(12px)',
-            }}
-          >
-            {sections.map((section) => (
-              <div key={section.title} role="presentation" className="mb-2 last:mb-0">
-                <p
-                  className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--text-tertiary)' }}
-                >
-                  {section.title}
-                </p>
-                <div className="flex flex-col gap-0.5" role="group" aria-label={section.title}>
-                  {section.items.map((entry, idx) => {
-                    const Icon = entry.icon;
-                    const key =
-                      entry.type === 'action'
-                        ? `${section.title}-${entry.id}-${idx}`
-                        : `${section.title}-${entry.href}-${idx}`;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        role="menuitem"
-                        data-quick-action-item
-                        className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-start text-sm transition-colors hover:bg-[color:var(--surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                        style={{ color: 'var(--text)' }}
-                        onClick={() => runEntry(entry)}
-                      >
-                        <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                        >
-                          <Icon size={14} aria-hidden />
-                        </span>
-                        <span className="min-w-0 leading-snug">{entry.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+        {sections.map((section) => (
+          <div key={section.title} role="presentation" className="mb-2 last:mb-0">
+            <p
+              className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              {section.title}
+            </p>
+            <div className="flex flex-col gap-0.5" role="group" aria-label={section.title}>
+              {section.items.map((entry, idx) => {
+                const Icon = entry.icon;
+                const key =
+                  entry.type === 'action'
+                    ? `${section.title}-${entry.id}-${idx}`
+                    : `${section.title}-${entry.href}-${idx}`;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="menuitem"
+                    data-quick-action-item
+                    className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-start text-sm transition-colors hover:bg-[color:var(--surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                    style={{ color: 'var(--text)' }}
+                    onClick={() => runEntry(entry)}
+                  >
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    >
+                      <Icon size={14} aria-hidden />
+                    </span>
+                    <span className="min-w-0 leading-snug">{entry.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        )}
-
-        {/* FAB trigger */}
-        <button
-          ref={triggerRef}
-          type="button"
-          className={cn(
-            'pointer-events-auto inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full',
-            'transition-all duration-200 ease-out',
-            'hover:scale-110 active:scale-95',
-            'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)]/40',
-            open && 'scale-105',
-          )}
-          style={{
-            background: 'var(--accent)',
-            color: '#fff',
-            boxShadow: open
-              ? '0 8px 24px color-mix(in srgb, var(--accent) 50%, transparent), 0 2px 8px rgba(0,0,0,0.2)'
-              : '0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent), 0 2px 6px rgba(0,0,0,0.15)',
-          }}
-          aria-label={t('quickActions') ?? 'Quick actions'}
-          aria-expanded={open}
-          aria-haspopup="menu"
-          aria-controls={open ? menuId : undefined}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <Plus
-            className={cn(
-              'h-6 w-6 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-              open && 'rotate-45',
-            )}
-            aria-hidden
-          />
-        </button>
+        ))}
       </div>
-    </>
+
+      {/* FAB trigger */}
+      <button
+        ref={triggerRef}
+        type="button"
+        className={cn(
+          'pointer-events-auto inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full',
+          'transition-all duration-200 ease-out hover:scale-110 active:scale-95',
+          'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)]/40',
+        )}
+        style={{
+          background: 'var(--accent)',
+          color: '#fff',
+          boxShadow: open
+            ? '0 8px 24px color-mix(in srgb, var(--accent) 50%, transparent), 0 2px 8px rgba(0,0,0,0.2)'
+            : '0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent), 0 2px 6px rgba(0,0,0,0.15)',
+        }}
+        aria-label={t('quickActions') ?? 'Quick actions'}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={menuId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Plus
+          className={cn('h-6 w-6 transition-transform duration-300', open && 'rotate-45')}
+          aria-hidden
+        />
+      </button>
+    </div>
   );
 }
