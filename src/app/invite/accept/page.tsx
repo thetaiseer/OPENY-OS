@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Loader2, CheckCircle, ArrowLeft, Mail, User, Lock, ShieldCheck } from 'lucide-react';
 
 type InvitationPayload = {
   id: string;
@@ -20,6 +21,65 @@ type ValidationState =
 
 const supabaseClient = createClient();
 
+function InputField({
+  id,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  readOnly,
+  placeholder,
+  icon: Icon,
+  required,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  placeholder?: string;
+  icon: React.ElementType;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium" style={{ color: 'var(--text)' }}>
+        {label}
+      </label>
+      <div className="relative">
+        <Icon
+          size={15}
+          className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2"
+          style={{ color: 'var(--text-secondary)' }}
+        />
+        <input
+          id={id}
+          type={type}
+          value={value}
+          onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+          readOnly={readOnly}
+          required={required}
+          placeholder={placeholder}
+          className="h-10 w-full rounded-xl ps-9 pe-3 text-sm outline-none transition-colors"
+          style={{
+            background: readOnly ? 'var(--surface-2)' : 'var(--surface)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            opacity: readOnly ? 0.7 : 1,
+          }}
+          onFocus={(e) => {
+            if (!readOnly) e.currentTarget.style.borderColor = 'var(--accent)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AcceptInvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,6 +90,7 @@ function AcceptInvitePage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,11 +145,7 @@ function AcceptInvitePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          token,
-          fullName: fullName.trim(),
-          password,
-        }),
+        body: JSON.stringify({ token, fullName: fullName.trim(), password }),
       });
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -105,83 +162,161 @@ function AcceptInvitePage() {
         return;
       }
 
-      router.push('/dashboard');
+      setSuccess(true);
+      setTimeout(() => router.push('/dashboard'), 1500);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (validation.status === 'loading') {
-    return <main className="p-6 text-sm">Validating invitation...</main>;
-  }
-
-  if (validation.status === 'invalid') {
-    return (
-      <main className="p-6">
-        <h1 className="text-xl font-semibold">Invitation error</h1>
-        <p className="mt-2 text-sm">{validation.message}</p>
-        <Link href="/" className="mt-4 inline-block text-sm underline">
-          Back to login
-        </Link>
-      </main>
-    );
-  }
-
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="text-xl font-semibold">Accept your invitation</h1>
-      <p className="mt-2 text-sm">You are invited as {validation.invitation.role ?? 'member'}.</p>
-
-      <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-        <div>
-          <label className="mb-1 block text-sm">Email</label>
-          <input
-            value={validation.invitation.email}
-            readOnly
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm">Full name</label>
-          <input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded border px-3 py-2 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border px-3 py-2 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm">Confirm password</label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded border px-3 py-2 text-sm"
-            required
-          />
+    <div
+      className="flex min-h-screen items-center justify-center px-4"
+      style={{ background: 'var(--bg)' }}
+    >
+      <div
+        className="w-full max-w-sm space-y-6 rounded-2xl border p-8 shadow-lg"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        {/* Logo */}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+            OPENY <span style={{ color: 'var(--accent)' }}>OS</span>
+          </h1>
         </div>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {/* Loading */}
+        {validation.status === 'loading' && (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Validating invitation…
+            </p>
+          </div>
+        )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-60"
-        >
-          {submitting ? 'Accepting...' : 'Accept invitation'}
-        </button>
-      </form>
-    </main>
+        {/* Invalid */}
+        {validation.status === 'invalid' && (
+          <div className="space-y-4 text-center">
+            <div
+              className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+              style={{ background: 'rgba(239,68,68,0.1)' }}
+            >
+              <ShieldCheck size={26} style={{ color: '#ef4444' }} />
+            </div>
+            <div>
+              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
+                Invalid invitation
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {validation.message}
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-sm hover:underline"
+              style={{ color: 'var(--accent)' }}
+            >
+              <ArrowLeft size={13} />
+              Back to login
+            </Link>
+          </div>
+        )}
+
+        {/* Success */}
+        {success && (
+          <div className="space-y-4 text-center py-4">
+            <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
+            <div>
+              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
+                Welcome aboard!
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Redirecting to dashboard…
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Valid form */}
+        {validation.status === 'valid' && !success && (
+          <>
+            <div className="text-center">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                You&apos;ve been invited as{' '}
+                <span className="font-semibold capitalize" style={{ color: 'var(--accent)' }}>
+                  {validation.invitation.role ?? 'member'}
+                </span>
+                . Set your password to get started.
+              </p>
+            </div>
+
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <InputField
+                id="email"
+                label="Email"
+                type="email"
+                value={validation.invitation.email}
+                readOnly
+                icon={Mail}
+              />
+              <InputField
+                id="fullName"
+                label="Full name"
+                value={fullName}
+                onChange={setFullName}
+                placeholder="Your full name"
+                icon={User}
+                required
+              />
+              <InputField
+                id="password"
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="Min. 8 characters"
+                icon={Lock}
+                required
+              />
+              <InputField
+                id="confirmPassword"
+                label="Confirm password"
+                type="password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                placeholder="Repeat your password"
+                icon={Lock}
+                required
+              />
+
+              {error && (
+                <p
+                  className="rounded-xl px-3 py-2 text-sm"
+                  style={{
+                    background: 'rgba(239,68,68,0.08)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                  }}
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-60"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
+                {submitting ? 'Joining…' : 'Accept invitation'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
