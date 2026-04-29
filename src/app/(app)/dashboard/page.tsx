@@ -788,7 +788,7 @@ export default function DashboardPage() {
       : 76;
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell className="space-y-6 !pt-0">
       <PageHeader
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}

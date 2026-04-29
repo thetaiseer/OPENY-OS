@@ -113,9 +113,11 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
             <div className="sr-only">
               <RouteTitle />
             </div>
-            <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
-              <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
-            </div>
+            {pathname !== '/dashboard' && (
+              <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
+                <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
+              </div>
+            )}
             {children}
           </PageShell>
         </PageShellProvider>
