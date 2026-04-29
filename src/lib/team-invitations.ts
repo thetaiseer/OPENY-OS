@@ -44,18 +44,25 @@ export async function getInvitationByToken(tokenRaw: string): Promise<ResolvedIn
 
   const { data: invitation, error } = await db
     .from('invitations')
-    .select(
-      'id, token, email, role, access_role, status, expires_at, team_member_id, workspace_id, team_member:team_members(full_name, job_title)',
-    )
+    .select('id, token, email, role, access_role, status, expires_at, team_member_id, workspace_id')
     .eq('token', token)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error || !invitation) return null;
 
-  const teamMember = Array.isArray(invitation.team_member)
-    ? invitation.team_member[0]
-    : invitation.team_member;
+  // Fetch team member info separately — team_member_id is stored as text with no FK,
+  // so a PostgREST join would fail at the API layer.
+  let teamMember: { full_name: string | null; job_title: string | null } | null = null;
+  if (invitation.team_member_id) {
+    const { data: tm } = await db
+      .from('team_members')
+      .select('full_name, job_title')
+      .eq('id', invitation.team_member_id)
+      .maybeSingle();
+    teamMember = tm;
+  }
+
   return {
     id: invitation.id,
     token: invitation.token,
