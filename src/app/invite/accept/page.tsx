@@ -1,6 +1,14 @@
 'use client';
 
-import { type ComponentType, type CSSProperties, type FormEvent, type FocusEvent, Suspense, useEffect, useState } from 'react';
+import {
+  type ComponentType,
+  type CSSProperties,
+  type FormEvent,
+  type FocusEvent,
+  Suspense,
+  useEffect,
+  useState,
+} from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
