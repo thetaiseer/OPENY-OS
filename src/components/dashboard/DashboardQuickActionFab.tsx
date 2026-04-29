@@ -136,7 +136,7 @@ export default function DashboardQuickActionFab() {
         'md:bottom-6 md:end-6',
       )}
     >
-      {/* Menu panel — toggled via opacity/transform for smooth animation */}
+      {/* Menu panel — always rendered, animated via inline style for Prettier safety */}
       <div
         id={menuId}
         role="menu"
@@ -144,16 +144,17 @@ export default function DashboardQuickActionFab() {
         className={cn(
           'mb-1 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),17rem)]',
           'overflow-y-auto overscroll-contain rounded-2xl border p-2',
-          'origin-bottom-right transition-all duration-200 ease-out',
-          open
-            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-            : 'pointer-events-none translate-y-2 scale-95 opacity-0',
+          open ? 'pointer-events-auto' : 'pointer-events-none',
         )}
         style={{
           background: 'color-mix(in srgb, var(--surface) 96%, white 4%)',
           borderColor: 'var(--border)',
           boxShadow: '0 20px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)',
           backdropFilter: 'blur(12px)',
+          opacity: open ? 1 : 0,
+          transform: open ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.96)',
+          transformOrigin: 'bottom right',
+          transition: 'opacity 0.2s ease, transform 0.2s ease',
         }}
       >
         {sections.map((section) => (
@@ -202,7 +203,8 @@ export default function DashboardQuickActionFab() {
         type="button"
         className={cn(
           'pointer-events-auto inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full',
-          'transition-all duration-200 ease-out hover:scale-110 active:scale-95',
+          'transition-all duration-200 ease-out',
+          'hover:scale-110 active:scale-95',
           'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)]/40',
         )}
         style={{
