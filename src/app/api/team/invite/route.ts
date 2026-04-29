@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
         status: 'invited',
         workspace_id: workspaceId,
       },
-      { onConflict: 'email' },
+      { onConflict: 'workspace_id,email' },
     )
     .select()
     .single();
