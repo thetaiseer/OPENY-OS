@@ -1,6 +1,6 @@
 'use client';
 
-import { ComponentType, FormEvent, FocusEvent, Suspense, useEffect, useState } from 'react';
+import { type ComponentType, type CSSProperties, type FormEvent, type FocusEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -39,7 +39,7 @@ function InputField({
   onChange?: (v: string) => void;
   readOnly?: boolean;
   placeholder?: string;
-  icon: ComponentType<{ size?: number; className?: string; style?: object }>;
+  icon: ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
   required?: boolean;
 }) {
   return (
