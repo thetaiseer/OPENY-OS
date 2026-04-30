@@ -198,6 +198,14 @@ body {
 
 /* Intentional bridge: map all Tailwind color utilities to semantic B&W tokens globally */
 @layer utilities {
+  /* ── semantic token text classes (secondary/muted map to background colors, fix them) ── */
+  .text-secondary {
+    color: var(--text-secondary) !important;
+  }
+  .text-muted {
+    color: var(--text-muted) !important;
+  }
+
   /* ── text colors ── */
   [class*='text-gray-'],
   [class*='text-slate-'],
