@@ -1447,23 +1447,21 @@ function AssetsPage() {
       console.log('[assets] folder delete clicked', { clientLabel, idsCount: ids.length });
       setDeletingClientFolder(clientLabel);
       try {
-        const clientFromFolder = clients.find((c) => c.name === clientLabel);
         const payload = {
           folder: clientLabel,
-          folderName: clientLabel,
-          clientId: clientFromFolder?.id ?? null,
         };
         console.log('[assets] folder delete payload', payload);
-        const res = await fetch('/api/assets/folders', {
-          method: 'DELETE',
+        const res = await fetch('/api/assets/force-delete', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(payload),
         });
         const resForError = res.clone();
         const json = (await res.json().catch(() => ({}))) as {
           deletedCount?: number;
-          matchedAssets?: string[];
-          filterUsed?: Record<string, unknown>;
+          success?: boolean;
+          ids?: string[];
           error?: ApiErrorShape;
         };
         console.log('[assets] folder delete response', {
@@ -1471,10 +1469,18 @@ function AssetsPage() {
           ok: res.ok,
           body: json,
         });
-        if (!res.ok) throw await parseApiError(resForError);
+        if (!res.ok || !json.success) throw await parseApiError(resForError);
 
-        const deletedSet = new Set(ids);
-        setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
+        setAssets((prev) =>
+          prev.filter((asset) => {
+            const folderKey =
+              (asset as Asset & { folder?: string | null }).folder ??
+              asset.client_folder_name ??
+              asset.client_name ??
+              '';
+            return folderKey !== clientLabel;
+          }),
+        );
         setSelectedIds((prev) => {
           const next = new Set(prev);
           ids.forEach((id) => next.delete(id));
@@ -1493,7 +1499,7 @@ function AssetsPage() {
         setDeletingClientFolder(null);
       }
     },
-    [toast, clients, folderPath.client, navigateTo, fetchAssets],
+    [toast, folderPath.client, navigateTo, fetchAssets],
   );
 
   const handleDelete = async (asset: Asset) => {
@@ -1501,11 +1507,13 @@ function AssetsPage() {
     try {
       console.log('[assets] delete clicked', { assetId: asset.id, assetName: asset.name });
       setDeletingAssetId(asset.id);
-      console.log('[assets] calling delete API', {
-        assetId: asset.id,
-        workspaceQs,
+      console.log('[assets] calling force-delete API', { assetId: asset.id });
+      const response = await fetch('/api/assets/force-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ assetId: asset.id }),
       });
-      const response = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
       const responseForError = response.clone();
       const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       console.log('[assets] delete API response', {
@@ -1514,7 +1522,7 @@ function AssetsPage() {
         ok: response.ok,
         body: json,
       });
-      if (!response.ok) throw await parseApiError(responseForError);
+      if (!response.ok || json.success !== true) throw await parseApiError(responseForError);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       await fetchAssets(0);
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
