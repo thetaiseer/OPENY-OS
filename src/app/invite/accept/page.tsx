@@ -70,7 +70,7 @@ function InputField({
           readOnly={readOnly}
           required={required}
           placeholder={placeholder}
-          className="h-10 w-full rounded-xl ps-9 pe-3 text-sm outline-none transition-colors"
+          className="h-10 w-full rounded-xl pe-3 ps-9 text-sm outline-none transition-colors"
           style={{
             background: readOnly ? 'var(--surface-2)' : 'var(--surface)',
             color: 'var(--text)',
