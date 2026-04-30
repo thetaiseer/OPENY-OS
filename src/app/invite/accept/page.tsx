@@ -234,7 +234,7 @@ function AcceptInvitePage() {
 
         {/* Success */}
         {success && (
-          <div className="space-y-4 text-center py-4">
+          <div className="space-y-4 py-4 text-center">
             <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
             <div>
               <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
