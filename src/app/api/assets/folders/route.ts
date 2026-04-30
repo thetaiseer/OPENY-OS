@@ -3,8 +3,11 @@ import { requireRole } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { deleteR2Object } from '@/lib/storage/r2';
+import { fail, ok } from '@/lib/api/respond';
+import { createRequestId } from '@/lib/errors/app-error';
 
 type FolderDeleteBody = {
+  folder?: string;
   folderName?: string;
   clientId?: string;
   category?: string;
@@ -19,6 +22,7 @@ type AssetRow = {
   storage_provider?: string | null;
   client_id?: string | null;
   client_name?: string | null;
+  client_folder_name?: string | null;
   main_category?: string | null;
   month_key?: string | null;
   deleted_at?: string | null;
@@ -49,45 +53,76 @@ function storageKeyForDelete(asset: AssetRow): string | null {
 }
 
 export async function DELETE(req: NextRequest) {
+  const requestId = createRequestId();
   const auth = await requireRole(req, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = (await req.json().catch(() => ({}))) as FolderDeleteBody;
+  const targetFolder = body.folder?.trim() || body.folderName?.trim() || '';
+  console.log('[assets/folders] delete request', {
+    requestId,
+    userId: auth.profile.id,
+    folder: targetFolder || null,
+    clientId: body.clientId ?? null,
+    category: body.category ?? null,
+    year: body.year ?? null,
+  });
   const supabase = getServiceClient();
   const workspaceResolution = await resolveWorkspaceForRequest(req, supabase, auth.profile.id, {
     allowWorkspaceFallbackWithoutMembership: true,
   });
   const workspaceId = body.workspaceId?.trim() || workspaceResolution.workspaceId;
   if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, error: workspaceResolution.error ?? 'Workspace not found' },
-      { status: 403 },
+    return fail(
+      403,
+      'WORKSPACE_NOT_FOUND',
+      workspaceResolution.error ?? 'Workspace not found',
+      undefined,
+      requestId,
     );
   }
 
   let query = supabase
     .from('assets')
     .select(
-      'id, file_path, storage_key, storage_provider, client_id, client_name, main_category, month_key, deleted_at, is_deleted, missing_in_storage, sync_status',
+      'id, file_path, storage_key, storage_provider, client_id, client_name, client_folder_name, main_category, month_key, deleted_at, is_deleted, missing_in_storage, sync_status',
     )
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
     .or('is_deleted.is.null,is_deleted.eq.false')
+    .or('sync_status.is.null,sync_status.neq.deleted')
     .or('missing_in_storage.is.null,missing_in_storage.eq.false');
 
   if (body.clientId) query = query.eq('client_id', body.clientId);
-  if (body.folderName) query = query.eq('client_name', body.folderName);
   if (body.category) query = query.eq('main_category', body.category);
   if (body.year) query = query.like('month_key', `${body.year}-%`);
 
   const { data: assets, error: assetsError } = await query;
-  if (assetsError) {
-    return NextResponse.json({ success: false, error: assetsError.message }, { status: 500 });
-  }
+  if (assetsError)
+    return fail(500, 'ASSETS_QUERY_FAILED', assetsError.message, assetsError, requestId);
 
-  const activeAssets = ((assets ?? []) as AssetRow[]).filter(isActiveAsset);
+  const activeAssets = ((assets ?? []) as AssetRow[]).filter(isActiveAsset).filter((row) => {
+    if (!targetFolder) return true;
+    return (
+      (row.client_name ?? '').trim() === targetFolder ||
+      (row.client_folder_name ?? '').trim() === targetFolder
+    );
+  });
   if (activeAssets.length === 0) {
-    return NextResponse.json({ success: true, deletedCount: 0 });
+    return fail(
+      404,
+      'FOLDER_NOT_FOUND_OR_STALE',
+      'No active assets matched this folder. The UI may be using a stale folder group.',
+      {
+        filterUsed: {
+          folder: targetFolder || null,
+          clientId: body.clientId ?? null,
+          category: body.category ?? null,
+          year: body.year ?? null,
+        },
+      },
+      requestId,
+    );
   }
 
   for (const asset of activeAssets) {
@@ -96,6 +131,7 @@ export async function DELETE(req: NextRequest) {
     const r2Delete = await deleteR2Object(key);
     if (!r2Delete.success && !r2Delete.missing) {
       console.warn('[assets/folders] R2 delete failed; continuing', {
+        requestId,
         assetId: asset.id,
         key,
         error: r2Delete.error ?? null,
@@ -105,12 +141,19 @@ export async function DELETE(req: NextRequest) {
 
   const nowIso = new Date().toISOString();
   const ids = activeAssets.map((a) => a.id);
+  console.log('[assets/folders] matched assets', {
+    requestId,
+    userId: auth.profile.id,
+    workspaceId,
+    count: ids.length,
+    folder: targetFolder || null,
+  });
   const { error: linksError } = await supabase
     .from('task_asset_links')
     .delete()
     .in('asset_id', ids);
   if (linksError && linksError.code !== '42P01') {
-    console.warn('[assets/folders] failed deleting task_asset_links', linksError);
+    console.warn('[assets/folders] failed deleting task_asset_links', { requestId, linksError });
   }
   const { error: tasksError } = await supabase
     .from('tasks')
@@ -118,7 +161,7 @@ export async function DELETE(req: NextRequest) {
     .in('asset_id', ids)
     .eq('workspace_id', workspaceId);
   if (tasksError && tasksError.code !== '42703') {
-    console.warn('[assets/folders] failed clearing tasks.asset_id', tasksError);
+    console.warn('[assets/folders] failed clearing tasks.asset_id', { requestId, tasksError });
   }
   const { error: schedulesError } = await supabase
     .from('publishing_schedules')
@@ -126,7 +169,10 @@ export async function DELETE(req: NextRequest) {
     .in('asset_id', ids)
     .eq('workspace_id', workspaceId);
   if (schedulesError && schedulesError.code !== '42703' && schedulesError.code !== '42P01') {
-    console.warn('[assets/folders] failed clearing publishing_schedules.asset_id', schedulesError);
+    console.warn('[assets/folders] failed clearing publishing_schedules.asset_id', {
+      requestId,
+      schedulesError,
+    });
   }
 
   const { error: softDeleteError } = await supabase
@@ -141,9 +187,27 @@ export async function DELETE(req: NextRequest) {
     .in('id', ids)
     .eq('workspace_id', workspaceId);
 
-  if (softDeleteError) {
-    return NextResponse.json({ success: false, error: softDeleteError.message }, { status: 500 });
-  }
+  if (softDeleteError)
+    return fail(
+      500,
+      'ASSETS_SOFT_DELETE_FAILED',
+      softDeleteError.message,
+      softDeleteError,
+      requestId,
+    );
 
-  return NextResponse.json({ success: true, deletedCount: ids.length });
+  return ok(
+    {
+      deletedCount: ids.length,
+      matchedAssets: ids,
+      filterUsed: {
+        folder: targetFolder || null,
+        clientId: body.clientId ?? null,
+        category: body.category ?? null,
+        year: body.year ?? null,
+      },
+      requestId,
+    },
+    200,
+  );
 }

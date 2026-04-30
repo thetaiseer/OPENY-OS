@@ -16,6 +16,7 @@ import { generatePdfPreview } from '@/lib/pdf-preview';
 import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
+import { getSafeErrorMessage, logClientError, parseApiError } from '@/lib/errors/app-error';
 
 export default function ClientAssetsPage() {
   const { client, clientId } = useClientWorkspace();
@@ -55,8 +56,9 @@ export default function ClientAssetsPage() {
       .from('assets')
       .select('*')
       .eq('client_id', clientId)
-      .neq('is_deleted', true)
       .is('deleted_at', null)
+      .neq('is_deleted', true)
+      .or('sync_status.is.null,sync_status.neq.deleted')
       .or('missing_in_storage.is.null,missing_in_storage.eq.false')
       .order('created_at', { ascending: false })
       .limit(200);
@@ -65,7 +67,9 @@ export default function ClientAssetsPage() {
         .from('assets')
         .select('*')
         .eq('client_id', clientId)
+        .is('deleted_at', null)
         .neq('is_deleted', true)
+        .or('sync_status.is.null,sync_status.neq.deleted')
         .order('created_at', { ascending: false })
         .limit(200);
       data = retry.data;
@@ -213,20 +217,26 @@ export default function ClientAssetsPage() {
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
+    console.log('[client-assets] delete clicked', { assetId: asset.id, assetName: asset.name });
     setDeletingAssetId(asset.id);
     try {
+      console.log('[client-assets] calling delete API', { assetId: asset.id });
       const res = await fetch(`/api/assets/${asset.id}`, { method: 'DELETE' });
-      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
-      if (!res.ok || !json.success) {
-        addToast(`Delete failed: ${json.error ?? `HTTP ${res.status}`}`, 'error');
-        return;
-      }
+      const resForError = res.clone();
+      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      console.log('[client-assets] delete API response', {
+        assetId: asset.id,
+        status: res.status,
+        ok: res.ok,
+        body: json,
+      });
+      if (!res.ok) throw await parseApiError(resForError);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       await load();
       addToast('Asset deleted', 'success');
     } catch (error) {
-      console.error('[client-assets] delete failed:', error);
-      addToast(error instanceof Error ? error.message : 'Delete failed', 'error');
+      logClientError('[client-assets] delete failed', error);
+      addToast(getSafeErrorMessage(error), 'error');
     } finally {
       setDeletingAssetId((current) => (current === asset.id ? null : current));
     }

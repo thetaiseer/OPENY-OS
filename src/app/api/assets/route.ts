@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { getApiUser } from '@/lib/api-auth';
 import {
@@ -8,6 +8,8 @@ import {
 } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { PG_UNDEFINED_COLUMN } from '@/lib/constants/postgres-errors';
+import { fail, ok } from '@/lib/api/respond';
+import { createRequestId } from '@/lib/errors/app-error';
 
 const PAGE_SIZE = 100;
 type AssetLifecycleRow = {
@@ -50,10 +52,11 @@ function isActiveAsset(row: AssetLifecycleRow): boolean {
  *   search        – full-text search on name / client_name
  */
 export async function GET(req: NextRequest) {
+  const requestId = createRequestId();
   try {
     const auth = await getApiUser(req);
     if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return fail(401, 'UNAUTHORIZED', 'Unauthorized', undefined, requestId);
     }
     const { profile } = auth;
 
@@ -74,7 +77,7 @@ export async function GET(req: NextRequest) {
     // results to a specific client — return an empty list to avoid exposing
     // all assets until RLS policies are tightened.
     if (profile.role === 'client') {
-      return NextResponse.json({ success: true, assets: [], page, hasMore: false });
+      return ok({ assets: [], page, hasMore: false, requestId });
     }
 
     const supabase = getServiceClient();
@@ -85,13 +88,12 @@ export async function GET(req: NextRequest) {
       { allowWorkspaceFallbackWithoutMembership: profile.role === 'owner' },
     );
     if (!workspaceId) {
-      return NextResponse.json(
-        {
-          success: false,
-          step: 'workspace_resolution',
-          error: workspaceError ?? 'Workspace not found',
-        },
-        { status: 500 },
+      return fail(
+        500,
+        'WORKSPACE_RESOLUTION_FAILED',
+        workspaceError ?? 'Workspace not found',
+        { step: 'workspace_resolution' },
+        requestId,
       );
     }
 
@@ -102,6 +104,7 @@ export async function GET(req: NextRequest) {
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
       .or('is_deleted.is.null,is_deleted.eq.false')
+      .or('sync_status.is.null,sync_status.neq.deleted')
       .or('missing_in_storage.is.null,missing_in_storage.eq.false')
       .order('created_at', { ascending: false });
 
@@ -124,6 +127,7 @@ export async function GET(req: NextRequest) {
         .eq('workspace_id', workspaceId)
         .is('deleted_at', null)
         .or('is_deleted.is.null,is_deleted.eq.false')
+        .or('sync_status.is.null,sync_status.neq.deleted')
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);
@@ -229,38 +233,40 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       if (error.code === PG_UNDEFINED_COLUMN) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Assets cannot load: the database is missing required columns (${error.message}). Apply Supabase migrations (e.g. workspace + assets patches in supabase/migrations), then retry.`,
-            dbHint: error.hint ?? null,
-          },
-          { status: 503 },
+        return fail(
+          503,
+          'ASSET_COLUMNS_MISSING',
+          `Assets cannot load: the database is missing required columns (${error.message}). Apply Supabase migrations (e.g. workspace + assets patches in supabase/migrations), then retry.`,
+          { dbHint: error.hint ?? null },
+          requestId,
         );
       }
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Failed to fetch assets: ${error.message}${error.details ? ` — ${error.details}` : ''}`,
-        },
-        { status: 500 },
+      return fail(
+        500,
+        'ASSET_FETCH_FAILED',
+        `Failed to fetch assets: ${error.message}${error.details ? ` — ${error.details}` : ''}`,
+        error,
+        requestId,
       );
     }
 
     const assets = ((data ?? []) as AssetLifecycleRow[]).filter(isActiveAsset);
-    return NextResponse.json({
-      success: true,
+    return ok({
       assets,
       page,
       hasMore: assets.length === PAGE_SIZE,
+      requestId,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[GET /api/assets] unexpected error:', msg);
-    return NextResponse.json(
-      { success: false, error: `Unexpected server error: ${msg}` },
-      { status: 500 },
+    return fail(
+      500,
+      'ASSET_UNEXPECTED_ERROR',
+      `Unexpected server error: ${msg}`,
+      undefined,
+      requestId,
     );
   }
 }

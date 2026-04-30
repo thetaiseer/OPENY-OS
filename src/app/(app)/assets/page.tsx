@@ -57,6 +57,12 @@ import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import {
+  getSafeErrorMessage,
+  logClientError,
+  parseApiError,
+  type ApiErrorShape,
+} from '@/lib/errors/app-error';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -832,14 +838,15 @@ function AssetsPage() {
         const res = await fetch(`/api/assets?page=${pageNum}&${workspaceQs}${periodQs}`, {
           signal: controller.signal,
         });
-        let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
-        try {
-          json = await res.json();
-        } catch {
-          throw new Error(t('assetsServerNonJson', { status: res.status }));
-        }
-        if (!res.ok || !json.success) {
-          const msg = json.error ?? t('assetsFailedLoadHttp', { status: res.status });
+        if (!res.ok) throw await parseApiError(res);
+        const json = (await res.json()) as {
+          success?: boolean;
+          assets?: Asset[];
+          hasMore?: boolean;
+          error?: ApiErrorShape;
+        };
+        if (json.success === false) {
+          const msg = json.error?.message ?? t('assetsFailedLoadHttp', { status: res.status });
           setFetchError(msg);
           if (pageNum === 0) setAssets([]);
           return;
@@ -850,11 +857,8 @@ function AssetsPage() {
         setHasMore(json.hasMore ?? false);
       } catch (err: unknown) {
         const isAbort = err instanceof Error && err.name === 'AbortError';
-        const msg = isAbort
-          ? t('assetsLoadTimeout')
-          : err instanceof Error
-            ? err.message
-            : String(err);
+        const msg = isAbort ? t('assetsLoadTimeout') : getSafeErrorMessage(err);
+        if (!isAbort) logClientError('[assets] fetch assets failed', err);
         setFetchError(isAbort ? msg : t('assetsCouldNotReach', { message: msg }));
         if (pageNum === 0) setAssets([]);
       } finally {
@@ -1440,26 +1444,34 @@ function AssetsPage() {
   const handleDeleteClientFolder = useCallback(
     async (clientLabel: string, ids: string[]) => {
       if (!ids.length) return;
+      console.log('[assets] folder delete clicked', { clientLabel, idsCount: ids.length });
       setDeletingClientFolder(clientLabel);
-      const actionLabel = `${t('deleteAction')} / ${clientLabel}`;
       try {
         const clientFromFolder = clients.find((c) => c.name === clientLabel);
+        const payload = {
+          folder: clientLabel,
+          folderName: clientLabel,
+          clientId: clientFromFolder?.id ?? null,
+        };
+        console.log('[assets] folder delete payload', payload);
         const res = await fetch('/api/assets/folders', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            folderName: clientLabel,
-            clientId: clientFromFolder?.id ?? null,
-          }),
+          body: JSON.stringify(payload),
         });
+        const resForError = res.clone();
         const json = (await res.json().catch(() => ({}))) as {
-          success?: boolean;
           deletedCount?: number;
-          error?: string;
+          matchedAssets?: string[];
+          filterUsed?: Record<string, unknown>;
+          error?: ApiErrorShape;
         };
-        if (!res.ok || json.success === false) {
-          throw new Error(json.error ?? `HTTP ${res.status}`);
-        }
+        console.log('[assets] folder delete response', {
+          status: res.status,
+          ok: res.ok,
+          body: json,
+        });
+        if (!res.ok) throw await parseApiError(resForError);
 
         const deletedSet = new Set(ids);
         setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
@@ -1472,42 +1484,44 @@ function AssetsPage() {
           navigateTo({});
         }
         await fetchAssets(0);
-        toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
+        const deletedCount = json.deletedCount ?? ids.length;
+        toast(`Folder deleted successfully. ${deletedCount} assets removed.`, 'success');
       } catch (err: unknown) {
-        console.error('[assets] folder delete failed:', err);
-        toast(
-          `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
-          'error',
-        );
+        logClientError('[assets] folder delete failed', err);
+        toast(`Could not delete folder: ${getSafeErrorMessage(err)}`, 'error');
       } finally {
         setDeletingClientFolder(null);
       }
     },
-    [t, toast, clients, folderPath.client, navigateTo, fetchAssets],
+    [toast, clients, folderPath.client, navigateTo, fetchAssets],
   );
 
   const handleDelete = async (asset: Asset) => {
     const actionLabel = `${t('deleteAction')} / ${asset.name}`;
     try {
+      console.log('[assets] delete clicked', { assetId: asset.id, assetName: asset.name });
       setDeletingAssetId(asset.id);
+      console.log('[assets] calling delete API', {
+        assetId: asset.id,
+        workspaceQs,
+      });
       const response = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
-      const json = (await response.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-      if (!response.ok || json.success === false) {
-        throw new Error(json.error ?? `HTTP ${response.status}`);
-      }
+      const responseForError = response.clone();
+      const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      console.log('[assets] delete API response', {
+        assetId: asset.id,
+        status: response.status,
+        ok: response.ok,
+        body: json,
+      });
+      if (!response.ok) throw await parseApiError(responseForError);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       await fetchAssets(0);
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
       setPendingDeleteAsset(null);
-    } catch (err) {
-      console.error('[assets] delete asset failed:', err);
-      toast(
-        `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
-        'error',
-      );
+    } catch (err: unknown) {
+      logClientError('[assets] delete asset failed', err);
+      toast(`${actionLabel}: ${getSafeErrorMessage(err)}`, 'error');
     } finally {
       setDeletingAssetId((current) => (current === asset.id ? null : current));
     }
@@ -1521,13 +1535,7 @@ function AssetsPage() {
       body: JSON.stringify({ name: newName }),
     });
     const json = (await res.json()) as { success?: boolean; error?: string; name?: string };
-    if (!res.ok) {
-      toast(
-        `${actionLabel}: ${t('assetsRenameFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
-        'error',
-      );
-      throw new Error(json.error ?? `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw await parseApiError(res);
     setAssets((prev) =>
       prev.map((a) => (a.id === asset.id ? { ...a, name: json.name ?? newName } : a)),
     );
@@ -1771,12 +1779,27 @@ function AssetsPage() {
             cardHeightClass="min-h-[12rem]"
           />
         ) : fetchError ? (
-          <ErrorState
-            title={t('assetsFailedLoadTitle')}
-            description={fetchError}
-            actionLabel={t('assetsRetry')}
-            onAction={() => void fetchAssets(0)}
-          />
+          <>
+            <div
+              className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+              style={{
+                borderColor: 'var(--color-danger-border, #fecaca)',
+                background: 'var(--color-danger-bg, #fef2f2)',
+                color: 'var(--color-danger, #b91c1c)',
+              }}
+            >
+              <p className="text-sm font-medium">{fetchError}</p>
+              <Button type="button" variant="danger" onClick={() => void fetchAssets(0)}>
+                {t('assetsRetry')}
+              </Button>
+            </div>
+            <ErrorState
+              title={t('assetsFailedLoadTitle')}
+              description={fetchError}
+              actionLabel={t('assetsRetry')}
+              onAction={() => void fetchAssets(0)}
+            />
+          </>
         ) : filteredAssets.length === 0 ? (
           /* Empty state */
           <GlobalEmptyState

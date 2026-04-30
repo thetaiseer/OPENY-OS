@@ -48,6 +48,12 @@ import { normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
 import { useRemoveTeamMember } from '@/hooks/mutations/useRemoveTeamMember';
+import {
+  AppError,
+  getSafeErrorMessage,
+  logClientError,
+  parseApiError,
+} from '@/lib/errors/app-error';
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -1334,24 +1340,8 @@ export default function TeamPage() {
           },
         }),
       });
+      if (!res.ok) throw await parseApiError(res);
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) {
-        if (data?.code === 'ALREADY_MEMBER') {
-          setInviteErrorCode('ALREADY_MEMBER');
-          setActionError('This person is already in your team.');
-          toast('This person is already in your team.', 'error');
-          return;
-        }
-        const errText =
-          (typeof data.error === 'string' && data.error) ||
-          (typeof data.dbError === 'string' && data.dbError) ||
-          t('teamInviteFailed');
-        setActionError(errText);
-        if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
-        console.error('[team] invite API failed:', res.status, data);
-        toast(errText, 'error');
-        return;
-      }
 
       if (data?.regenerated === true) {
         setInviteOpen(false);
@@ -1445,7 +1435,14 @@ export default function TeamPage() {
       await queryClient.invalidateQueries({ queryKey: ['team-data'] });
       await queryClient.refetchQueries({ queryKey: ['team-data'] });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('teamNetworkErrorRetry');
+      if (err instanceof AppError && err.code === 'ALREADY_MEMBER') {
+        setInviteErrorCode('ALREADY_MEMBER');
+        setActionError('This person is already in your team.');
+        toast(getSafeErrorMessage(err), 'error');
+        return;
+      }
+      logClientError('[team] invite request failed', err);
+      const msg = getSafeErrorMessage(err) || t('teamNetworkErrorRetry');
       setActionError(msg);
       toast(msg, 'error');
     } finally {

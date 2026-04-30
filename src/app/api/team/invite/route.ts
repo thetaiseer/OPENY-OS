@@ -5,6 +5,8 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { logEmailSent } from '@/lib/email';
 import { sendInviteEmail } from '@/lib/email/sendInviteEmail';
+import { fail, ok } from '@/lib/api/respond';
+import { createRequestId } from '@/lib/errors/app-error';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -34,12 +36,13 @@ function normalizeInviteRole(input: string): 'admin' | 'manager' | 'team' | 'vie
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = createRequestId();
   const auth = await requireRole(request, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== 'object') {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return fail(400, 'INVALID_REQUEST_BODY', 'Invalid request body', undefined, requestId);
   }
 
   // body.name is accepted as a fallback for older clients; prefer body.full_name
@@ -62,9 +65,12 @@ export async function POST(request: NextRequest) {
   // job_title: the human-readable job description (Graphic Designer, etc.)
   const job_title = normalizeJobTitle(body.job_title ?? body.jobTitle);
   if (!full_name || !email || !access_role_raw) {
-    return NextResponse.json(
-      { error: 'full_name, email, and access_role are required' },
-      { status: 400 },
+    return fail(
+      400,
+      'MISSING_REQUIRED_FIELDS',
+      'full_name, email, and access_role are required',
+      undefined,
+      requestId,
     );
   }
 
@@ -72,11 +78,12 @@ export async function POST(request: NextRequest) {
   // 'owner' is intentionally excluded — ownership cannot be granted via invitation.
   const VALID_ACCESS_ROLES = ['admin', 'manager', 'member', 'team_member', 'viewer'];
   if (!access_role) {
-    return NextResponse.json(
-      {
-        error: `Invalid access role "${access_role_raw}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}`,
-      },
-      { status: 400 },
+    return fail(
+      400,
+      'INVALID_ACCESS_ROLE',
+      `Invalid access role "${access_role_raw}". Must be one of: ${VALID_ACCESS_ROLES.join(', ')}`,
+      undefined,
+      requestId,
     );
   }
 
@@ -118,20 +125,23 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   const inviterRole = (inviterWorkspaceMember?.role ?? '').toLowerCase();
   if (inviterWorkspaceMemberError || (inviterRole !== 'owner' && inviterRole !== 'admin')) {
-    return NextResponse.json(
-      { error: 'Only workspace owners/admins can invite team members.' },
-      { status: 403 },
+    return fail(
+      403,
+      'INVITER_FORBIDDEN',
+      'Only workspace owners/admins can invite team members.',
+      inviterWorkspaceMemberError ?? undefined,
+      requestId,
     );
   }
 
   if (!workspaceId) {
-    return NextResponse.json(
-      {
-        error:
-          workspaceResolution.error ??
-          'No workspace membership found for inviter. Ask an owner to restore your workspace access.',
-      },
-      { status: 403 },
+    return fail(
+      403,
+      'WORKSPACE_NOT_FOUND',
+      workspaceResolution.error ??
+        'No workspace membership found for inviter. Ask an owner to restore your workspace access.',
+      undefined,
+      requestId,
     );
   }
 
@@ -162,13 +172,12 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle();
     if (existingMembership?.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: 'ALREADY_MEMBER',
-          error: 'This email is already a member of this workspace.',
-        },
-        { status: 409 },
+      return fail(
+        409,
+        'ALREADY_MEMBER',
+        'This email is already a member of this workspace.',
+        undefined,
+        requestId,
       );
     }
     const { data: wsForMembership } = await db
@@ -193,9 +202,12 @@ export async function POST(request: NextRequest) {
       .update({ token, expires_at: expiresAt, status: 'pending', role: access_role })
       .eq('id', existingInvite.id);
     if (regenInviteError) {
-      return NextResponse.json(
-        { error: regenInviteError.message ?? 'Failed to regenerate existing invitation' },
-        { status: 500 },
+      return fail(
+        500,
+        'INVITE_REGENERATE_FAILED',
+        regenInviteError.message ?? 'Failed to regenerate existing invitation',
+        regenInviteError,
+        requestId,
       );
     }
     try {
@@ -206,10 +218,7 @@ export async function POST(request: NextRequest) {
         role: access_role,
         inviterName: auth.profile.name,
       });
-      return NextResponse.json(
-        { success: true, regenerated: true, emailSent: true, emailProvider: 'resend' },
-        { status: 200 },
-      );
+      return ok({ regenerated: true, emailSent: true, emailProvider: 'resend', requestId }, 200);
     } catch (emailErr) {
       const errMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
       console.error('[team/invite] Regenerated invite DB updated but email send failed:', {
@@ -226,14 +235,9 @@ export async function POST(request: NextRequest) {
         status: 'failed',
         error: errMsg,
       });
-      return NextResponse.json(
-        {
-          success: true,
-          regenerated: true,
-          emailSent: false,
-          emailSkippedReason: errMsg,
-        },
-        { status: 200 },
+      return ok(
+        { regenerated: true, emailSent: false, emailSkippedReason: errMsg, requestId },
+        200,
       );
     }
   }
@@ -256,9 +260,12 @@ export async function POST(request: NextRequest) {
 
   if (memberError || !member) {
     console.error('[team/invite] Failed to insert team_members row:', memberError?.message);
-    return NextResponse.json(
-      { error: memberError?.message ?? 'Failed to create team member' },
-      { status: 500 },
+    return fail(
+      500,
+      'TEAM_MEMBER_CREATE_FAILED',
+      memberError?.message ?? 'Failed to create team member',
+      memberError ?? undefined,
+      requestId,
     );
   }
 
@@ -278,9 +285,12 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
   if (inviteError || !invitation) {
-    return NextResponse.json(
-      { error: inviteError?.message ?? 'Failed to create invitation' },
-      { status: 500 },
+    return fail(
+      500,
+      'INVITATION_CREATE_FAILED',
+      inviteError?.message ?? 'Failed to create invitation',
+      inviteError ?? undefined,
+      requestId,
     );
   }
 
@@ -324,14 +334,15 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json(
+  return ok(
     {
       member,
       invitation,
       emailSent,
       emailProvider: emailSent ? 'resend' : null,
       emailSkippedReason: emailSent ? null : emailErrorMessage,
+      requestId,
     },
-    { status: 201 },
+    201,
   );
 }
