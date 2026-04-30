@@ -1,18 +1,19 @@
 'use client';
 
-import {
-  type ComponentType,
-  type CSSProperties,
-  type FormEvent,
-  type FocusEvent,
-  Suspense,
-  useEffect,
-  useState,
-} from 'react';
+import { type FormEvent, type FocusEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Loader2, CheckCircle, ArrowLeft, Mail, User, Lock, ShieldCheck } from 'lucide-react';
+import {
+  Loader2,
+  CheckCircle,
+  ArrowLeft,
+  Mail,
+  User,
+  Lock,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react';
 
 type InvitationPayload = {
   id: string;
@@ -47,7 +48,7 @@ function InputField({
   onChange?: (v: string) => void;
   readOnly?: boolean;
   placeholder?: string;
-  icon: ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
+  icon: LucideIcon;
   required?: boolean;
 }) {
   return (
