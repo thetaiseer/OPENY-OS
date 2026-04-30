@@ -49,9 +49,9 @@ const TABS: Tab[] = [
 
 const PRIORITY_COLOR: Record<NotificationPriority, string> = {
   low: 'var(--text-secondary)',
-  medium: '#3b82f6',
-  high: '#f59e0b',
-  critical: '#dc2626',
+  medium: 'var(--text-primary)',
+  high: 'var(--text-secondary)',
+  critical: 'var(--text-primary)',
 };
 
 const PRIORITY_LABEL: Record<NotificationPriority, string> = {
@@ -84,12 +84,12 @@ function getIconColor(n: Notification): string {
   const priority = (n.priority ?? 'low') as NotificationPriority;
   if (priority === 'critical' || priority === 'high') return PRIORITY_COLOR[priority];
   const map: Record<string, string> = {
-    success: '#16a34a',
-    warning: '#d97706',
-    error: '#dc2626',
-    info: '#3b82f6',
+    success: 'var(--text-primary)',
+    warning: 'var(--text-secondary)',
+    error: 'var(--text-primary)',
+    info: 'var(--text-primary)',
   };
-  return map[n.type] ?? '#3b82f6';
+  return map[n.type] ?? 'var(--text-primary)';
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ export default function NotificationsPage() {
               className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium transition-colors"
               style={{
                 background: active ? 'var(--accent)' : 'var(--surface)',
-                color: active ? '#fff' : 'var(--text-secondary)',
+                color: active ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                 border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
               }}
             >

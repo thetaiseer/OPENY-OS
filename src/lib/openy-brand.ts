@@ -25,15 +25,15 @@ export function openyAppChromeLogoDimensions(heightPx: number): { width: number;
 export const OPENY_DOC_BLACK = '#111';
 
 export const OPENY_DOC_STYLE = {
-  text: '#0f172a',
-  textMuted: '#64748b',
+  text: 'var(--surface)',
+  textMuted: 'var(--text-secondary)',
   title: '#020617',
   border: '#dbe0e6',
   borderStrong: '#c6ced8',
-  background: '#ffffff',
+  background: 'var(--accent-foreground)',
   surface: '#f8fafc',
   headerBg: '#0b0f19',
-  headerText: '#ffffff',
+  headerText: 'var(--accent-foreground)',
   rowAlt: '#f8fafc',
-  alert: '#b91c1c',
+  alert: 'var(--text-primary)',
 };

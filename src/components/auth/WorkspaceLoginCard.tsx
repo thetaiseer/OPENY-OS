@@ -172,7 +172,7 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
         {error && (
           <p
             className="rounded-xl px-3 py-2 text-sm text-red-500"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
+            style={{ background: 'var(--surface-muted)', border: '1px solid rgba(239,68,68,0.25)' }}
           >
             {error}
           </p>
@@ -180,7 +180,7 @@ function WorkspaceLoginCardInner({ workspace }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white disabled:opacity-70"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-70"
           style={{ background: 'var(--accent)' }}
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : null}

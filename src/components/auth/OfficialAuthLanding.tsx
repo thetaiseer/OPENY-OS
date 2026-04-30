@@ -338,9 +338,9 @@ export default function OfficialAuthLanding() {
                       <div
                         className="whitespace-pre-line rounded-xl px-3 py-2 text-sm"
                         style={{
-                          background: 'rgba(239,68,68,0.08)',
+                          background: 'var(--surface-muted)',
                           border: '1px solid rgba(239,68,68,0.28)',
-                          color: '#ef4444',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         {formError ?? accessMessage}
@@ -350,7 +350,7 @@ export default function OfficialAuthLanding() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="openy-modal-btn-primary inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-semibold text-white disabled:opacity-70"
+                      className="openy-modal-btn-primary inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-70"
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                       {loading ? 'Please wait…' : 'Sign In'}
@@ -369,22 +369,24 @@ export default function OfficialAuthLanding() {
             >
               <div className="relative z-10 flex h-full flex-col justify-between gap-6">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/80">OPENY Platform</p>
-                  <h2 className="mt-2 text-3xl font-semibold leading-tight text-white sm:text-4xl">
+                  <p className="text-[var(--accent-foreground)]/80 text-xs uppercase tracking-[0.2em]">
+                    OPENY Platform
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold leading-tight text-[var(--accent-foreground)] sm:text-4xl">
                     Welcome back to OPENY
                   </h2>
-                  <p className="mt-3 max-w-md text-sm text-white/90 sm:text-base">
+                  <p className="text-[var(--accent-foreground)]/90 mt-3 max-w-md text-sm sm:text-base">
                     Access is granted only by the owner/admin through team invitation inside OPENY.
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <div className="rounded-xl border border-white/35 bg-white/10 px-4 py-3">
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-[var(--accent-foreground)]">
                       No public sign up. Ask your owner/admin to invite you first.
                     </p>
                   </div>
-                  <p className="flex items-center gap-2 text-xs text-white/80">
+                  <p className="text-[var(--accent-foreground)]/80 flex items-center gap-2 text-xs">
                     <Lock size={12} />
                     One secure session. Workspace access is validated per membership.
                   </p>

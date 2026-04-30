@@ -37,19 +37,19 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 function priorityColor(p: string): string {
-  if (p === 'high') return '#dc2626';
-  if (p === 'medium') return '#d97706';
-  return '#2563eb';
+  if (p === 'high') return 'var(--text-primary)';
+  if (p === 'medium') return 'var(--text-secondary)';
+  return 'var(--text-primary)';
 }
 
 function scheduleStatusColor(s?: string): string {
-  if (s === 'published') return '#0891b2';
-  if (s === 'approved') return '#16a34a';
-  if (s === 'pending_review') return '#d97706';
-  if (s === 'missed') return '#dc2626';
-  if (s === 'cancelled') return '#6b7280';
-  if (s === 'draft') return '#9ca3af';
-  return '#7c3aed'; // scheduled (default)
+  if (s === 'published') return 'var(--text-primary)';
+  if (s === 'approved') return 'var(--text-primary)';
+  if (s === 'pending_review') return 'var(--text-secondary)';
+  if (s === 'missed') return 'var(--text-primary)';
+  if (s === 'cancelled') return 'var(--text-secondary)';
+  if (s === 'draft') return 'var(--text-secondary)';
+  return 'var(--text-secondary)'; // scheduled (default)
 }
 
 function platformLabel(value: string): string {
@@ -346,22 +346,34 @@ export default function CalendarPage() {
         </Tabs>
         <span className="flex items-center gap-1.5">
           <ListTodo size={12} />
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#2563eb' }} />
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ background: 'var(--text-primary)' }}
+          />
           {t('calendarLegendTasks')}
         </span>
         <span className="flex items-center gap-1.5">
           <Send size={12} />
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#7c3aed' }} />
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ background: 'var(--text-secondary)' }}
+          />
           {t('calendarPublishingSchedules')}
         </span>
         <span className="flex items-center gap-1.5">
           <FileText size={12} />
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#0891b2' }} />
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ background: 'var(--text-primary)' }}
+          />
           {t('calendarLegendContent')}
         </span>
         <span className="flex items-center gap-1.5">
           <Layers3 size={12} />
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#6b7280' }} />
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ background: 'var(--text-secondary)' }}
+          />
           {t('calendarLegendAssets')}
         </span>
       </div>
@@ -472,7 +484,7 @@ export default function CalendarPage() {
                           <div
                             key={c.id}
                             className="flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-xs"
-                            style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                            style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
                           >
                             <FileText size={8} className="shrink-0" />
                             <span className="truncate">{c.title}</span>
@@ -583,7 +595,7 @@ export default function CalendarPage() {
                           <div
                             key={c.id}
                             className="flex items-center gap-1 truncate rounded px-1.5 py-1 text-xs"
-                            style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                            style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
                           >
                             <FileText size={9} className="shrink-0" />
                             <span className="truncate">{c.title}</span>
@@ -660,7 +672,7 @@ export default function CalendarPage() {
                       {selectedSchedules.length > 0 && (
                         <div>
                           <div className="mb-2 flex items-center gap-2">
-                            <Send size={14} style={{ color: '#7c3aed' }} />
+                            <Send size={14} style={{ color: 'var(--text-secondary)' }} />
                             <span
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
@@ -715,7 +727,7 @@ export default function CalendarPage() {
                                       key={pt}
                                       className="rounded px-1.5 py-0.5 text-[10px]"
                                       style={{
-                                        background: 'rgba(99,102,241,0.1)',
+                                        background: 'var(--surface-2)',
                                         color: 'var(--accent)',
                                       }}
                                     >
@@ -855,7 +867,7 @@ export default function CalendarPage() {
                       {selectedContent.length > 0 && (
                         <div>
                           <div className="mb-2 flex items-center gap-2">
-                            <FileText size={14} style={{ color: '#0891b2' }} />
+                            <FileText size={14} style={{ color: 'var(--text-primary)' }} />
                             <span
                               className="text-xs font-semibold"
                               style={{ color: 'var(--text-secondary)' }}
@@ -901,7 +913,10 @@ export default function CalendarPage() {
                                   )}
                                   <span
                                     className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                                    style={{ background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}
+                                    style={{
+                                      background: 'var(--surface-2)',
+                                      color: 'var(--text-primary)',
+                                    }}
                                   >
                                     {c.status.replace(/_/g, ' ')}
                                   </span>

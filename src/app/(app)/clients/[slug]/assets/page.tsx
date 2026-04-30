@@ -295,7 +295,7 @@ export default function ClientAssetsPage() {
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] transition-opacity hover:opacity-90"
           style={{ background: 'var(--accent)' }}
         >
           <Upload size={14} />

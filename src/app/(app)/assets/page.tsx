@@ -357,7 +357,7 @@ function FolderCard({
       <div className="flex min-w-0 flex-1 flex-col items-center gap-3 text-center">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
-          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
+          style={{ background: color ? `${color}22` : 'var(--surface-2)' }}
         >
           <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: color ?? 'var(--accent)' }} />
         </div>
@@ -399,7 +399,7 @@ function FolderCard({
               disabled={isDownloading}
               className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
               style={{
-                background: 'rgba(99,102,241,0.1)',
+                background: 'var(--surface-2)',
                 color: 'var(--accent)',
                 border: '1px solid rgba(99,102,241,0.3)',
               }}
@@ -533,7 +533,7 @@ function ClientFolderCard({
       <div className="flex min-w-0 items-center gap-3">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
-          style={{ background: logoUrl ? 'var(--surface-2)' : 'rgba(99,102,241,0.1)' }}
+          style={{ background: logoUrl ? 'var(--surface-2)' : 'var(--surface-2)' }}
         >
           {logoUrl ? (
             <ClientBrandMark
@@ -560,7 +560,7 @@ function ClientFolderCard({
           type="button"
           onClick={onView}
           className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 sm:text-sm"
-          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+          style={{ background: 'var(--surface-2)', color: 'var(--accent)' }}
         >
           <FolderOpen size={14} /> {t('assetsView')}
         </button>
@@ -658,11 +658,11 @@ function Breadcrumb({
 // ── Category colors ───────────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'social-media': '#3b82f6',
-  videos: '#8b5cf6',
-  designs: '#f59e0b',
-  documents: '#10b981',
-  other: '#6b7280',
+  'social-media': 'var(--text-primary)',
+  videos: 'var(--text-secondary)',
+  designs: 'var(--text-secondary)',
+  documents: 'var(--text-primary)',
+  other: 'var(--text-secondary)',
 };
 
 function fileTypeFilterLabel(
@@ -1791,9 +1791,9 @@ function AssetsPage() {
             <div
               className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
               style={{
-                borderColor: 'var(--color-danger-border, #fecaca)',
-                background: 'var(--color-danger-bg, #fef2f2)',
-                color: 'var(--color-danger, #b91c1c)',
+                borderColor: 'var(--color-danger-border)',
+                background: 'var(--color-danger-bg)',
+                color: 'var(--color-danger)',
               }}
             >
               <p className="text-sm font-medium">{fetchError}</p>

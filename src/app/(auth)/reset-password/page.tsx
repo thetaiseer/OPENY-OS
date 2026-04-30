@@ -83,7 +83,7 @@ function ResetPasswordForm() {
   if (exchangeErr) {
     return (
       <div className="space-y-4 text-center">
-        <XCircle size={40} className="mx-auto" style={{ color: '#dc2626' }} />
+        <XCircle size={40} className="mx-auto" style={{ color: 'var(--text-primary)' }} />
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Reset link invalid
@@ -107,7 +107,7 @@ function ResetPasswordForm() {
   if (success) {
     return (
       <div className="space-y-4 text-center">
-        <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
+        <CheckCircle size={40} className="mx-auto" style={{ color: 'var(--text-primary)' }} />
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Password updated!
@@ -174,7 +174,7 @@ function ResetPasswordForm() {
             style={{
               background: 'var(--surface-2)',
               color: 'var(--text)',
-              border: `1px solid ${confirmPw && confirmPw !== password ? '#fca5a5' : 'var(--border)'}`,
+              border: `1px solid ${confirmPw && confirmPw !== password ? 'var(--border)' : 'var(--border)'}`,
             }}
             placeholder="Repeat your password"
           />
@@ -190,7 +190,7 @@ function ResetPasswordForm() {
           </button>
         </div>
         {confirmPw && confirmPw !== password && (
-          <p className="text-xs" style={{ color: '#ef4444' }}>
+          <p className="text-xs" style={{ color: 'var(--text-primary)' }}>
             Passwords do not match.
           </p>
         )}
@@ -200,8 +200,8 @@ function ResetPasswordForm() {
         <p
           className="rounded-lg px-3 py-2 text-sm"
           style={{
-            background: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
+            background: 'var(--surface-muted)',
+            color: 'var(--text-primary)',
             border: '1px solid rgba(239,68,68,0.25)',
           }}
         >
@@ -213,7 +213,7 @@ function ResetPasswordForm() {
         type="submit"
         disabled={loading || !password || password !== confirmPw}
         className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
-        style={{ background: 'var(--accent)', color: '#fff' }}
+        style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
         {loading ? 'Updating…' : 'Set new password'}

@@ -32,7 +32,7 @@ export function OpenyDocumentPage({
         padding: '12mm',
         boxSizing: 'border-box',
         color: OPENY_DOC_BLACK,
-        background: '#fff',
+        background: 'var(--accent-foreground)',
         marginInline: 'auto',
         overflow: 'visible',
       }}
@@ -139,7 +139,7 @@ export function OpenyClientBlock({
         style={{
           display: 'inline-block',
           background: OPENY_DOC_BLACK,
-          color: '#fff',
+          color: 'var(--accent-foreground)',
           fontSize: 10,
           fontWeight: 800,
           letterSpacing: 1.5,
@@ -152,7 +152,9 @@ export function OpenyClientBlock({
         <div style={{ width: 4, background: OPENY_DOC_BLACK, flexShrink: 0 }} />
         <div>
           <div style={{ fontSize: 18, fontWeight: 900, color: OPENY_DOC_BLACK }}>{name || '—'}</div>
-          {subtext ? <div style={{ fontSize: 12, color: '#6B7280' }}>{subtext}</div> : null}
+          {subtext ? (
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{subtext}</div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -179,7 +181,7 @@ export function OpenyDocumentSectionTitle({ children }: { children: ReactNode })
 export const OpenySectionTitle = OpenyDocumentSectionTitle;
 
 export function openyTableHeaderStyle(): CSSProperties {
-  return { background: OPENY_DOC_BLACK, color: '#fff' };
+  return { background: OPENY_DOC_BLACK, color: 'var(--accent-foreground)' };
 }
 
 export function openyThStyle(
@@ -188,7 +190,7 @@ export function openyThStyle(
 ): CSSProperties {
   return {
     background: OPENY_DOC_BLACK,
-    color: '#fff',
+    color: 'var(--accent-foreground)',
     textAlign: align,
     padding: 12,
     border: `1px solid ${OPENY_DOC_BLACK}`,
@@ -207,7 +209,7 @@ export function openyTdStyle(
   extra?: CSSProperties,
 ): CSSProperties {
   return {
-    background: '#fff',
+    background: 'var(--accent-foreground)',
     textAlign: align,
     padding: 6,
     border: `1px solid ${OPENY_DOC_BLACK}`,
@@ -228,9 +230,9 @@ export function openyStatusPillStyle(status: 'paid' | 'unpaid'): CSSProperties {
     display: 'inline-block',
     padding: '2px 8px',
     borderRadius: 10,
-    border: `1px solid ${isPaid ? '#86efac' : '#fcd34d'}`,
-    background: isPaid ? '#f0fdf4' : '#fefce8',
-    color: isPaid ? '#166534' : '#854d0e',
+    border: `1px solid ${isPaid ? 'var(--border)' : 'var(--border)'}`,
+    background: isPaid ? 'var(--surface-muted)' : 'var(--surface-2)',
+    color: isPaid ? 'var(--text-primary)' : 'var(--text-secondary)',
     fontWeight: 800,
     fontSize: 10,
     letterSpacing: 0.4,

@@ -37,7 +37,12 @@ export default function SidebarItem({ href, label, icon: Icon, aliases = [] }: S
           : 'border-l-transparent text-[var(--sidebar-foreground)] hover:bg-[color:var(--surface-soft)]',
       )}
     >
-      <Icon className={clsx('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-current')} />
+      <Icon
+        className={clsx(
+          'h-4 w-4 shrink-0',
+          isActive ? 'text-[var(--sidebar-active-foreground)]' : 'text-current',
+        )}
+      />
       <span className="truncate text-sm font-medium">{label}</span>
     </Link>
   );

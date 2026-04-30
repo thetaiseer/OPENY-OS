@@ -44,7 +44,7 @@ export default async function AccessDeniedPage({
           <a
             href={requestAccessHref}
             className="inline-flex h-10 items-center rounded-xl px-4 text-sm font-semibold"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
           >
             Request Access
           </a>

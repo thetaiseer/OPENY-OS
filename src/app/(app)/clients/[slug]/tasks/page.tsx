@@ -147,7 +147,7 @@ export default function ClientTasksPage() {
         )}
         <button
           onClick={() => setNewTaskOpen(true)}
-          className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+          className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)]"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={14} />
@@ -180,7 +180,7 @@ export default function ClientTasksPage() {
                 style={{
                   background: 'var(--surface)',
                   borderColor: 'var(--border)',
-                  borderLeft: `3px solid ${overdue ? '#ef4444' : isCompleted ? '#22c55e' : 'var(--border)'}`,
+                  borderLeft: `3px solid ${overdue ? 'var(--border-strong)' : isCompleted ? 'var(--border)' : 'var(--border)'}`,
                 }}
               >
                 <div className="flex items-start gap-2">
@@ -208,7 +208,7 @@ export default function ClientTasksPage() {
                   {canDeleteTasks ? (
                     <button
                       onClick={() => setPendingDeleteTask(task)}
-                      className="shrink-0 rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="shrink-0 rounded-lg p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]"
                       disabled={deletingTaskId === task.id}
                     >
                       <Trash2 size={13} />
@@ -221,8 +221,8 @@ export default function ClientTasksPage() {
                 >
                   {task.due_date && (
                     <span
-                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'text-red-500' : ''}`}
-                      style={{ background: overdue ? '#fef2f2' : 'var(--surface-2)' }}
+                      className="flex items-center gap-1 rounded-full px-2 py-0.5"
+                      style={{ background: 'var(--surface-2)' }}
                     >
                       {overdue ? <AlertCircle size={10} /> : <Calendar size={10} />}
                       {fmtDate(task.due_date)}

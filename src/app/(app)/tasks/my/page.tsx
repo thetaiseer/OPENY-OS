@@ -31,11 +31,7 @@ import { PageShell, PageHeader, SectionTitle } from '@/components/layout/PageLay
 import { cn } from '@/lib/cn';
 import NewTaskModal from '@/components/tasks/NewTaskModal';
 import SelectDropdown from '@/components/ui/SelectDropdown';
-import {
-  PLATFORMS,
-  POST_TYPES,
-  getPlatformDisplayColor,
-} from '@/components/features/publishing/SchedulePublishingModal';
+import { PLATFORMS, POST_TYPES } from '@/components/features/publishing/SchedulePublishingModal';
 import type { Task, TeamMember, Client } from '@/lib/types';
 import { taskStatusLabel } from '@/lib/task-status-labels';
 import { applyUtcTimestampRange } from '@/lib/date-range';
@@ -112,28 +108,16 @@ function categoryLabel(cat: string | null | undefined, t: (k: string) => string)
   return key ? t(key) : cat;
 }
 
-function categoryColor(cat?: string | null): string {
-  const colors: Record<string, string> = {
-    internal_task: '#6b7280',
-    content_creation: '#2563eb',
-    design_task: '#d946ef',
-    publishing_task: '#7c3aed',
-    asset_upload_task: '#0891b2',
-    follow_up_task: '#16a34a',
-  };
-  return cat ? (colors[cat] ?? 'var(--accent)') : 'var(--accent)';
-}
-
 // ─── Section definitions ─────────────────────────────────────────────────────
 
 type SectionKey = 'all' | 'dueToday' | 'overdue' | 'inProgress' | 'inReview' | 'completed';
 
 const SECTIONS: { key: SectionKey; labelKey: string; icon: React.ElementType; color: string }[] = [
-  { key: 'dueToday', labelKey: 'tasksDueToday', icon: Calendar, color: '#f59e0b' },
-  { key: 'overdue', labelKey: 'tasksOverdue', icon: AlertCircle, color: '#ef4444' },
+  { key: 'dueToday', labelKey: 'tasksDueToday', icon: Calendar, color: 'var(--text-secondary)' },
+  { key: 'overdue', labelKey: 'tasksOverdue', icon: AlertCircle, color: 'var(--text-primary)' },
   { key: 'inProgress', labelKey: 'tasksInProgress', icon: Clock, color: 'var(--accent)' },
-  { key: 'inReview', labelKey: 'tasksInReview', icon: CheckSquare, color: '#8b5cf6' },
-  { key: 'completed', labelKey: 'tasksCompleted', icon: CheckCheck, color: '#22c55e' },
+  { key: 'inReview', labelKey: 'tasksInReview', icon: CheckSquare, color: 'var(--text-secondary)' },
+  { key: 'completed', labelKey: 'tasksCompleted', icon: CheckCheck, color: 'var(--text-muted)' },
 ];
 
 const CATEGORY_FILTERS = [
@@ -158,11 +142,11 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
   const cat = task.task_category;
 
   const borderColor = overdue
-    ? '#ef4444'
+    ? 'var(--border-strong)'
     : isToday
-      ? '#f59e0b'
+      ? 'var(--border-strong)'
       : cat
-        ? categoryColor(cat)
+        ? 'var(--border)'
         : 'var(--border)';
 
   return (
@@ -191,8 +175,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">
         {cat && (
           <span
-            className="rounded-full px-2 py-0.5 font-medium text-white"
-            style={{ background: categoryColor(cat), fontSize: '10px' }}
+            className="rounded-full px-2 py-0.5 font-medium text-[var(--text-primary)]"
+            style={{ background: 'var(--surface-muted)', fontSize: '10px' }}
           >
             {categoryLabel(cat, t)}
           </span>
@@ -210,8 +194,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
         )}
         {task.due_date && (
           <span
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'font-medium text-red-500' : isToday ? 'font-medium text-amber-600' : ''}`}
-            style={{ background: overdue ? '#fef2f2' : isToday ? '#fffbeb' : 'var(--surface-2)' }}
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${overdue ? 'font-medium text-[var(--text-primary)]' : isToday ? 'font-medium text-[var(--text-secondary)]' : ''}`}
+            style={{ background: 'var(--surface-2)' }}
           >
             <Calendar size={10} />
             {fmtDate(task.due_date, lang)}
@@ -224,14 +208,14 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
       {/* Row 3: publishing badges */}
       {(hasPlatforms || hasPostTypes) && (
         <div className="flex flex-wrap items-center gap-1">
-          <Send size={10} className="text-[#7c3aed]" />
+          <Send size={10} className="text-[var(--text-secondary)]" />
           {(task.platforms ?? []).map((p) => {
             const pl = PLATFORMS.find((x) => x.value === p);
             return (
               <span
                 key={p}
-                className="rounded px-1.5 py-0.5 font-medium text-white"
-                style={{ background: getPlatformDisplayColor(p), fontSize: '10px' }}
+                className="rounded px-1.5 py-0.5 font-medium text-[var(--text-primary)]"
+                style={{ background: 'var(--surface-muted)', fontSize: '10px' }}
               >
                 {pl?.label ?? p}
               </span>
@@ -242,8 +226,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
             return (
               <span
                 key={pt}
-                className="rounded px-1.5 py-0.5 font-medium"
-                style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', fontSize: '10px' }}
+                className="rounded px-1.5 py-0.5 font-medium text-[var(--text-secondary)]"
+                style={{ background: 'var(--surface-2)', fontSize: '10px' }}
               >
                 {typ?.label ?? pt}
               </span>
@@ -257,8 +241,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
         <div className="flex items-center gap-1.5">
           {hasAsset && (
             <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ background: '#e0f2fe', color: '#0284c7' }}
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]"
+              style={{ background: 'var(--surface-2)' }}
             >
               <Paperclip size={9} className="me-0.5 inline" />
               {t('taskLinkedAsset')}
@@ -266,8 +250,8 @@ function TaskCard({ task, onDuplicate }: { task: Task; onDuplicate?: (task: Task
           )}
           {hasPubSchedule && (
             <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ background: '#f3e8ff', color: '#7c3aed' }}
+              className="rounded-full px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]"
+              style={{ background: 'var(--surface-2)' }}
             >
               <Send size={9} className="me-0.5 inline" />
               {t('taskLinkedSchedule')}

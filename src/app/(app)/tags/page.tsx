@@ -8,16 +8,16 @@ import FormModal from '@/components/ui/FormModal';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 
 const TAG_COLORS = [
-  '#6366f1',
-  '#8b5cf6',
-  '#ec4899',
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#14b8a6',
-  '#3b82f6',
-  '#64748b',
+  '#000000',
+  '#222222',
+  '#444444',
+  '#555555',
+  '#666666',
+  '#888888',
+  '#aaaaaa',
+  '#cccccc',
+  '#dddddd',
+  '#ffffff',
 ];
 
 async function fetchTags(): Promise<TagType[]> {
@@ -31,7 +31,7 @@ export default function TagsPage() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editTag, setEditTag] = useState<TagType | null>(null);
-  const [form, setForm] = useState({ name: '', color: '#6366f1', description: '' });
+  const [form, setForm] = useState({ name: '', color: '#000000', description: '' });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [pendingDeleteTag, setPendingDeleteTag] = useState<TagType | null>(null);
@@ -44,7 +44,7 @@ export default function TagsPage() {
 
   const openCreate = () => {
     setEditTag(null);
-    setForm({ name: '', color: '#6366f1', description: '' });
+    setForm({ name: '', color: '#000000', description: '' });
     setSaveErr(null);
     setModalOpen(true);
   };
@@ -105,7 +105,7 @@ export default function TagsPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] transition-opacity hover:opacity-90"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={16} /> New Tag
@@ -242,7 +242,9 @@ export default function TagsPage() {
                   className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110"
                   style={{ background: color }}
                 >
-                  {form.color === color && <Check size={12} className="text-white" />}
+                  {form.color === color && (
+                    <Check size={12} className="text-[var(--accent-foreground)]" />
+                  )}
                 </button>
               ))}
               <div className="flex items-center gap-1.5">

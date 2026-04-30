@@ -23,7 +23,7 @@ export default function GlobalError({
         <button
           type="button"
           onClick={reset}
-          className="mt-4 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
+          className="mt-4 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)]"
         >
           Retry
         </button>

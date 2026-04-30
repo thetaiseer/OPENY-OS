@@ -96,14 +96,14 @@ function clearRecentSearches() {
 
 function typeBadgeStyle(type: ResultType): React.CSSProperties {
   const map: Record<ResultType, { bg: string; color: string }> = {
-    client: { bg: 'rgba(99,102,241,0.12)', color: '#6366f1' },
-    task: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
-    asset: { bg: 'rgba(234,179,8,0.12)', color: '#ca8a04' },
-    content: { bg: 'rgba(168,85,247,0.12)', color: '#a855f7' },
-    team: { bg: 'rgba(34,197,94,0.12)', color: '#16a34a' },
-    invoice: { bg: 'rgba(37,99,235,0.12)', color: '#2563eb' },
-    quotation: { bg: 'rgba(124,58,237,0.12)', color: '#7c3aed' },
-    employee: { bg: 'rgba(217,119,6,0.12)', color: '#d97706' },
+    client: { bg: 'rgba(99,102,241,0.12)', color: 'var(--text-secondary)' },
+    task: { bg: 'rgba(59,130,246,0.12)', color: 'var(--text-primary)' },
+    asset: { bg: 'rgba(234,179,8,0.12)', color: 'var(--text-secondary)' },
+    content: { bg: 'rgba(168,85,247,0.12)', color: 'var(--text-secondary)' },
+    team: { bg: 'rgba(34,197,94,0.12)', color: 'var(--text-primary)' },
+    invoice: { bg: 'rgba(37,99,235,0.12)', color: 'var(--text-primary)' },
+    quotation: { bg: 'var(--surface-2)', color: 'var(--text-secondary)' },
+    employee: { bg: 'rgba(217,119,6,0.12)', color: 'var(--text-secondary)' },
   };
   return { background: map[type].bg, color: map[type].color };
 }

@@ -209,9 +209,9 @@ function AcceptInvitePage() {
           <div className="space-y-4 text-center">
             <div
               className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-              style={{ background: 'rgba(239,68,68,0.1)' }}
+              style={{ background: 'var(--surface-muted)' }}
             >
-              <ShieldCheck size={26} style={{ color: '#ef4444' }} />
+              <ShieldCheck size={26} style={{ color: 'var(--text-primary)' }} />
             </div>
             <div>
               <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
@@ -235,7 +235,7 @@ function AcceptInvitePage() {
         {/* Success */}
         {success && (
           <div className="space-y-4 py-4 text-center">
-            <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
+            <CheckCircle size={40} className="mx-auto" style={{ color: 'var(--text-primary)' }} />
             <div>
               <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
                 Welcome aboard!
@@ -303,8 +303,8 @@ function AcceptInvitePage() {
                 <p
                   className="rounded-xl px-3 py-2 text-sm"
                   style={{
-                    background: 'rgba(239,68,68,0.08)',
-                    color: '#ef4444',
+                    background: 'var(--surface-muted)',
+                    color: 'var(--text-primary)',
                     border: '1px solid rgba(239,68,68,0.2)',
                   }}
                 >
@@ -316,7 +316,7 @@ function AcceptInvitePage() {
                 type="submit"
                 disabled={submitting}
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-60"
-                style={{ background: 'var(--accent)', color: '#fff' }}
+                style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
                 {submitting ? 'Joining…' : 'Accept invitation'}

@@ -149,7 +149,9 @@ function QuotationPreview({ form }: { form: FormState }) {
         <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
           <div style={{ flex: 1 }}>
             {form.company_brand && (
-              <div style={{ fontSize: 12, color: '#6B7280' }}>{form.company_brand}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                {form.company_brand}
+              </div>
             )}
             {form.project_title && (
               <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
@@ -157,7 +159,7 @@ function QuotationPreview({ form }: { form: FormState }) {
               </div>
             )}
             {form.project_description && (
-              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                 {form.project_description}
               </div>
             )}
@@ -298,7 +300,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                   style={{
                     border: '1px solid #111',
                     background: '#111',
-                    color: '#fff',
+                    color: 'var(--accent-foreground)',
                     padding: '8px 10px',
                     fontWeight: 700,
                     fontSize: 12,
@@ -311,7 +313,7 @@ function QuotationPreview({ form }: { form: FormState }) {
                   style={{
                     border: '1px solid #111',
                     background: '#111',
-                    color: '#fff',
+                    color: 'var(--accent-foreground)',
                     textAlign: 'center',
                     padding: '8px 10px',
                     fontWeight: 700,
@@ -463,7 +465,7 @@ function BackupModal({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => restore(b.id)}
-                className="rounded-lg px-2.5 py-1 text-xs font-medium text-white"
+                className="rounded-lg px-2.5 py-1 text-xs font-medium text-[var(--accent-foreground)]"
                 style={{ background: 'var(--accent)' }}
               >
                 {t('docBackupRestoreBtn')}
@@ -472,7 +474,7 @@ function BackupModal({
                 onClick={() => deleteBackup(b.id)}
                 className="rounded-lg p-1.5 hover:bg-red-50"
               >
-                <Trash2 size={12} style={{ color: '#ef4444' }} />
+                <Trash2 size={12} style={{ color: 'var(--text-primary)' }} />
               </button>
             </div>
           </div>
@@ -569,7 +571,7 @@ function HistoryPanel({
             className="rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
             title={t('docBackupTooltipRestore')}
           >
-            <RotateCcw size={14} style={{ color: '#f59e0b' }} />
+            <RotateCcw size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button
             onClick={async () => {
@@ -585,7 +587,7 @@ function HistoryPanel({
             className="rounded-lg p-1.5 hover:bg-red-50"
             title={t('docBackupTooltipClearAll')}
           >
-            <Trash2 size={14} style={{ color: '#ef4444' }} />
+            <Trash2 size={14} style={{ color: 'var(--text-primary)' }} />
           </button>
         </div>
         <div className="flex gap-2">
@@ -602,7 +604,7 @@ function HistoryPanel({
               className={clsx(
                 'rounded-full px-2.5 py-1 text-xs font-medium',
                 statusF === s
-                  ? 'bg-[var(--accent)] text-white'
+                  ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
                   : 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
               )}
             >
@@ -633,9 +635,8 @@ function HistoryPanel({
                   <span
                     className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                     style={{
-                      background:
-                        q.status === 'paid' ? 'rgba(22,163,74,0.1)' : 'rgba(234,179,8,0.1)',
-                      color: q.status === 'paid' ? '#16a34a' : '#ca8a04',
+                      background: q.status === 'paid' ? 'rgba(22,163,74,0.1)' : 'var(--surface-2)',
+                      color: q.status === 'paid' ? 'var(--text-primary)' : 'var(--text-secondary)',
                     }}
                   >
                     {q.status === 'paid' ? t('docStatusPaid') : t('docStatusUnpaid')}
@@ -644,7 +645,10 @@ function HistoryPanel({
                 <div className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   {q.client_name} · {q.quote_date ?? t('commonEmptyDash')}
                 </div>
-                <div className="mt-0.5 text-xs font-semibold" style={{ color: '#7c3aed' }}>
+                <div
+                  className="mt-0.5 text-xs font-semibold"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   {fmt(q.total_value, q.currency, lang)}
                 </div>
                 <a
@@ -671,7 +675,7 @@ function HistoryPanel({
                   <Copy size={13} style={{ color: 'var(--text-secondary)' }} />
                 </button>
                 <button onClick={() => onDelete(q.id)} className="rounded-lg p-1.5 hover:bg-red-50">
-                  <Trash2 size={13} style={{ color: '#ef4444' }} />
+                  <Trash2 size={13} style={{ color: 'var(--text-primary)' }} />
                 </button>
               </div>
             </div>
@@ -936,7 +940,7 @@ export default function QuotationPage() {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] disabled:opacity-60"
                   style={{ background: 'var(--accent)' }}
                 >
                   <Save size={12} className="me-1 inline" />{' '}
@@ -948,8 +952,8 @@ export default function QuotationPage() {
                 </button>
                 <button
                   onClick={exportPdf}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#0f172a' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--surface)' }}
                 >
                   <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
                 </button>
@@ -979,8 +983,8 @@ export default function QuotationPage() {
                     a.download = `${form.quote_number}.csv`;
                     a.click();
                   }}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#475569' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--text-secondary)' }}
                 >
                   <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </button>
@@ -1065,7 +1069,7 @@ export default function QuotationPage() {
                 {editingId && (
                   <div
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                    style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                   >
                     <Edit2 size={14} /> {t('docQtEditing')}{' '}
                     <button onClick={resetForm} className="underline">
@@ -1076,7 +1080,7 @@ export default function QuotationPage() {
                 {error && (
                   <div
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                    style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                    style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
                   >
                     <AlertCircle size={14} /> {error}
                   </div>
@@ -1304,7 +1308,7 @@ export default function QuotationPage() {
                           }
                           className="rounded-lg p-1.5 hover:bg-red-50"
                         >
-                          <Trash2 size={14} style={{ color: '#ef4444' }} />
+                          <Trash2 size={14} style={{ color: 'var(--text-primary)' }} />
                         </button>
                       </div>
                     ))}
@@ -1413,7 +1417,7 @@ export default function QuotationPage() {
                   <button
                     onClick={save}
                     disabled={saving}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-60"
                     style={{ background: 'var(--accent)' }}
                   >
                     {saved ? (

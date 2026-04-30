@@ -457,7 +457,7 @@ function BackupModal({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => restore(b.id)}
-                className="rounded-lg px-2.5 py-1 text-xs font-medium text-white"
+                className="rounded-lg px-2.5 py-1 text-xs font-medium text-[var(--accent-foreground)]"
                 style={{ background: 'var(--accent)' }}
               >
                 {t('docBackupRestoreBtn')}
@@ -466,7 +466,7 @@ function BackupModal({
                 onClick={() => deleteBackup(b.id)}
                 className="rounded-lg p-1.5 hover:bg-red-50"
               >
-                <Trash2 size={12} style={{ color: '#ef4444' }} />
+                <Trash2 size={12} style={{ color: 'var(--text-primary)' }} />
               </button>
             </div>
           </div>
@@ -563,7 +563,7 @@ function HistoryPanel({
             className="rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
             title={t('docBackupTooltipRestore')}
           >
-            <RotateCcw size={14} style={{ color: '#f59e0b' }} />
+            <RotateCcw size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button
             onClick={async () => {
@@ -579,7 +579,7 @@ function HistoryPanel({
             className="rounded-lg p-1.5 hover:bg-red-50"
             title={t('docCcClearAllTitle')}
           >
-            <Trash2 size={14} style={{ color: '#ef4444' }} />
+            <Trash2 size={14} style={{ color: 'var(--text-primary)' }} />
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -599,7 +599,7 @@ function HistoryPanel({
               className={clsx(
                 'rounded-full px-2.5 py-1 text-xs font-medium',
                 statusF === s
-                  ? 'bg-[var(--accent)] text-white'
+                  ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
                   : 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
               )}
             >
@@ -638,7 +638,10 @@ function HistoryPanel({
                   {c.party2_client_name ?? t('commonEmptyDash')} ·{' '}
                   {c.contract_date ?? t('commonEmptyDash')}
                 </div>
-                <div className="mt-0.5 text-xs font-semibold" style={{ color: '#0891b2' }}>
+                <div
+                  className="mt-0.5 text-xs font-semibold"
+                  style={{ color: 'var(--text-primary)' }}
+                >
                   {fmt(c.total_value, c.currency, lang)}
                 </div>
                 <a
@@ -665,7 +668,7 @@ function HistoryPanel({
                   <Copy size={13} style={{ color: 'var(--text-secondary)' }} />
                 </button>
                 <button onClick={() => onDelete(c.id)} className="rounded-lg p-1.5 hover:bg-red-50">
-                  <Trash2 size={13} style={{ color: '#ef4444' }} />
+                  <Trash2 size={13} style={{ color: 'var(--text-primary)' }} />
                 </button>
               </div>
             </div>
@@ -955,7 +958,7 @@ export default function ClientContractPage() {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] disabled:opacity-60"
                   style={{ background: 'var(--accent)' }}
                 >
                   <Save size={12} className="me-1 inline" />{' '}
@@ -967,8 +970,8 @@ export default function ClientContractPage() {
                 </button>
                 <button
                   onClick={exportPdf}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#0f172a' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--surface)' }}
                 >
                   <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
                 </button>
@@ -984,8 +987,8 @@ export default function ClientContractPage() {
                       'noopener,noreferrer',
                     );
                   }}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#475569' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--text-secondary)' }}
                 >
                   <Download size={12} className="me-1 inline" /> {t('docCcWord')}
                 </button>
@@ -1070,7 +1073,7 @@ export default function ClientContractPage() {
                 {editingId && (
                   <div
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                    style={{ background: 'rgba(234,179,8,0.1)', color: '#92400e' }}
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                   >
                     <Edit2 size={14} /> {t('docQtEditing')}{' '}
                     <button onClick={resetForm} className="underline">
@@ -1081,7 +1084,7 @@ export default function ClientContractPage() {
                 {error && (
                   <div
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                    style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+                    style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
                   >
                     <AlertCircle size={14} /> {error}
                   </div>
@@ -1261,7 +1264,7 @@ export default function ClientContractPage() {
                           )
                         }
                       >
-                        <Trash2 size={13} style={{ color: '#ef4444' }} />
+                        <Trash2 size={13} style={{ color: 'var(--text-primary)' }} />
                       </button>
                     </div>
                   ))}
@@ -1348,7 +1351,7 @@ export default function ClientContractPage() {
                           onChange={(e) => updateClause(i, { ...cl, title: e.target.value })}
                         />
                         <button onClick={() => removeClause(i)}>
-                          <Trash2 size={13} style={{ color: '#ef4444' }} />
+                          <Trash2 size={13} style={{ color: 'var(--text-primary)' }} />
                         </button>
                       </div>
                       <textarea
@@ -1409,7 +1412,7 @@ export default function ClientContractPage() {
                   <button
                     onClick={save}
                     disabled={saving}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-60"
                     style={{ background: 'var(--accent)' }}
                   >
                     {saved ? (

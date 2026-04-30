@@ -94,10 +94,10 @@ function FileIcon({ name, type, size = 16 }: { name: string; type?: string; size
   const isPdf = /\.pdf$/i.test(name) || type === 'application/pdf';
   const isVid = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type?.startsWith('video/');
   const isAud = type?.startsWith('audio/');
-  if (isImg) return <FileImage size={size} style={{ color: '#3b82f6' }} />;
-  if (isPdf) return <FileText size={size} style={{ color: '#ef4444' }} />;
-  if (isVid) return <FileVideo size={size} style={{ color: '#8b5cf6' }} />;
-  if (isAud) return <FileAudio size={size} style={{ color: '#06b6d4' }} />;
+  if (isImg) return <FileImage size={size} style={{ color: 'var(--text-primary)' }} />;
+  if (isPdf) return <FileText size={size} style={{ color: 'var(--text-primary)' }} />;
+  if (isVid) return <FileVideo size={size} style={{ color: 'var(--text-secondary)' }} />;
+  if (isAud) return <FileAudio size={size} style={{ color: 'var(--text-primary)' }} />;
   return <File size={size} style={{ color: 'var(--text-secondary)' }} />;
 }
 
@@ -197,7 +197,7 @@ function FileRow({
           }}
         />
         {error && (
-          <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-primary)' }}>
             {error}
           </p>
         )}
