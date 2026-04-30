@@ -10,6 +10,26 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { PG_UNDEFINED_COLUMN } from '@/lib/constants/postgres-errors';
 
 const PAGE_SIZE = 100;
+type AssetLifecycleRow = {
+  deleted_at?: string | null;
+  is_deleted?: boolean | null;
+  missing_in_storage?: boolean | null;
+  sync_status?: string | null;
+};
+
+function isActiveAsset(row: AssetLifecycleRow): boolean {
+  const isDeleted = row.is_deleted ?? false;
+  const deletedAt = row.deleted_at ?? null;
+  const missingInStorage = row.missing_in_storage ?? false;
+  const syncStatus = (row.sync_status ?? 'synced').toLowerCase();
+  return (
+    !isDeleted &&
+    !deletedAt &&
+    !missingInStorage &&
+    syncStatus !== 'deleted' &&
+    syncStatus !== 'missing'
+  );
+}
 
 /**
  * GET /api/assets
@@ -80,10 +100,9 @@ export async function GET(req: NextRequest) {
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
       .eq('workspace_id', workspaceId)
-      .neq('is_deleted', true)
       .is('deleted_at', null)
-      .eq('missing_in_storage', false)
-      .eq('sync_status', 'synced')
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .or('missing_in_storage.is.null,missing_in_storage.eq.false')
       .order('created_at', { ascending: false });
 
     if (clientId) query = query.eq('client_id', clientId);
@@ -103,7 +122,8 @@ export async function GET(req: NextRequest) {
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
         .eq('workspace_id', workspaceId)
-        .neq('is_deleted', true)
+        .is('deleted_at', null)
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);
@@ -228,7 +248,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const assets = data ?? [];
+    const assets = ((data ?? []) as AssetLifecycleRow[]).filter(isActiveAsset);
     return NextResponse.json({
       success: true,
       assets,

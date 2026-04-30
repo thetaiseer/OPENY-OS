@@ -1443,35 +1443,38 @@ function AssetsPage() {
       setDeletingClientFolder(clientLabel);
       const actionLabel = `${t('deleteAction')} / ${clientLabel}`;
       try {
-        const results = await Promise.allSettled(
-          ids.map(async (id) => {
-            const res = await fetch(`/api/assets/${id}?${workspaceQs}`, { method: 'DELETE' });
-            if (!res.ok) {
-              const j = (await res.json().catch(() => ({}))) as { error?: string };
-              throw new Error(j.error ?? `HTTP ${res.status}`);
-            }
-            return id;
+        const clientFromFolder = clients.find((c) => c.name === clientLabel);
+        const res = await fetch('/api/assets/folders', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folderName: clientLabel,
+            clientId: clientFromFolder?.id ?? null,
           }),
-        );
-        const deletedIds = results
-          .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        const failedCount = results.length - deletedIds.length;
-        if (deletedIds.length > 0) {
-          const deletedSet = new Set(deletedIds);
-          setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            deletedIds.forEach((id) => next.delete(id));
-            return next;
-          });
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          deletedCount?: number;
+          error?: string;
+        };
+        if (!res.ok || json.success === false) {
+          throw new Error(json.error ?? `HTTP ${res.status}`);
         }
-        if (failedCount > 0) {
-          toast(`${actionLabel}: ${failedCount} failed, ${deletedIds.length} deleted`, 'error');
-          return;
+
+        const deletedSet = new Set(ids);
+        setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+        if (folderPath.client === clientLabel) {
+          navigateTo({});
         }
+        await fetchAssets(0);
         toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
       } catch (err: unknown) {
+        console.error('[assets] folder delete failed:', err);
         toast(
           `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
           'error',
@@ -1480,7 +1483,7 @@ function AssetsPage() {
         setDeletingClientFolder(null);
       }
     },
-    [t, toast, workspaceQs],
+    [t, toast, clients, folderPath.client, navigateTo, fetchAssets],
   );
 
   const handleDelete = async (asset: Asset) => {
@@ -1496,10 +1499,11 @@ function AssetsPage() {
         throw new Error(json.error ?? `HTTP ${response.status}`);
       }
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-      void fetchAssets(0);
+      await fetchAssets(0);
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
       setPendingDeleteAsset(null);
     } catch (err) {
+      console.error('[assets] delete asset failed:', err);
       toast(
         `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
         'error',

@@ -26,17 +26,13 @@ function extractStorageKey(asset: AssetRow): string | null {
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // TODO: restore role-based delete permissions after debugging.
-    const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
+    const auth = await requireRole(req, ['owner', 'admin']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, error: 'Missing asset id' }, { status: 400 });
     }
-
-    const { searchParams } = new URL(req.url);
-    const softDelete = searchParams.get('soft') === 'true';
 
     const supabase = getServiceClient();
     const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
@@ -51,21 +47,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 403 },
       );
     }
-    const membershipCheck = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', auth.profile.id)
-      .maybeSingle();
-    const membershipFound = Boolean(membershipCheck.data?.id);
-    // eslint-disable-next-line no-console
-    console.info('[debug-delete] route=/api/assets/[id] step=authorized', {
-      recordId: id,
-      workspaceId,
-      requesterUserId: auth.profile.id,
-      membershipFound,
-    });
-
     let asset: AssetRow | null = null;
     let fetchError: { code?: string; message?: string } | null = null;
     const primary = await supabase
@@ -98,49 +79,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    if (softDelete) {
-      const { error: dbError } = await supabase
-        .from('assets')
-        .update({ is_deleted: true })
-        .eq('id', id);
-
-      if (dbError) {
-        console.error('[asset-delete] soft delete DB update failed', {
-          assetId: asset.id,
-          error: dbError.message,
-        });
-        return NextResponse.json(
-          { success: false, error: `Database update failed: ${dbError.message}` },
-          { status: 500 },
-        );
-      }
-
-      return NextResponse.json({ success: true, message: 'Asset marked as deleted.', soft: true });
-    }
-
     const storageKey = extractStorageKey(asset as AssetRow);
     let r2Warning: string | undefined;
     if (storageKey && (asset.storage_provider ?? 'r2') === 'r2') {
       const r2Delete = await deleteR2Object(storageKey);
       if (!r2Delete.success) {
-        if (r2Delete.configMissing || r2Delete.configInvalid) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'R2 deletion failed. Check R2 configuration.',
-              code: 'R2_DELETE_FAILED',
-            },
-            { status: 500 },
-          );
-        }
-        return NextResponse.json(
-          {
-            success: false,
-            error: r2Delete.error ?? 'R2 deletion failed.',
-            code: 'R2_DELETE_FAILED',
-          },
-          { status: 500 },
-        );
+        r2Warning = r2Delete.error ?? 'R2 deletion failed.';
+        console.warn('[asset-delete] R2 delete failed; continuing with DB soft-delete', {
+          assetId: asset.id,
+          storageKey,
+          configMissing: Boolean(r2Delete.configMissing),
+          configInvalid: Boolean(r2Delete.configInvalid),
+          error: r2Delete.error ?? null,
+        });
       }
       if (r2Delete.missing) {
         console.warn('[asset-delete] R2 object already missing; continuing with soft-delete', {
@@ -208,7 +159,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       is_deleted: true,
       deleted_at: nowIso,
       missing_in_storage: false,
-      sync_status: 'synced',
+      sync_status: 'deleted',
       updated_at: nowIso,
     };
     const softPayloadLegacy = { is_deleted: true, updated_at: nowIso };
@@ -238,14 +189,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    // eslint-disable-next-line no-console
-    console.info('[debug-delete] route=/api/assets/[id] step=soft-deleted', {
-      recordId: id,
-      workspaceId,
-      requesterUserId: auth.profile.id,
-      membershipFound,
-    });
-
     void supabase.from('activities').insert({
       workspace_id: workspaceId,
       type: 'asset_deleted',
@@ -257,6 +200,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({
       success: true,
+      id,
       message: r2Warning ? `Asset hidden. ${r2Warning}` : 'Asset deleted',
       ...(r2Warning ? { warning: r2Warning } : {}),
     });

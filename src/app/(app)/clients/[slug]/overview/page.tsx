@@ -56,7 +56,10 @@ export default function ClientOverviewPage() {
         supabase
           .from('assets')
           .select('id', { count: 'exact', head: true })
-          .eq('client_id', clientId),
+          .eq('client_id', clientId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false'),
         supabase
           .from('content_items')
           .select('id', { count: 'exact', head: true })
@@ -72,6 +75,9 @@ export default function ClientOverviewPage() {
           .from('assets')
           .select('id,name,file_type,created_at,thumbnail_url,preview_url,file_url')
           .eq('client_id', clientId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false')
           .order('created_at', { ascending: false })
           .limit(4),
         supabase

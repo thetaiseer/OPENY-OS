@@ -56,6 +56,8 @@ export default function ClientAssetsPage() {
       .select('*')
       .eq('client_id', clientId)
       .neq('is_deleted', true)
+      .is('deleted_at', null)
+      .or('missing_in_storage.is.null,missing_in_storage.eq.false')
       .order('created_at', { ascending: false })
       .limit(200);
     if (error?.code === '42703') {
@@ -63,6 +65,7 @@ export default function ClientAssetsPage() {
         .from('assets')
         .select('*')
         .eq('client_id', clientId)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false })
         .limit(200);
       data = retry.data;
@@ -219,7 +222,11 @@ export default function ClientAssetsPage() {
         return;
       }
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
+      await load();
       addToast('Asset deleted', 'success');
+    } catch (error) {
+      console.error('[client-assets] delete failed:', error);
+      addToast(error instanceof Error ? error.message : 'Delete failed', 'error');
     } finally {
       setDeletingAssetId((current) => (current === asset.id ? null : current));
     }

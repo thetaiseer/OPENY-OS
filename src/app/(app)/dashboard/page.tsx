@@ -497,7 +497,12 @@ export default function DashboardPage() {
     queryKey: ['asset-content-types', periodStart, periodEnd],
     queryFn: async () => {
       const rangeQuery = applyUtcTimestampRange(
-        supabase.from('assets').select('content_type'),
+        supabase
+          .from('assets')
+          .select('content_type')
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false'),
         'created_at',
         periodStart,
         periodEnd,
@@ -613,7 +618,10 @@ export default function DashboardPage() {
           .from('assets')
           .select(
             'id, name, file_type, created_at, thumbnail_url, preview_url, file_url, client_name, client_id',
-          ),
+          )
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false'),
         'created_at',
         periodStart,
         periodEnd,
