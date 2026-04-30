@@ -275,7 +275,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 export async function DELETE(request: NextRequest, { params }: { params: Promise<Params> }) {
   try {
     const { id } = await params;
-    // TODO: restore role-based delete permissions after debugging.
     const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
     if (auth instanceof NextResponse) return auth;
 
@@ -337,7 +336,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       );
     }
 
-    // TODO: restore role-based/task-assignee delete restrictions after debugging.
+    // Team members can only delete tasks assigned directly to them.
+    if (auth.profile.role === 'team_member' && existing.assigned_to !== auth.profile.id) {
+      return NextResponse.json(
+        { success: false, step: 'authorization', error: 'Forbidden' },
+        { status: 403 },
+      );
+    }
 
     const { error } = await db.from('tasks').delete().eq('id', id).eq('workspace_id', workspaceId);
     if (error) {

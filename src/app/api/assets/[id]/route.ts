@@ -26,8 +26,7 @@ function extractStorageKey(asset: AssetRow): string | null {
 // ── DELETE /api/assets/[id] ───────────────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // TODO: restore role-based delete permissions after debugging.
-    const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
+    const auth = await requireRole(req, ['owner', 'admin', 'manager']);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;
