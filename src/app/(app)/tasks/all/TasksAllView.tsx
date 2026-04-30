@@ -217,7 +217,7 @@ function TaskDateFilterPill({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-10 items-center gap-2 rounded-full border bg-white px-3 text-sm font-medium shadow-sm transition-all hover:bg-gray-50"
+        className="inline-flex h-10 items-center gap-2 rounded-full border bg-[color:var(--surface)] px-3 text-sm font-medium shadow-sm transition-all hover:bg-[color:var(--surface-soft)]"
         style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -230,7 +230,7 @@ function TaskDateFilterPill({
       {open && (
         <div
           role="menu"
-          className="animate-openy-fade-in absolute end-0 top-full z-30 mt-2 w-[240px] rounded-xl border bg-white p-1.5 shadow-lg"
+          className="animate-openy-fade-in absolute end-0 top-full z-30 mt-2 w-[240px] rounded-xl border bg-[color:var(--popover)] p-1.5 shadow-lg"
           style={{ borderColor: 'var(--border)' }}
         >
           {TASK_DATE_OPTIONS.map((option) => {
@@ -2327,7 +2327,7 @@ export default function TasksPage() {
                   key={chip.value}
                   type="button"
                   onClick={() => setQuickFilter(chip.value)}
-                  className="inline-flex h-8 items-center rounded-full border bg-white px-3 text-xs font-medium transition-colors"
+                  className="inline-flex h-8 items-center rounded-full border bg-[color:var(--surface)] px-3 text-xs font-medium transition-colors"
                   style={{
                     borderColor: isActive ? 'var(--accent)' : 'var(--border)',
                     color: isActive ? 'var(--accent)' : 'var(--text-secondary)',

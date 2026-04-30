@@ -20,13 +20,13 @@ const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
 
 const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_24px_rgba(37,99,235,0.24)] hover:bg-[color:var(--accent-hover)]',
+    'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_12px_30px_var(--openy-glow)] hover:bg-[color:var(--accent-hover)]',
   secondary:
-    'border-border bg-[color:var(--surface-soft)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_22px_rgba(15,23,42,0.06)] hover:bg-[color:var(--surface-elevated)]',
+    'border-border bg-[color:var(--surface)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_22px_rgba(2,8,23,0.08)] hover:bg-[color:var(--surface-soft)]',
   ghost:
     'border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text-primary)]',
   danger:
-    'border-[color:var(--danger)] bg-[color:var(--danger)] text-[color:var(--danger-foreground)] shadow-[0_10px_24px_rgba(220,38,38,0.2)] hover:brightness-95',
+    'border-[color:var(--danger)] bg-[color:var(--danger)] text-[color:var(--danger-foreground)] shadow-[0_10px_24px_rgba(239,68,68,0.24)] hover:brightness-95',
 };
 
 export default function Button({

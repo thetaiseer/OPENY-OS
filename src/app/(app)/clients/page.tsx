@@ -419,7 +419,7 @@ function ClientsPage() {
                     router.push(baseClientHref);
                   }
                 }}
-                className="openy-motion-card shadow-card group flex cursor-pointer select-none flex-col rounded-2xl border border-[var(--border-glass)] p-5 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:translate-y-0 active:scale-[0.99]"
+                className="openy-motion-card group flex cursor-pointer select-none flex-col rounded-2xl border border-[var(--border-glass)] p-5 shadow-card transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:translate-y-0 active:scale-[0.99]"
                 style={{
                   background: 'var(--gradient-card-glass)',
                   backdropFilter: 'var(--blur-glass)',

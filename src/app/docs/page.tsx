@@ -73,7 +73,7 @@ export default function DocsHomePage() {
                 key={href}
                 href={href}
                 className={cn(
-                  'openy-motion-card shadow-card group flex min-h-[7.5rem] items-stretch gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 no-underline transition-all duration-200 ease-out',
+                  'openy-motion-card group flex min-h-[7.5rem] items-stretch gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 no-underline shadow-card transition-all duration-200 ease-out',
                   'hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-lg',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
                   'active:translate-y-0 active:scale-[0.99]',

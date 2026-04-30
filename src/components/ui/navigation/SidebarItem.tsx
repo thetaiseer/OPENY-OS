@@ -33,8 +33,8 @@ export default function SidebarItem({ href, label, icon: Icon, aliases = [] }: S
       className={clsx(
         'group flex items-center gap-3 rounded-lg border-l-4 px-4 py-2 transition-all duration-150',
         isActive
-          ? 'border-l-blue-600 bg-blue-600 text-white shadow'
-          : 'border-l-transparent text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10',
+          ? 'border-l-[var(--sidebar-active)] bg-[var(--sidebar-active)] text-[var(--sidebar-active-foreground)] shadow-[0_10px_24px_var(--openy-glow)]'
+          : 'border-l-transparent text-[var(--sidebar-foreground)] hover:bg-[color:var(--surface-soft)]',
       )}
     >
       <Icon className={clsx('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-current')} />

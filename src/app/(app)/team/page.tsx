@@ -2089,7 +2089,7 @@ function OwnerCard({
   const { t } = useLang();
   return (
     <div
-      className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5 shadow-card"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--accent)',
@@ -2317,7 +2317,7 @@ function MemberCard({
   return (
     <div
       className={
-        'shadow-card flex flex-col gap-3 rounded-2xl border p-5 transition-shadow' +
+        'flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow' +
         (isInteractive ? ' cursor-pointer hover:-translate-y-0.5' : '')
       }
       onClick={() => isInteractive && onView?.(member)}

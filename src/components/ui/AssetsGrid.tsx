@@ -162,7 +162,7 @@ function AssetTile({
             ) : isSheet ? (
               <FileSpreadsheet size={28} className="text-emerald-500" />
             ) : isDoc ? (
-              <FileText size={28} className="text-blue-500" />
+              <FileText size={28} className="text-primary" />
             ) : isCode ? (
               <FileCode2 size={28} className="text-violet-500" />
             ) : (
@@ -285,7 +285,7 @@ function AssetTile({
           {canDelete && onDelete ? (
             <button
               type="button"
-              className="rounded-lg p-1.5 hover:bg-red-50"
+              className="rounded-lg p-1.5 hover:bg-[color:var(--danger-soft)]"
               style={{ color: 'var(--color-danger, #dc2626)' }}
               onClick={() => onDelete(asset)}
               title="Delete"

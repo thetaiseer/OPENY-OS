@@ -105,13 +105,13 @@ export default function FilePreviewModal({
 
   const fallbackIcon = (() => {
     if (['doc', 'docx'].includes(extension))
-      return <FileType2 size={60} className="text-blue-500" />;
+      return <FileType2 size={60} className="text-primary" />;
     if (['xls', 'xlsx', 'csv'].includes(extension))
       return <FileSpreadsheet size={60} className="text-emerald-500" />;
     if (['ppt', 'pptx'].includes(extension))
       return <Presentation size={60} className="text-orange-500" />;
-    if (isTextLike) return <FileCode2 size={60} className="text-violet-500" />;
-    return <FileText size={60} className="text-slate-500" />;
+    if (isTextLike) return <FileCode2 size={60} className="text-primary" />;
+    return <FileText size={60} className="text-muted-foreground" />;
   })();
 
   return (

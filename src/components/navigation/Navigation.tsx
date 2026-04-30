@@ -81,8 +81,8 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
                       'group flex items-center rounded-xl border transition-all duration-150',
                       collapsed ? 'h-10 w-10 justify-center' : 'h-10 gap-2.5 px-3',
                       active
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--surface-2)]',
+                        ? 'border-[var(--sidebar-active)] bg-[color:var(--sidebar-active)] text-[var(--sidebar-active-foreground)] shadow-[0_8px_24px_var(--openy-glow)]'
+                        : 'border-transparent text-[var(--sidebar-foreground)] hover:border-[var(--border)] hover:bg-[color:var(--surface-soft)]',
                     )}
                     title={collapsed ? item.label : undefined}
                   >

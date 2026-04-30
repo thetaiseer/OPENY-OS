@@ -265,7 +265,7 @@ export default function TeamMemberDetailPage() {
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Team Member">
         <form onSubmit={handleSave} className="space-y-4">
           {saveError ? (
-            <div className="border-danger/30 bg-danger/10 rounded-control border px-3 py-2 text-sm text-danger">
+            <div className="border-danger/30 bg-danger/10 text-danger rounded-control border px-3 py-2 text-sm">
               {saveError}
             </div>
           ) : null}

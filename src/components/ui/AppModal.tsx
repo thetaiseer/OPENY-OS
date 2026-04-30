@@ -80,7 +80,7 @@ export default function AppModal({
       <button
         type="button"
         aria-label="Close modal backdrop"
-        className="openy-modal-backdrop absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+        className="openy-modal-backdrop bg-[color:var(--openy-deep)]/62 absolute inset-0 backdrop-blur-[2px]"
         onClick={() => {
           if (closeOnOverlayClick) onClose?.();
         }}
@@ -106,7 +106,7 @@ export default function AppModal({
                 {title ? (
                   <div className="flex items-center gap-2">
                     {icon ? (
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--surface-soft)] text-[var(--primary)]">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
                         {icon}
                       </span>
                     ) : null}

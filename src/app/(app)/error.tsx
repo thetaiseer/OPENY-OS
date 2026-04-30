@@ -15,8 +15,13 @@ export default function AppError({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-        <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--danger-soft)]">
+        <svg
+          className="h-6 w-6 text-[color:var(--destructive)]"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -40,7 +45,7 @@ export default function AppError({
       </div>
       <button
         onClick={reset}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-[color:var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
         Try again
       </button>
