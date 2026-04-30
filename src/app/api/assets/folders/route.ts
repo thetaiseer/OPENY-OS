@@ -12,7 +12,6 @@ type FolderDeleteBody = {
   clientId?: string;
   category?: string;
   year?: string;
-  workspaceId?: string;
 };
 
 type AssetRow = {
@@ -71,7 +70,7 @@ export async function DELETE(req: NextRequest) {
   const workspaceResolution = await resolveWorkspaceForRequest(req, supabase, auth.profile.id, {
     allowWorkspaceFallbackWithoutMembership: true,
   });
-  const workspaceId = body.workspaceId?.trim() || workspaceResolution.workspaceId;
+  const workspaceId = workspaceResolution.workspaceId;
   if (!workspaceId) {
     return fail(
       403,
