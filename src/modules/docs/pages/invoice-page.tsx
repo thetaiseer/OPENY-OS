@@ -801,7 +801,7 @@ export default function InvoicePage() {
                 type="button"
                 onClick={() => void saveInvoice()}
                 disabled={saving || loading}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
                 style={{ background: 'var(--accent)' }}
               >
                 <Save size={12} className="me-1 inline" />{' '}
@@ -825,8 +825,8 @@ export default function InvoicePage() {
                     'invoice',
                   );
                 }}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ background: '#0f172a' }}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                style={{ background: 'var(--surface)' }}
               >
                 <Printer size={12} className="me-1 inline" /> {t('docInvPdf')}
               </button>
@@ -834,8 +834,8 @@ export default function InvoicePage() {
                 <button
                   type="button"
                   onClick={() => void deleteInvoice()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#dc2626' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--text-primary)' }}
                 >
                   <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
                 </button>
@@ -912,7 +912,7 @@ export default function InvoicePage() {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Link
                     href="/docs/invoice/history"
-                    className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                    className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
                     style={{ background: 'var(--accent)' }}
                   >
                     {t('docInvOpenHistoryPage')}
@@ -932,9 +932,9 @@ export default function InvoicePage() {
             <div
               className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
               style={{
-                borderColor: 'rgba(239,68,68,0.35)',
-                color: '#dc2626',
-                background: 'rgba(239,68,68,0.08)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-primary)',
+                background: 'var(--surface-muted)',
               }}
             >
               <AlertCircle size={15} /> {error}
@@ -945,7 +945,7 @@ export default function InvoicePage() {
               className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
               style={{
                 borderColor: 'rgba(16,185,129,0.35)',
-                color: '#047857',
+                color: 'var(--text-primary)',
                 background: 'rgba(16,185,129,0.08)',
               }}
             >
@@ -1221,7 +1221,10 @@ export default function InvoicePage() {
 
                         <div
                           className="text-[11px]"
-                          style={{ color: activeCampaigns > 0 ? '#047857' : '#b45309' }}
+                          style={{
+                            color:
+                              activeCampaigns > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          }}
                         >
                           {`Active campaigns: ${activeCampaigns}`}
                         </div>
@@ -1233,7 +1236,7 @@ export default function InvoicePage() {
                     <button
                       type="button"
                       onClick={() => regenerateKsa(1, false)}
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-white"
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--accent-foreground)]"
                       style={{ background: 'var(--accent)' }}
                     >
                       <Wand2 size={13} className="me-1 inline" /> {t('docGenerateInvoiceData')}
@@ -1329,7 +1332,7 @@ export default function InvoicePage() {
                               type="button"
                               onClick={() => removeBranch(branchIndex)}
                               className="rounded-lg border px-2 py-2 text-xs font-semibold"
-                              style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}
+                              style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                             >
                               <Trash2 size={12} />
                             </button>
@@ -1387,8 +1390,8 @@ export default function InvoicePage() {
                                         onClick={() => removePlatform(branchIndex, platformIndex)}
                                         className="rounded-lg border px-2 py-2 text-xs font-semibold"
                                         style={{
-                                          borderColor: 'rgba(239,68,68,0.3)',
-                                          color: '#dc2626',
+                                          borderColor: 'var(--border)',
+                                          color: 'var(--text-primary)',
                                         }}
                                         title={t('docRemovePlatform')}
                                       >
@@ -1477,8 +1480,8 @@ export default function InvoicePage() {
                                       }
                                       className="rounded-lg border px-2 py-2 text-xs font-semibold"
                                       style={{
-                                        borderColor: 'rgba(239,68,68,0.3)',
-                                        color: '#dc2626',
+                                        borderColor: 'var(--border)',
+                                        color: 'var(--text-primary)',
                                       }}
                                       title={t('docRemoveRow')}
                                     >

@@ -193,7 +193,7 @@ export default function TimeTrackingPage() {
         </div>
         <button
           onClick={() => setModalOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] transition-opacity hover:opacity-90"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={16} /> Log Time
@@ -224,8 +224,8 @@ export default function TimeTrackingPage() {
         <div className="flex flex-col items-end gap-2">
           <button
             onClick={() => void handleStartStop()}
-            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: runningEntry ? '#ef4444' : 'var(--accent)' }}
+            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[var(--accent-foreground)] transition-all hover:opacity-90"
+            style={{ background: runningEntry ? 'var(--text-primary)' : 'var(--accent)' }}
           >
             {runningEntry ? (
               <>
@@ -299,7 +299,7 @@ export default function TimeTrackingPage() {
                   {entry.billable && (
                     <span
                       className="rounded px-1.5 py-0.5 text-xs"
-                      style={{ background: 'rgba(34,197,94,0.15)', color: '#16a34a' }}
+                      style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
                     >
                       Billable
                     </span>

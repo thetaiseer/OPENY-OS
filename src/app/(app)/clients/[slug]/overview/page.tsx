@@ -261,7 +261,11 @@ export default function ClientOverviewPage() {
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     {overdue ? (
-                      <AlertCircle size={12} className="shrink-0" style={{ color: '#ef4444' }} />
+                      <AlertCircle
+                        size={12}
+                        className="shrink-0"
+                        style={{ color: 'var(--text-primary)' }}
+                      />
                     ) : (
                       <Clock
                         size={12}
@@ -277,7 +281,7 @@ export default function ClientOverviewPage() {
                     {task.due_date && (
                       <span
                         className="text-xs"
-                        style={{ color: overdue ? '#ef4444' : 'var(--text-secondary)' }}
+                        style={{ color: overdue ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                       >
                         {fmtDate(task.due_date)}
                       </span>

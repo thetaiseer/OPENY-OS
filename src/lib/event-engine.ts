@@ -776,12 +776,12 @@ function buildGenericEmailHtml(opts: {
   priority: NotificationPriority;
 }): string {
   const colorMap: Record<NotificationPriority, string> = {
-    low: '#6b7280',
-    medium: '#3b82f6',
-    high: '#f59e0b',
-    critical: '#dc2626',
+    low: 'var(--text-secondary)',
+    medium: 'var(--text-primary)',
+    high: 'var(--text-secondary)',
+    critical: 'var(--text-primary)',
   };
-  const accentColor = colorMap[opts.priority] ?? '#6366f1';
+  const accentColor = colorMap[opts.priority] ?? 'var(--text-secondary)';
   const firstName = opts.recipientName.trim().split(/\s+/)[0] || opts.recipientName.trim();
 
   return `<!DOCTYPE html>

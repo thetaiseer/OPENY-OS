@@ -126,7 +126,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   clients: {
     label: 'Clients',
     icon: Users2,
-    color: '#8b5cf6',
+    color: 'var(--text-secondary)',
     suggestions: {
       ask: [
         'Summarize this client status',
@@ -145,7 +145,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   tasks: {
     label: 'Tasks',
     icon: ClipboardList,
-    color: '#f59e0b',
+    color: 'var(--text-secondary)',
     suggestions: {
       ask: ['Show overdue tasks', 'Summarize pending work', 'What tasks are due this week?'],
       do: ['Create a task', 'Create multiple tasks', 'Assign tasks to team members'],
@@ -160,7 +160,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   content: {
     label: 'Content',
     icon: FileText,
-    color: '#10b981',
+    color: 'var(--text-primary)',
     suggestions: {
       ask: [
         'Summarize the content pipeline',
@@ -188,7 +188,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   calendar: {
     label: 'Calendar',
     icon: Calendar,
-    color: '#ef4444',
+    color: 'var(--text-primary)',
     suggestions: {
       ask: ['Summarize upcoming work', 'What is scheduled this week?', 'Are there any conflicts?'],
       do: ['Schedule a post', 'Add a task to the calendar', 'Create an event'],
@@ -203,7 +203,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   assets: {
     label: 'Assets',
     icon: FolderOpen,
-    color: '#06b6d4',
+    color: 'var(--text-primary)',
     suggestions: {
       ask: [
         'Summarize asset library',
@@ -222,7 +222,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   reports: {
     label: 'Reports',
     icon: BarChart2,
-    color: '#f97316',
+    color: 'var(--text-secondary)',
     suggestions: {
       ask: [
         'Summarize performance this month',
@@ -241,7 +241,7 @@ const SECTION_META: Record<AppSection, SectionMeta> = {
   team: {
     label: 'Team',
     icon: Users,
-    color: '#84cc16',
+    color: 'var(--text-primary)',
     suggestions: {
       ask: ['Summarize team workload', 'Who is overloaded?', 'What is everyone working on?'],
       do: ['Assign tasks to team members', 'Invite a team member', 'Create a team plan'],
@@ -320,7 +320,7 @@ const ActionCard = memo(function ActionCard({ actions }: { actions: string[] }) 
           className="flex items-center gap-2 border-t px-3 py-1.5 text-xs"
           style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
         >
-          <CheckCircle size={11} style={{ color: '#16a34a', flexShrink: 0 }} />
+          <CheckCircle size={11} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
           {action}
         </div>
       ))}
@@ -338,7 +338,7 @@ const MessageBubble = memo(function MessageBubble({ msg }: { msg: Message }) {
           className="max-w-[80%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm"
           style={{
             background: 'var(--accent)',
-            color: '#fff',
+            color: 'var(--accent-foreground)',
           }}
         >
           {msg.content}
@@ -349,11 +349,23 @@ const MessageBubble = memo(function MessageBubble({ msg }: { msg: Message }) {
 
   const statusIcon = (() => {
     if (msg.status === 'error')
-      return <XCircle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />;
+      return (
+        <XCircle size={14} style={{ color: 'var(--text-primary)', flexShrink: 0, marginTop: 2 }} />
+      );
     if (msg.status === 'clarification')
-      return <AlertCircle size={14} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 2 }} />;
+      return (
+        <AlertCircle
+          size={14}
+          style={{ color: 'var(--text-secondary)', flexShrink: 0, marginTop: 2 }}
+        />
+      );
     if (msg.status === 'success')
-      return <CheckCircle size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />;
+      return (
+        <CheckCircle
+          size={14}
+          style={{ color: 'var(--text-primary)', flexShrink: 0, marginTop: 2 }}
+        />
+      );
     return <Bot size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />;
   })();
 
@@ -704,7 +716,7 @@ export default function AiCommandCenter() {
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
               style={{
                 background: active ? 'var(--accent)' : 'transparent',
-                color: active ? '#fff' : 'var(--text-secondary)',
+                color: active ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                 border: active ? '1px solid var(--accent)' : '1px solid transparent',
               }}
             >
@@ -792,7 +804,11 @@ export default function AiCommandCenter() {
             {unconfigured && (
               <div
                 className="mt-4 max-w-xs rounded-xl px-4 py-3 text-xs"
-                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}
+                style={{
+                  background: 'var(--surface-muted)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                }}
               >
                 AI is not configured. Set GEMINI_API_KEY to enable AI features.
               </div>
@@ -904,7 +920,7 @@ export default function AiCommandCenter() {
             type="submit"
             disabled={loading || !input.trim()}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
             aria-label="Send"
           >
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

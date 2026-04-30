@@ -537,7 +537,7 @@ function ClientsPage() {
                     href={`${baseClientHref}/overview`}
                     className="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                     style={{
-                      background: 'rgba(99,102,241,0.1)',
+                      background: 'var(--surface-2)',
                       color: 'var(--accent)',
                       textDecoration: 'none',
                     }}
@@ -598,8 +598,8 @@ function ClientsPage() {
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm"
               style={{
-                background: 'rgba(239,68,68,0.1)',
-                color: '#ef4444',
+                background: 'var(--surface-muted)',
+                color: 'var(--text-primary)',
                 border: '1px solid rgba(239,68,68,0.3)',
               }}
             >

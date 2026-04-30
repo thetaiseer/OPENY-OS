@@ -26,7 +26,7 @@ const td: CSSProperties = {
   fontSize: 11,
   textAlign: 'center',
   verticalAlign: 'middle',
-  background: '#fff',
+  background: 'var(--accent-foreground)',
   lineHeight: 1.35,
   whiteSpace: 'nowrap',
 };
@@ -71,7 +71,7 @@ export default function BranchTable({
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
               <thead>
                 {/* Branch name — full-width black header spanning all columns */}
-                <tr style={{ background: DOC_BLACK, color: '#fff' }}>
+                <tr style={{ background: DOC_BLACK, color: 'var(--accent-foreground)' }}>
                   <th
                     colSpan={6}
                     style={{
@@ -93,7 +93,7 @@ export default function BranchTable({
                 </tr>
 
                 {/* Column headers */}
-                <tr style={{ background: DOC_BLACK, color: '#fff' }}>
+                <tr style={{ background: DOC_BLACK, color: 'var(--accent-foreground)' }}>
                   {(['BRANCH', 'PLATFORM', 'AD NAME', 'DATE', 'RESULTS'] as const).map((col) => (
                     <th key={col} style={th}>
                       {col}
@@ -157,7 +157,7 @@ export default function BranchTable({
                       colSpan={5}
                       style={{
                         ...td,
-                        background: '#E5E7EB',
+                        background: 'var(--border)',
                         fontWeight: 700,
                         verticalAlign: 'middle',
                       }}
@@ -167,7 +167,7 @@ export default function BranchTable({
                     <td
                       style={{
                         ...td,
-                        background: '#E5E7EB',
+                        background: 'var(--border)',
                         fontWeight: 700,
                         verticalAlign: 'middle',
                       }}

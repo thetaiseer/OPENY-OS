@@ -72,8 +72,8 @@ export default function StatCard({
             trendPositive === null
               ? 'text-secondary'
               : trendPositive
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-rose-600 dark:text-rose-400',
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)]',
           )}
         >
           {trendPositive === null ? null : trendPositive ? '▲ ' : '▼ '}

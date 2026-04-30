@@ -252,7 +252,7 @@ export default function PeriodDateRangePicker({
                         className={cn(
                           'h-8 rounded-lg border px-2.5 text-left text-xs font-medium md:w-full',
                           active
-                            ? 'border-transparent text-white'
+                            ? 'border-transparent text-[var(--accent-foreground)]'
                             : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                         )}
                         style={
@@ -301,9 +301,9 @@ export default function PeriodDateRangePicker({
                       day: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-[color:var(--text)] hover:bg-[color:var(--surface-soft)]',
                       today: 'border border-[color:var(--accent)] text-[color:var(--accent)]',
                       selected:
-                        'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
-                      range_start: 'bg-[color:var(--accent)] text-white',
-                      range_end: 'bg-[color:var(--accent)] text-white',
+                        'bg-[color:var(--accent)] text-[var(--accent-foreground)] hover:bg-[color:var(--accent)] hover:text-[var(--accent-foreground)]',
+                      range_start: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
+                      range_end: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
                       range_middle: 'bg-[color:var(--accent-soft)] text-[color:var(--text)]',
                       outside: 'text-[color:var(--text-disabled)] opacity-40',
                     }}
@@ -327,7 +327,7 @@ export default function PeriodDateRangePicker({
                   </button>
                   <button
                     type="button"
-                    className="h-9 rounded-lg px-3 text-sm font-medium text-white disabled:opacity-60"
+                    className="h-9 rounded-lg px-3 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
                     style={{ background: 'var(--accent)' }}
                     disabled={!draftRange?.from || !draftRange?.to}
                     onClick={() => {

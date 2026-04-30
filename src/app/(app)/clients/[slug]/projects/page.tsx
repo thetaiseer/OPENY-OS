@@ -62,7 +62,7 @@ export default function ClientProjectsPage() {
     status: 'active' as ProjectStatus,
     start_date: '',
     end_date: '',
-    color: '#6366f1',
+    color: 'var(--text-secondary)',
   });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -136,7 +136,7 @@ export default function ClientProjectsPage() {
       status: 'active',
       start_date: '',
       end_date: '',
-      color: '#6366f1',
+      color: 'var(--text-secondary)',
     });
     setSaveErr(null);
     setModalOpen(true);
@@ -150,7 +150,7 @@ export default function ClientProjectsPage() {
       status: project.status as ProjectStatus,
       start_date: project.start_date ?? '',
       end_date: project.end_date ?? '',
-      color: project.color ?? '#6366f1',
+      color: project.color ?? 'var(--text-secondary)',
     });
     setSaveErr(null);
     setModalOpen(true);
@@ -251,9 +251,12 @@ export default function ClientProjectsPage() {
               <div className="flex items-start gap-3">
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: `${project.color ?? '#6366f1'}20` }}
+                  style={{ background: `${project.color ?? 'var(--text-secondary)'}20` }}
                 >
-                  <FolderOpen size={18} style={{ color: project.color ?? '#6366f1' }} />
+                  <FolderOpen
+                    size={18}
+                    style={{ color: project.color ?? 'var(--text-secondary)' }}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

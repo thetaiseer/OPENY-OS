@@ -26,19 +26,54 @@ import type { Asset, Client, TeamMember, PublishingSchedule } from '@/lib/types'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const PLATFORMS = [
-  { value: 'instagram', label: 'Instagram', color: '#e1306c', displayColor: '#e1306c' },
-  { value: 'facebook', label: 'Facebook', color: '#1877f2', displayColor: '#1877f2' },
-  { value: 'tiktok', label: 'TikTok', color: '#010101', displayColor: '#010101' },
-  { value: 'linkedin', label: 'LinkedIn', color: '#0077b5', displayColor: '#0077b5' },
-  { value: 'twitter', label: 'X / Twitter', color: '#1da1f2', displayColor: '#1da1f2' },
-  { value: 'snapchat', label: 'Snapchat', color: '#fffc00', displayColor: '#f59e0b' },
-  { value: 'youtube_shorts', label: 'YouTube Shorts', color: '#ff0000', displayColor: '#ff0000' },
+  {
+    value: 'instagram',
+    label: 'Instagram',
+    color: 'var(--surface-muted)',
+    displayColor: 'var(--surface-muted)',
+  },
+  {
+    value: 'facebook',
+    label: 'Facebook',
+    color: 'var(--surface-muted)',
+    displayColor: 'var(--surface-muted)',
+  },
+  {
+    value: 'tiktok',
+    label: 'TikTok',
+    color: 'var(--surface-soft)',
+    displayColor: 'var(--surface-soft)',
+  },
+  {
+    value: 'linkedin',
+    label: 'LinkedIn',
+    color: 'var(--surface-muted)',
+    displayColor: 'var(--surface-muted)',
+  },
+  {
+    value: 'twitter',
+    label: 'X / Twitter',
+    color: 'var(--surface-muted)',
+    displayColor: 'var(--surface-muted)',
+  },
+  {
+    value: 'snapchat',
+    label: 'Snapchat',
+    color: 'var(--surface-2)',
+    displayColor: 'var(--surface-2)',
+  },
+  {
+    value: 'youtube_shorts',
+    label: 'YouTube Shorts',
+    color: 'var(--surface-muted)',
+    displayColor: 'var(--surface-muted)',
+  },
 ] as const;
 
 /** Returns the display-safe background color for a platform (avoids near-white for Snapchat). */
 export function getPlatformDisplayColor(value: string): string {
   const p = PLATFORMS.find((pl) => pl.value === value);
-  return p ? p.displayColor : '#7c3aed';
+  return p ? p.displayColor : 'var(--text-secondary)';
 }
 
 export const POST_TYPES = [
@@ -89,7 +124,7 @@ function PlatformBadge({ value }: { value: string }) {
   if (!p) return null;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-[var(--text-primary)]"
       style={{ background: getPlatformDisplayColor(value) }}
     >
       {p.label}
@@ -103,7 +138,7 @@ function PostTypeBadge({ value }: { value: string }) {
   return (
     <span
       className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}
+      style={{ background: 'var(--surface-2)', color: 'var(--accent)' }}
     >
       {pt.label}
     </span>
@@ -306,7 +341,7 @@ export default function SchedulePublishingModal({
       {/* Success state */}
       {success && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
-          <CheckCircle size={40} style={{ color: '#16a34a' }} />
+          <CheckCircle size={40} style={{ color: 'var(--text-primary)' }} />
           <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Publishing scheduled!
           </p>
@@ -324,8 +359,8 @@ export default function SchedulePublishingModal({
             <div
               className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm"
               style={{
-                background: 'rgba(239,68,68,0.08)',
-                color: '#ef4444',
+                background: 'var(--surface-muted)',
+                color: 'var(--text-primary)',
                 border: '1px solid rgba(239,68,68,0.3)',
               }}
             >
@@ -362,7 +397,7 @@ export default function SchedulePublishingModal({
               className="mb-2 block text-xs font-semibold"
               style={{ color: 'var(--text-secondary)' }}
             >
-              PLATFORMS <span style={{ color: '#ef4444' }}>*</span>
+              PLATFORMS <span style={{ color: 'var(--text-primary)' }}>*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map((p) => {
@@ -379,7 +414,7 @@ export default function SchedulePublishingModal({
                         ? p.value === 'tiktok'
                           ? 'white'
                           : p.value === 'snapchat'
-                            ? '#1a1a1a'
+                            ? 'var(--surface-muted)'
                             : 'white'
                         : 'var(--text)',
                       borderColor: selected ? getPlatformDisplayColor(p.value) : 'var(--border)',
@@ -403,7 +438,7 @@ export default function SchedulePublishingModal({
               className="mb-2 block text-xs font-semibold"
               style={{ color: 'var(--text-secondary)' }}
             >
-              POST TYPE <span style={{ color: '#ef4444' }}>*</span>
+              POST TYPE <span style={{ color: 'var(--text-primary)' }}>*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {POST_TYPES.map((pt) => {
@@ -461,7 +496,7 @@ export default function SchedulePublishingModal({
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <Calendar size={11} className="mr-1 inline" />
-                DATE <span style={{ color: '#ef4444' }}>*</span>
+                DATE <span style={{ color: 'var(--text-primary)' }}>*</span>
               </label>
               <input
                 type="date"

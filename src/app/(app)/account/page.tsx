@@ -38,7 +38,7 @@ export default function AccountPage() {
       >
         <div className="flex items-center gap-4">
           <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-[var(--accent-foreground)]"
             style={{ background: 'var(--accent)' }}
           >
             {(user.name || user.email || 'U').charAt(0).toUpperCase()}

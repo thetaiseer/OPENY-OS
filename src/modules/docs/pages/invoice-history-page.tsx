@@ -139,7 +139,7 @@ export default function InvoiceHistoryPage() {
       ) : error ? (
         <div
           className="rounded-xl border px-3 py-2 text-sm text-red-600"
-          style={{ borderColor: 'rgba(239,68,68,0.35)' }}
+          style={{ borderColor: 'var(--border)' }}
         >
           {error}
         </div>

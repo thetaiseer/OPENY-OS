@@ -836,14 +836,14 @@ function MemberSidePanel({
         <div className="border-b px-5 py-5" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-4">
             <div
-              className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
-              style={{ background: isOwner ? 'var(--accent)' : '#6366f1' }}
+              className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[var(--accent-foreground)]"
+              style={{ background: isOwner ? 'var(--accent)' : 'var(--text-secondary)' }}
             >
               {member.full_name.charAt(0).toUpperCase()}
               {isOwner && (
                 <span
                   className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
+                  style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
                   <Crown size={10} />
                 </span>
@@ -1915,7 +1915,7 @@ export default function TeamPage() {
             <button
               type="submit"
               disabled={saving || inviteErrorCode === 'ALREADY_MEMBER'}
-              className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >
               <Send size={14} />
@@ -1995,7 +1995,7 @@ export default function TeamPage() {
             <button
               type="submit"
               disabled={saving}
-              className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              className="h-9 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >
               {saving ? t('loading') : t('save')}
@@ -2103,14 +2103,14 @@ function OwnerCard({
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-[var(--accent-foreground)]"
             style={{ background: 'var(--accent)' }}
           >
             {member.full_name.charAt(0).toUpperCase()}
           </div>
           <span
             className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
             title={t('teamWorkspaceOwnerDisplay')}
           >
             <Crown size={10} />
@@ -2337,8 +2337,8 @@ function MemberCard({
     >
       <div className="flex items-start gap-3">
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-          style={{ background: isInvited ? '#d97706' : 'var(--accent)' }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[var(--accent-foreground)]"
+          style={{ background: isInvited ? 'var(--text-secondary)' : 'var(--accent)' }}
         >
           {member.full_name.charAt(0).toUpperCase()}
         </div>

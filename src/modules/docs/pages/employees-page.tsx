@@ -168,7 +168,7 @@ function SalaryModal({
       {error && (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+          style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -343,7 +343,7 @@ function EmployeeModal({
       {error && (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+          style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -559,10 +559,10 @@ export default function EmployeesPage() {
 
   const statusColor = (s: string) =>
     s === 'active'
-      ? { bg: 'rgba(22,163,74,0.1)', color: '#16a34a' }
+      ? { bg: 'rgba(22,163,74,0.1)', color: 'var(--text-primary)' }
       : s === 'inactive'
-        ? { bg: 'rgba(234,179,8,0.1)', color: '#ca8a04' }
-        : { bg: 'rgba(239,68,68,0.08)', color: '#ef4444' };
+        ? { bg: 'var(--surface-2)', color: 'var(--text-secondary)' }
+        : { bg: 'var(--surface-muted)', color: 'var(--text-primary)' };
 
   return (
     <>
@@ -580,8 +580,8 @@ export default function EmployeesPage() {
                 />
                 <button
                   onClick={exportPayrollCSV}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#0f172a' }}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--surface)' }}
                 >
                   <Download size={13} /> {t('docEmpExportCsv')}
                 </button>
@@ -669,13 +669,17 @@ export default function EmployeesPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                     {[
-                      [t('docEmpTotalEmployees'), String(employees.length), '#d97706'],
-                      [t('docEmpPreviewActive'), String(activeCount), '#059669'],
-                      [t('docEmpFullTime'), String(fullTimeCount), '#2563eb'],
+                      [
+                        t('docEmpTotalEmployees'),
+                        String(employees.length),
+                        'var(--text-secondary)',
+                      ],
+                      [t('docEmpPreviewActive'), String(activeCount), 'var(--text-primary)'],
+                      [t('docEmpFullTime'), String(fullTimeCount), 'var(--text-primary)'],
                       [
                         t('docEmpMonthlyPayroll'),
                         `${t('docCurrencySar')} ${fmtMoney(totalPayroll, lang)}`,
-                        '#7c3aed',
+                        'var(--text-secondary)',
                       ],
                     ].map(([l, v, c]) => (
                       <div
@@ -826,7 +830,7 @@ export default function EmployeesPage() {
                     </div>
                     <button
                       onClick={() => setAddModal(true)}
-                      className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                      className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
                       style={{ background: 'var(--accent)' }}
                     >
                       <Plus size={16} /> {t('docEmpAddEmployeeBtn')}
@@ -959,7 +963,7 @@ export default function EmployeesPage() {
                                   onClick={() => setPendingDeleteEmployee(e)}
                                   className="rounded-lg p-1.5 hover:bg-red-50"
                                 >
-                                  <Trash2 size={13} style={{ color: '#ef4444' }} />
+                                  <Trash2 size={13} style={{ color: 'var(--text-primary)' }} />
                                 </button>
                               </div>
                             </td>
@@ -989,8 +993,8 @@ export default function EmployeesPage() {
                       </div>
                       <button
                         onClick={exportPayrollCSV}
-                        className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"
-                        style={{ background: '#0f172a' }}
+                        className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
+                        style={{ background: 'var(--surface)' }}
                       >
                         <Download size={15} /> {t('docEmpExportCsv')}
                       </button>
@@ -1004,16 +1008,16 @@ export default function EmployeesPage() {
 
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                       {[
-                        [t('docEmpActiveEmployees'), String(activeCount), '#059669'],
+                        [t('docEmpActiveEmployees'), String(activeCount), 'var(--text-primary)'],
                         [
                           t('docEmpTotalPayroll'),
                           `${t('docCurrencySar')} ${fmtMoney(totalPayroll, lang)}`,
-                          '#7c3aed',
+                          'var(--text-secondary)',
                         ],
                         [
                           t('docEmpAvgSalary'),
                           `${t('docCurrencySar')} ${fmtMoney(activeCount > 0 ? totalPayroll / activeCount : 0, lang)}`,
-                          '#d97706',
+                          'var(--text-secondary)',
                         ],
                       ].map(([l, v, c]) => (
                         <div
@@ -1116,7 +1120,7 @@ export default function EmployeesPage() {
                                   </td>
                                   <td
                                     className="px-4 py-3 text-end font-bold"
-                                    style={{ color: '#7c3aed' }}
+                                    style={{ color: 'var(--text-secondary)' }}
                                   >
                                     {t('docCurrencySar')} {fmtMoney(e.salary, lang)}
                                   </td>
@@ -1169,7 +1173,7 @@ export default function EmployeesPage() {
                             </td>
                             <td
                               className="px-4 py-3 text-end text-sm font-bold"
-                              style={{ color: '#7c3aed' }}
+                              style={{ color: 'var(--text-secondary)' }}
                             >
                               {t('docCurrencySar')} {fmtMoney(totalPayroll, lang)}
                             </td>
@@ -1189,7 +1193,7 @@ export default function EmployeesPage() {
             <div className="docs-preview-canvas space-y-6 p-7">
               <div
                 className="flex items-center justify-between border-b pb-3"
-                style={{ borderColor: '#e5e7eb' }}
+                style={{ borderColor: 'var(--border)' }}
               >
                 <div>
                   <p className="text-xs font-semibold tracking-[0.16em] text-[color:var(--text-secondary)]">
@@ -1204,7 +1208,7 @@ export default function EmployeesPage() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewTotal')}
                   </p>
@@ -1212,13 +1216,13 @@ export default function EmployeesPage() {
                     {employees.length}
                   </p>
                 </div>
-                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewActive')}
                   </p>
                   <p className="text-lg font-bold text-emerald-600">{activeCount}</p>
                 </div>
-                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewMonthlyPayroll')}
                   </p>
@@ -1226,7 +1230,7 @@ export default function EmployeesPage() {
                     {t('docCurrencySar')} {fmtMoney(totalPayroll, lang)}
                   </p>
                 </div>
-                <div className="rounded-xl border p-3" style={{ borderColor: '#e5e7eb' }}>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--text-secondary)]">
                     {t('docEmpPreviewContracts')}
                   </p>
@@ -1246,7 +1250,7 @@ export default function EmployeesPage() {
                       <div
                         key={employee.id}
                         className="flex items-center justify-between rounded-lg border px-3 py-2"
-                        style={{ borderColor: '#e5e7eb' }}
+                        style={{ borderColor: 'var(--border)' }}
                       >
                         <div>
                           <p className="text-sm font-semibold text-[color:var(--text-primary)]">

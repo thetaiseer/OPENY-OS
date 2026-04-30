@@ -157,7 +157,7 @@ export function teamInviteEmail(opts: {
 
           <!-- Header: solid purple -->
           <tr>
-            <td align="center" bgcolor="#6366f1" style="background-color:#6366f1;padding:36px 32px;border-radius:12px 12px 0 0;">
+            <td align="center" bgcolor='var(--text-secondary)' style="background-color:#6366f1;padding:36px 32px;border-radius:12px 12px 0 0;">
               <h1 style="margin:0;font-size:26px;font-weight:bold;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">${workspace}</h1>
               <p style="margin:10px 0 0;font-size:15px;color:#e0e0ff;font-family:Arial,Helvetica,sans-serif;">You're invited to join the team</p>
             </td>
@@ -165,7 +165,7 @@ export function teamInviteEmail(opts: {
 
           <!-- White card body -->
           <tr>
-            <td bgcolor="#ffffff" style="background-color:#ffffff;padding:36px 32px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;">
+            <td bgcolor='var(--accent-foreground)' style="background-color:#ffffff;padding:36px 32px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;">
 
               <!-- Greeting -->
               <p style="margin:0 0 8px;font-size:20px;font-weight:bold;color:#111111;font-family:Arial,Helvetica,sans-serif;">Hi ${firstName},</p>
@@ -190,7 +190,7 @@ export function teamInviteEmail(opts: {
               <!-- CTA button (table-based, no gradient) -->
               <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px auto;">
                 <tr>
-                  <td align="center" bgcolor="#6366f1" style="background-color:#6366f1;border-radius:8px;">
+                  <td align="center" bgcolor='var(--text-secondary)' style="background-color:#6366f1;border-radius:8px;">
                     <a href="${opts.inviteUrl}" target="_blank"
                        style="display:inline-block;color:#ffffff;text-decoration:none;padding:14px 40px;font-size:16px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;border-radius:8px;mso-padding-alt:14px 40px;">
                       Accept Invitation
@@ -218,7 +218,7 @@ export function teamInviteEmail(opts: {
 
           <!-- Footer -->
           <tr>
-            <td bgcolor="#ffffff" align="center" style="background-color:#ffffff;padding:20px 32px 28px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;border-radius:0 0 12px 12px;">
+            <td bgcolor='var(--accent-foreground)' align="center" style="background-color:#ffffff;padding:20px 32px 28px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;border-radius:0 0 12px 12px;">
               <p style="margin:0 0 4px;font-size:12px;color:#aaaaaa;font-family:Arial,Helvetica,sans-serif;">&copy; ${new Date().getFullYear()} ${workspace}. All rights reserved.</p>
               <p style="margin:0;font-size:12px;color:#aaaaaa;font-family:Arial,Helvetica,sans-serif;">If you did not expect this invitation, you can safely ignore this email.</p>
             </td>

@@ -115,8 +115,8 @@ export default function SettingsPasswordPage() {
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
               style={{
-                background: 'rgba(239,68,68,0.08)',
-                color: '#ef4444',
+                background: 'var(--surface-muted)',
+                color: 'var(--text-primary)',
                 border: '1px solid rgba(239,68,68,0.2)',
               }}
             >
@@ -131,7 +131,7 @@ export default function SettingsPasswordPage() {
               className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
               style={{
                 background: 'rgba(22,163,74,0.08)',
-                color: '#16a34a',
+                color: 'var(--text-primary)',
                 border: '1px solid rgba(22,163,74,0.2)',
               }}
             >
@@ -144,7 +144,7 @@ export default function SettingsPasswordPage() {
             type="submit"
             disabled={loading || !currentPassword || !newPassword || !confirmPassword}
             className="h-10 w-full rounded-lg text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
           >
             {loading ? 'Updating…' : 'Update Password'}
           </button>

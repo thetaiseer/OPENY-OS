@@ -53,13 +53,15 @@ interface EventStyle {
 }
 
 function getEventStyle(type: string): EventStyle {
-  if (type.startsWith('task')) return { icon: CheckSquare, color: '#3b82f6', bg: '#eff6ff' };
-  if (type.startsWith('client')) return { icon: Briefcase, color: '#8b5cf6', bg: '#f5f3ff' };
+  if (type.startsWith('task'))
+    return { icon: CheckSquare, color: 'var(--text-primary)', bg: 'var(--surface-2)' };
+  if (type.startsWith('client'))
+    return { icon: Briefcase, color: 'var(--text-secondary)', bg: 'var(--surface-2)' };
   if (type.startsWith('content') || type.startsWith('publish')) {
-    return { icon: FileText, color: '#059669', bg: '#f0fdf4' };
+    return { icon: FileText, color: 'var(--text-primary)', bg: 'var(--surface-muted)' };
   }
   if (type.startsWith('asset') || type.startsWith('file')) {
-    return { icon: Image, color: '#f59e0b', bg: '#fffbeb' };
+    return { icon: Image, color: 'var(--text-secondary)', bg: 'var(--surface-2)' };
   }
   if (
     type.startsWith('invite') ||
@@ -67,13 +69,13 @@ function getEventStyle(type: string): EventStyle {
     type.startsWith('role') ||
     type.startsWith('team')
   ) {
-    return { icon: UserCheck, color: '#10b981', bg: '#ecfdf5' };
+    return { icon: UserCheck, color: 'var(--text-primary)', bg: 'var(--surface-2)' };
   }
   if (type.startsWith('comment')) {
-    return { icon: MessageSquare, color: '#6366f1', bg: '#f0f0ff' };
+    return { icon: MessageSquare, color: 'var(--text-secondary)', bg: 'var(--surface-2)' };
   }
   if (type.startsWith('event') || type.startsWith('calendar')) {
-    return { icon: CalendarDays, color: '#06b6d4', bg: '#ecfeff' };
+    return { icon: CalendarDays, color: 'var(--text-primary)', bg: 'var(--surface-2)' };
   }
   if (
     type.startsWith('login') ||
@@ -81,7 +83,7 @@ function getEventStyle(type: string): EventStyle {
     type.startsWith('critical') ||
     type.startsWith('security')
   ) {
-    return { icon: AlertOctagon, color: '#ef4444', bg: '#fef2f2' };
+    return { icon: AlertOctagon, color: 'var(--text-primary)', bg: 'var(--surface-muted)' };
   }
   return { icon: Activity, color: 'var(--text-secondary)', bg: 'var(--surface-2)' };
 }
@@ -301,7 +303,7 @@ export default function ActivityTimelinePage() {
           className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-opacity hover:opacity-80"
           style={{
             background: showFilters ? 'var(--accent)' : 'var(--surface)',
-            color: showFilters ? '#fff' : 'var(--text)',
+            color: showFilters ? 'var(--accent-foreground)' : 'var(--text)',
             border: `1px solid ${showFilters ? 'var(--accent)' : 'var(--border)'}`,
           }}
         >
@@ -330,7 +332,7 @@ export default function ActivityTimelinePage() {
               className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium transition-colors"
               style={{
                 background: active ? 'var(--accent)' : 'var(--surface)',
-                color: active ? '#fff' : 'var(--text-secondary)',
+                color: active ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                 border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
               }}
             >
@@ -371,7 +373,7 @@ export default function ActivityTimelinePage() {
             <button
               type="submit"
               className="h-9 rounded-lg px-4 text-sm font-medium"
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
             >
               {t('activitySearch')}
             </button>
@@ -570,16 +572,16 @@ export default function ActivityTimelinePage() {
                             style={{
                               background:
                                 entry.status === 'failed'
-                                  ? '#fef2f2'
+                                  ? 'var(--surface-muted)'
                                   : entry.status === 'pending'
-                                    ? '#fffbeb'
-                                    : '#f0fdf4',
+                                    ? 'var(--surface-2)'
+                                    : 'var(--surface-muted)',
                               color:
                                 entry.status === 'failed'
-                                  ? '#dc2626'
+                                  ? 'var(--text-primary)'
                                   : entry.status === 'pending'
-                                    ? '#d97706'
-                                    : '#16a34a',
+                                    ? 'var(--text-secondary)'
+                                    : 'var(--text-primary)',
                             }}
                           >
                             {entry.status}
@@ -606,7 +608,10 @@ export default function ActivityTimelinePage() {
                           {entry.before_value && (
                             <span
                               className="rounded px-2 py-0.5"
-                              style={{ background: '#fef2f2', color: '#dc2626' }}
+                              style={{
+                                background: 'var(--surface-muted)',
+                                color: 'var(--text-primary)',
+                              }}
                             >
                               {String(
                                 entry.before_value.status ??
@@ -623,7 +628,10 @@ export default function ActivityTimelinePage() {
                           {entry.after_value && (
                             <span
                               className="rounded px-2 py-0.5"
-                              style={{ background: '#f0fdf4', color: '#16a34a' }}
+                              style={{
+                                background: 'var(--surface-muted)',
+                                color: 'var(--text-primary)',
+                              }}
                             >
                               {String(
                                 entry.after_value.status ??

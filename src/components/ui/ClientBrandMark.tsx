@@ -33,7 +33,7 @@ export function ClientBrandMark({
   }
   return (
     <div
-      className={`flex shrink-0 items-center justify-center font-bold text-white ${roundedClassName} ${className}`}
+      className={`flex shrink-0 items-center justify-center font-bold text-[var(--accent-foreground)] ${roundedClassName} ${className}`}
       style={{
         width: size,
         height: size,

@@ -49,7 +49,12 @@ import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 import Dashboard from '@/components/dashboard/Dashboard';
 import DashboardQuickActionFab from '@/components/dashboard/DashboardQuickActionFab';
 
-const DONUT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#64748b'];
+const DONUT_COLORS = [
+  'var(--text-secondary)',
+  'var(--text-primary)',
+  'var(--text-secondary)',
+  'var(--text-secondary)',
+];
 
 // ── Team performance ──────────────────────────────────────────────────────────
 
@@ -150,7 +155,7 @@ function OverdueRisk({
             {daysLeft !== null && (
               <span
                 className="shrink-0 text-xs font-semibold"
-                style={{ color: isOverdue ? '#ef4444' : '#d97706' }}
+                style={{ color: isOverdue ? 'var(--text-primary)' : 'var(--text-secondary)' }}
               >
                 {isOverdue
                   ? t('atRiskDaysOverdue', { days: Math.abs(daysLeft) })
@@ -239,7 +244,7 @@ function InsightsPredictions({
           {olderPace > 0 && (
             <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <span
-                style={{ color: paceChange >= 0 ? '#16a34a' : '#ef4444' }}
+                style={{ color: paceChange >= 0 ? 'var(--text-primary)' : 'var(--text-primary)' }}
                 className="font-medium"
               >
                 {paceChange >= 0 ? '↑' : '↓'} {Math.abs(paceChange).toFixed(0)}
@@ -393,8 +398,8 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
           <defs>
             <linearGradient id="perfStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#38bdf8" />
+              <stop offset="0%" stopColor="var(--text-secondary)" />
+              <stop offset="100%" stopColor="var(--text-muted)" />
             </linearGradient>
           </defs>
           <XAxis
@@ -423,7 +428,7 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
             dataKey="completed"
             stroke="url(#perfStroke)"
             strokeWidth={3}
-            dot={{ r: 3, fill: '#6366f1' }}
+            dot={{ r: 3, fill: 'var(--text-secondary)' }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -1367,7 +1372,7 @@ export default function DashboardPage() {
                     style={{ background: 'var(--surface-2)' }}
                   >
                     <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-[var(--accent-foreground)]"
                       style={{ background: 'var(--accent)' }}
                     >
                       {client.name.charAt(0).toUpperCase()}

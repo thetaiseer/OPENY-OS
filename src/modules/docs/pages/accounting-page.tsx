@@ -204,7 +204,7 @@ function EntryModal({
       {error ? (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+          style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -404,7 +404,7 @@ function ExpenseModal({
       {error ? (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+          style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -600,7 +600,7 @@ function TransferModal({
       {error ? (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626' }}
+          style={{ background: 'var(--surface-muted)', color: 'var(--text-primary)' }}
         >
           {error}
         </div>
@@ -1288,8 +1288,8 @@ export default function AccountingPage() {
                   type="button"
                   disabled={pdfBusy}
                   onClick={() => void exportPdf()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                  style={{ background: '#0f172a' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] disabled:opacity-50"
+                  style={{ background: 'var(--surface)' }}
                 >
                   <Printer size={12} className="me-1 inline" />{' '}
                   {pdfBusy ? t('docPdfGenerating') : t('docQtToolbarPdf')}
@@ -1297,8 +1297,8 @@ export default function AccountingPage() {
                 <a
                   href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
                   download
-                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white no-underline"
-                  style={{ background: '#059669' }}
+                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] no-underline"
+                  style={{ background: 'var(--text-primary)' }}
                 >
                   <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </a>
@@ -1342,7 +1342,7 @@ export default function AccountingPage() {
                 <button
                   type="button"
                   onClick={() => setAddEntry(true)}
-                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
                   style={{ background: 'var(--accent)' }}
                 >
                   <Plus size={14} /> {t('docAcctAddRevenueBtn')}
@@ -1455,8 +1455,8 @@ export default function AccountingPage() {
                 <button
                   type="button"
                   onClick={() => setAddExpense(true)}
-                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                  style={{ background: '#0f172a' }}
+                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--surface)' }}
                 >
                   <Plus size={14} /> {t('docAcctAddExpenseBtn')}
                 </button>

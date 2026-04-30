@@ -32,38 +32,38 @@ const STATUS_DEF: readonly {
   {
     status: 'draft',
     labelKey: 'contentStatusDraft',
-    color: '#9ca3af',
+    color: 'var(--text-secondary)',
     bg: 'rgba(156,163,175,0.1)',
   },
   {
     status: 'pending_review',
     labelKey: 'contentStatusInReview',
-    color: '#d97706',
+    color: 'var(--text-secondary)',
     bg: 'rgba(217,119,6,0.1)',
   },
   {
     status: 'approved',
     labelKey: 'contentStatusApproved',
-    color: '#16a34a',
+    color: 'var(--text-primary)',
     bg: 'rgba(22,163,74,0.1)',
   },
   {
     status: 'scheduled',
     labelKey: 'contentStatusScheduled',
-    color: '#7c3aed',
+    color: 'var(--text-secondary)',
     bg: 'rgba(124,58,237,0.1)',
   },
   {
     status: 'published',
     labelKey: 'contentStatusPublished',
-    color: '#0891b2',
+    color: 'var(--text-primary)',
     bg: 'rgba(8,145,178,0.1)',
   },
   {
     status: 'rejected',
     labelKey: 'contentStatusRejected',
-    color: '#ef4444',
-    bg: 'rgba(239,68,68,0.1)',
+    color: 'var(--text-primary)',
+    bg: 'var(--surface-muted)',
   },
 ];
 
