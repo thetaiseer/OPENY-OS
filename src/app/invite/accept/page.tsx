@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, type FocusEvent, Suspense, useEffect, useState } from 'react';
+import { type FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -77,10 +77,10 @@ function InputField({
             border: '1px solid var(--border)',
             opacity: readOnly ? 0.7 : 1,
           }}
-          onFocus={(e: FocusEvent<HTMLInputElement>) => {
+          onFocus={(e) => {
             if (!readOnly) e.currentTarget.style.borderColor = 'var(--accent)';
           }}
-          onBlur={(e: FocusEvent<HTMLInputElement>) => {
+          onBlur={(e) => {
             e.currentTarget.style.borderColor = 'var(--border)';
           }}
         />
