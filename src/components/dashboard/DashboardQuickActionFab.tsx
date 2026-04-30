@@ -131,27 +131,26 @@ export default function DashboardQuickActionFab() {
     <div
       ref={rootRef}
       className={cn(
-        'pointer-events-none fixed z-50 flex flex-col items-end gap-3',
-        'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] end-4',
-        'md:bottom-6 md:end-6',
+        'pointer-events-none fixed z-50 flex flex-col items-end gap-2',
+        'bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))]',
+        'end-4',
+        'md:bottom-6',
+        'md:end-6',
       )}
     >
-      {/* Menu panel — always rendered, animated via inline style for Prettier safety */}
+      {/* Menu panel — always rendered, animated via inline style */}
       <div
         id={menuId}
         role="menu"
         aria-label={t('quickActions') ?? 'Quick actions'}
-        className={cn(
-          'mb-1 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),17rem)]',
-          'overflow-y-auto overscroll-contain rounded-2xl border p-2',
-          open ? 'pointer-events-auto' : 'pointer-events-none',
-        )}
+        className="pointer-events-auto mb-1 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),17rem)] overflow-y-auto overscroll-contain rounded-2xl border p-2"
         style={{
-          background: 'color-mix(in srgb, var(--surface) 96%, white 4%)',
+          background: 'color-mix(in srgb, var(--surface) 94%, white 6%)',
           borderColor: 'var(--border)',
-          boxShadow: '0 20px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)',
-          backdropFilter: 'blur(12px)',
+          boxShadow: '0 16px 40px rgba(15,23,42,0.16)',
+          backdropFilter: 'blur(10px)',
           opacity: open ? 1 : 0,
+          pointerEvents: open ? undefined : 'none',
           transform: open ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.96)',
           transformOrigin: 'bottom right',
           transition: 'opacity 0.2s ease, transform 0.2s ease',
@@ -160,7 +159,7 @@ export default function DashboardQuickActionFab() {
         {sections.map((section) => (
           <div key={section.title} role="presentation" className="mb-2 last:mb-0">
             <p
-              className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider"
+              className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider"
               style={{ color: 'var(--text-tertiary)' }}
             >
               {section.title}
@@ -178,16 +177,11 @@ export default function DashboardQuickActionFab() {
                     type="button"
                     role="menuitem"
                     data-quick-action-item
-                    className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-start text-sm transition-colors hover:bg-[color:var(--surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-start text-sm transition-colors hover:bg-[color:var(--surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                     style={{ color: 'var(--text)' }}
                     onClick={() => runEntry(entry)}
                   >
-                    <span
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                      style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                    >
-                      <Icon size={14} aria-hidden />
-                    </span>
+                    <Icon size={16} className="shrink-0 text-[var(--accent)]" aria-hidden />
                     <span className="min-w-0 leading-snug">{entry.label}</span>
                   </button>
                 );
@@ -197,27 +191,21 @@ export default function DashboardQuickActionFab() {
         ))}
       </div>
 
-      {/* FAB trigger */}
       <button
         ref={triggerRef}
         type="button"
-        className={cn(
-          'pointer-events-auto inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full',
-          'transition-all duration-200 ease-out',
-          'hover:scale-110 active:scale-95',
-          'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent)]/40',
-        )}
+        className="pointer-events-auto inline-flex h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full shadow-soft-md transition-[filter,box-shadow] hover:brightness-105 active:brightness-95"
         style={{
           background: 'var(--accent)',
-          color: '#fff',
+          color: 'var(--primary-foreground)',
           boxShadow: open
-            ? '0 8px 24px color-mix(in srgb, var(--accent) 50%, transparent), 0 2px 8px rgba(0,0,0,0.2)'
-            : '0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent), 0 2px 6px rgba(0,0,0,0.15)',
+            ? '0 8px 24px color-mix(in srgb, var(--accent) 50%, transparent)'
+            : '0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent)',
         }}
         aria-label={t('quickActions') ?? 'Quick actions'}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-controls={menuId}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         <Plus
