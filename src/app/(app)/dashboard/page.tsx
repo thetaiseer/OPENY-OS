@@ -44,7 +44,7 @@ import { useQuickActions } from '@/context/quick-actions-context';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { PageShell, PageHeader } from '@/components/layout/PageLayout';
+import { PageHeader } from '@/components/layout/PageLayout';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 import Dashboard from '@/components/dashboard/Dashboard';
 import DashboardQuickActionFab from '@/components/dashboard/DashboardQuickActionFab';
@@ -801,7 +801,7 @@ export default function DashboardPage() {
       : 76;
 
   return (
-    <PageShell className="space-y-6 !pt-0">
+    <div className="space-y-6">
       <PageHeader
         title={`${t('goodMorning')}${lang === 'ar' ? '، ' : ', '}${firstName} 👋`}
         subtitle={t('dashboardSubtitle')}
@@ -1404,6 +1404,6 @@ export default function DashboardPage() {
       </div>
 
       <DashboardQuickActionFab />
-    </PageShell>
+    </div>
   );
 }
