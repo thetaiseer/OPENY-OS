@@ -13,7 +13,7 @@ const paddingClasses = {
 } as const;
 
 export const cardSurfaceClass =
-  'openy-surface openy-soft-transition bg-[color:var(--card)]/95 text-[color:var(--card-foreground)] backdrop-blur-[8px] shadow-[0_12px_30px_var(--openy-glow)]';
+  'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--card-foreground)] shadow-[var(--shadow-sm)] transition-shadow duration-200 hover:shadow-[var(--shadow-hover)]';
 
 export function Card({
   children,
