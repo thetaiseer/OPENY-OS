@@ -25,7 +25,7 @@ export const PageShell = forwardRef<HTMLDivElement, DivProps>(function PageShell
 
   if (hasGlobalShell) {
     return (
-      <div ref={ref} {...props} className={cn('w-full space-y-4', className)}>
+      <div ref={ref} {...props} className={cn('w-full space-y-6', className)}>
         {children}
       </div>
     );
