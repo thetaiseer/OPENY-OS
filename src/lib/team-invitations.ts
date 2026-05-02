@@ -250,6 +250,7 @@ export async function acceptInvitationToken(
       user_id: userId,
       role: memberRole,
       status: 'active',
+      is_active: true,
       email: invitationEmail,
       full_name: profileName,
       job_title: validInvitation.job_title ?? null,
