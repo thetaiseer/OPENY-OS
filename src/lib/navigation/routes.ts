@@ -15,6 +15,8 @@ export type NavIconKey =
 
 export type NavSectionKey = 'core' | 'work' | 'business' | 'system';
 
+export type UserRoleKey = 'owner' | 'admin' | 'manager' | 'team_member' | 'viewer' | 'client';
+
 export type RouteMeta = {
   key: string;
   label: string;
@@ -28,6 +30,8 @@ export type RouteMeta = {
   aliases?: string[];
   matchPrefixes?: string[];
   section?: NavSectionKey;
+  /** When set, only roles in this list can see this item in the sidebar. */
+  allowedRoles?: UserRoleKey[];
 };
 
 export const ROUTE_META: RouteMeta[] = [
@@ -109,6 +113,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'docs',
     sidebar: true,
     section: 'business',
+    allowedRoles: ['owner', 'admin', 'manager', 'team_member'],
   },
   {
     key: 'docs-invoice',
@@ -167,6 +172,7 @@ export const ROUTE_META: RouteMeta[] = [
     sidebar: true,
     aliases: ['/reports'],
     section: 'business',
+    allowedRoles: ['owner', 'admin', 'manager', 'team_member'],
   },
   {
     key: 'team',
@@ -177,6 +183,7 @@ export const ROUTE_META: RouteMeta[] = [
     iconKey: 'team',
     sidebar: true,
     section: 'system',
+    allowedRoles: ['owner', 'admin'],
   },
   {
     key: 'activity',

@@ -5,7 +5,13 @@ import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { getSidebarRoutes, type NavSectionKey, type RouteMeta } from '@/lib/navigation/routes';
+import {
+  getSidebarRoutes,
+  type NavSectionKey,
+  type RouteMeta,
+  type UserRoleKey,
+} from '@/lib/navigation/routes';
+import { useAuth } from '@/context/auth-context';
 
 type SidebarBadgeMap = Partial<Record<string, number>>;
 
@@ -35,8 +41,13 @@ function isActivePath(pathname: string, item: RouteMeta): boolean {
 
 export default function Navigation({ collapsed, iconMap, badges, onNavigate }: NavigationProps) {
   const pathname = usePathname();
+  const { role } = useAuth();
   const grouped = useMemo(() => {
-    const routes = getSidebarRoutes();
+    const userRole = (role ?? 'viewer') as UserRoleKey;
+    const routes = getSidebarRoutes().filter((route) => {
+      if (!route.allowedRoles) return true;
+      return route.allowedRoles.includes(userRole);
+    });
     const buckets: Record<NavSectionKey, RouteMeta[]> = {
       core: [],
       work: [],
@@ -48,7 +59,7 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
       buckets[section].push(route);
     }
     return buckets;
-  }, []);
+  }, [role]);
 
   const sectionOrder: NavSectionKey[] = ['core', 'work', 'business', 'system'];
 

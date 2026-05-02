@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       }
       assets = data ?? [];
     } else if (folder) {
-      // Primary match by `folder` column if present, fallback to current grouping columns.
+      // Primary match by `folder` column if present, fallback to grouping columns when empty.
       const { data, error } = await admin
         .from('assets')
         .select('id, name, folder, storage_key, file_path, storage_provider')
@@ -99,9 +99,20 @@ export async function POST(req: NextRequest) {
         .or('is_deleted.is.null,is_deleted.eq.false')
         .eq('folder', folder);
 
-      if (!error) {
-        assets = data ?? [];
-      } else if (error.code === '42703') {
+      if (error && error.code !== '42703') {
+        return NextResponse.json(
+          { success: false, error: { message: error.message, requestId } },
+          { status: 500 },
+        );
+      }
+
+      // If primary query returned results, use them. Otherwise fall back to
+      // client_name / client_folder_name (the legacy grouping columns), which
+      // covers assets uploaded before the `folder` column was introduced or
+      // assets whose `folder` field is NULL.
+      if (!error && (data ?? []).length > 0) {
+        assets = data!;
+      } else {
         const fallback = await admin
           .from('assets')
           .select(
@@ -118,11 +129,6 @@ export async function POST(req: NextRequest) {
           );
         }
         assets = fallback.data ?? [];
-      } else {
-        return NextResponse.json(
-          { success: false, error: { message: error.message, requestId } },
-          { status: 500 },
-        );
       }
     }
 
