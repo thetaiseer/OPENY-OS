@@ -5,7 +5,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   return (
     <AppShellLayout>
       <RoleGuard allowedRoles={['owner', 'admin', 'manager', 'team_member']}>
-        <div className="docs-app">{children}</div>
+        <div className="docs-app h-full">{children}</div>
       </RoleGuard>
     </AppShellLayout>
   );
