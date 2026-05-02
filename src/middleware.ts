@@ -157,9 +157,11 @@ export async function middleware(request: NextRequest) {
           setTimeout(() => reject(new Error('mw-membership-timeout')), 5_000),
         ),
       ]);
-      hasAccess = result.data !== null;
+      // Fail-open on DB errors (table missing, RLS, network) to avoid locking out
+      // users due to infrastructure issues. Empty result (no row) is still a deny.
+      hasAccess = result.error ? true : result.data !== null;
     } catch {
-      // Membership lookup timed out — fail-open so users aren't locked out.
+      // Membership lookup timed out — fail-open.
       hasAccess = true;
     }
 
