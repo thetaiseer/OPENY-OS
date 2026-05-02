@@ -29,7 +29,7 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
       return new Proxy(
         function () {} as unknown as ReturnType<typeof createBrowserClient>,
         handler,
-      );
+      ) as unknown as ReturnType<typeof createBrowserClient>;
     };
     return makeNoOp();
   }
