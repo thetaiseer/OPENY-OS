@@ -34,7 +34,10 @@ type QueryRecord = {
 function createSupabaseMock(assetRows: Array<Record<string, unknown>>) {
   const records: QueryRecord[] = [];
 
-  function createBuilder(table: string, mode: 'select' | 'update' | 'delete'): PromiseLike<unknown> {
+  function createBuilder(
+    table: string,
+    mode: 'select' | 'update' | 'delete',
+  ): PromiseLike<unknown> {
     const record: QueryRecord = { table, operations: [] };
     records.push(record);
 
@@ -150,8 +153,8 @@ describe('DELETE /api/assets/folders', () => {
     expect(workspaceFilters.every((operation) => operation.args[1] === authorizedWorkspaceId)).toBe(
       true,
     );
-    expect(
-      workspaceFilters.some((operation) => operation.args[1] === attackerWorkspaceId),
-    ).toBe(false);
+    expect(workspaceFilters.some((operation) => operation.args[1] === attackerWorkspaceId)).toBe(
+      false,
+    );
   });
 });
