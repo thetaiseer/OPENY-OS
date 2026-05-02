@@ -112,9 +112,19 @@ export async function middleware(request: NextRequest) {
     cached && cached.key === cookieKey && cached.expiresAt > now ? cached.user : null;
 
   if (!cached || cached.key !== cookieKey || cached.expiresAt <= now) {
-    const {
-      data: { user: freshUser },
-    } = await supabase.auth.getUser();
+    let freshUser: User | null = null;
+    try {
+      const result = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('mw-getuser-timeout')), 5_000),
+        ),
+      ]);
+      freshUser = result.data.user;
+    } catch {
+      // Auth lookup timed out or failed — pass through and let client-side auth handle it.
+      return supabaseResponse;
+    }
     user = freshUser;
     writeMwAuthCache({ key: cookieKey, user: freshUser, expiresAt: now + MW_USER_CACHE_MS });
   }
@@ -132,15 +142,28 @@ export async function middleware(request: NextRequest) {
   }
 
   if (requiredWorkspaceFromPath && !isGlobalOwnerEmail(user.email)) {
-    const { data: membership } = await supabase
-      .from('workspace_memberships')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('workspace_key', requiredWorkspaceFromPath)
-      .eq('is_active', true)
-      .maybeSingle();
+    // null = no record; undefined = timed out (fail-open to avoid locking users out)
+    let hasAccess: boolean | null = null;
+    try {
+      const result = await Promise.race([
+        supabase
+          .from('workspace_memberships')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('workspace_key', requiredWorkspaceFromPath)
+          .eq('is_active', true)
+          .maybeSingle(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('mw-membership-timeout')), 5_000),
+        ),
+      ]);
+      hasAccess = result.data !== null;
+    } catch {
+      // Membership lookup timed out — fail-open so users aren't locked out.
+      hasAccess = true;
+    }
 
-    if (!membership) {
+    if (!hasAccess) {
       const deniedUrl = new URL('/access-denied', request.url);
       deniedUrl.searchParams.set('workspace', requiredWorkspaceFromPath);
       return NextResponse.redirect(deniedUrl);
