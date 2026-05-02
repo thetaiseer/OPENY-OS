@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarDays, ChevronDown } from 'lucide-react';
-import { DayPicker, type DateRange } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { type DateRange } from 'react-day-picker';
 import {
+  addMonths,
   endOfMonth,
   endOfWeek,
   format,
+  isSameDay,
+  isWithinInterval,
   startOfDay,
   startOfMonth,
   startOfWeek,
@@ -35,11 +37,13 @@ type Preset = {
   getRange: () => DateRange;
 };
 
-const GRANULARITY_OPTIONS: { value: Granularity; label: string; labelAr: string }[] = [
-  { value: 'day', label: 'Day', labelAr: 'يوم' },
-  { value: 'month', label: 'Month', labelAr: 'شهر' },
-  { value: 'year', label: 'Year', labelAr: 'سنة' },
+const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
+  { value: 'day', label: 'Day' },
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
 ];
+
+const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 function parseYmd(value: string): Date | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -65,6 +69,157 @@ function isSameRange(a?: DateRange, b?: DateRange): boolean {
   return toYmd(a.from) === toYmd(b.from) && toYmd(a.to) === toYmd(b.to);
 }
 
+function getCalendarDays(month: Date): (Date | null)[] {
+  const start = startOfMonth(month);
+  const end = endOfMonth(month);
+  const days: (Date | null)[] = [];
+  // pad start
+  for (let i = 0; i < start.getDay(); i++) days.push(null);
+  for (
+    let d = new Date(start);
+    d <= end;
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+  ) {
+    days.push(new Date(d));
+  }
+  // pad end to complete grid
+  while (days.length % 7 !== 0) days.push(null);
+  return days;
+}
+
+function MiniCalendar({
+  month,
+  range,
+  hoverDate,
+  onDayClick,
+  onDayHover,
+  onDayLeave,
+  onPrev,
+  onNext,
+  showPrev = true,
+  showNext = true,
+}: {
+  month: Date;
+  range?: DateRange;
+  hoverDate?: Date | null;
+  onDayClick: (d: Date) => void;
+  onDayHover: (d: Date) => void;
+  onDayLeave: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  showPrev?: boolean;
+  showNext?: boolean;
+}) {
+  const today = startOfDay(new Date());
+  const days = getCalendarDays(month);
+
+  const effectiveEnd = range?.from && !range?.to && hoverDate ? hoverDate : range?.to;
+  const selFrom = range?.from ? startOfDay(range.from) : null;
+  const selTo = effectiveEnd ? startOfDay(effectiveEnd) : null;
+
+  return (
+    <div className="w-full">
+      {/* Month header */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onPrev}
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-[color:var(--surface-soft)]',
+            !showPrev && 'invisible',
+          )}
+        >
+          <ChevronLeft className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+        </button>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {format(month, 'MMMM yyyy')}
+        </span>
+        <button
+          type="button"
+          onClick={onNext}
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-[color:var(--surface-soft)]',
+            !showNext && 'invisible',
+          )}
+        >
+          <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+        </button>
+      </div>
+
+      {/* Week day headers */}
+      <div className="mb-1 grid grid-cols-7">
+        {WEEK_DAYS.map((d) => (
+          <div
+            key={d}
+            className="flex h-8 items-center justify-center text-[11px] font-medium"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7">
+        {days.map((day, i) => {
+          if (!day) return <div key={i} />;
+
+          const isToday = isSameDay(day, today);
+          const isStart = selFrom && isSameDay(day, selFrom);
+          const isEnd = selTo && isSameDay(day, selTo);
+          const isSelected = isStart || isEnd;
+          const isInRange =
+            selFrom && selTo && isWithinInterval(startOfDay(day), { start: selFrom, end: selTo });
+          const isRangeStart = isStart && selTo && !isSameDay(selFrom!, selTo);
+          const isRangeEnd = isEnd && selFrom && !isSameDay(selFrom!, selTo!);
+          const isMiddle = isInRange && !isStart && !isEnd;
+
+          return (
+            <div
+              key={i}
+              className={cn(
+                'relative flex h-8 items-center justify-center',
+                isMiddle && 'bg-[color:var(--surface-soft)]',
+              )}
+              style={
+                isRangeStart
+                  ? { background: 'var(--surface-soft)', borderRadius: '50% 0 0 50%' }
+                  : isRangeEnd
+                    ? { background: 'var(--surface-soft)', borderRadius: '0 50% 50% 0' }
+                    : {}
+              }
+            >
+              <button
+                type="button"
+                onMouseEnter={() => onDayHover(day)}
+                onMouseLeave={onDayLeave}
+                onClick={() => onDayClick(day)}
+                className={cn(
+                  'relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-[13px] transition-colors',
+                  isSelected
+                    ? 'font-semibold text-[color:var(--accent-foreground)]'
+                    : isToday
+                      ? 'font-semibold'
+                      : 'hover:bg-[color:var(--surface-soft)]',
+                )}
+                style={
+                  isSelected
+                    ? { background: 'var(--accent)', color: 'var(--accent-foreground)' }
+                    : isToday
+                      ? { color: 'var(--accent)' }
+                      : { color: 'var(--text-primary)' }
+                }
+              >
+                {day.getDate()}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function PeriodDateRangePicker({
   from,
   to,
@@ -79,14 +234,10 @@ export default function PeriodDateRangePicker({
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-  const [months, setMonths] = useState(2);
-  const [popoverStyle, setPopoverStyle] = useState({
-    top: 0,
-    left: 0,
-    width: 360,
-    maxHeight: 420,
-  });
+  const [popoverStyle, setPopoverStyle] = useState({ top: 0, left: 0 });
   const [draftGranularity, setDraftGranularity] = useState<Granularity>(granularity);
+  const [hoverDate, setHoverDate] = useState<Date | null>(null);
+  const [selectingEnd, setSelectingEnd] = useState(false);
 
   const fromDate = useMemo(() => parseYmd(from), [from]);
   const toDate = useMemo(() => parseYmd(to), [to]);
@@ -95,6 +246,7 @@ export default function PeriodDateRangePicker({
     to: toDate,
   });
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [viewMonth, setViewMonth] = useState<Date>(fromDate ?? new Date());
 
   const presets = useMemo<Preset[]>(() => {
     const now = new Date();
@@ -110,28 +262,22 @@ export default function PeriodDateRangePicker({
     const lastMonthBase = subMonths(now, 1);
     const lastMonthStart = startOfMonth(lastMonthBase);
     const lastMonthEnd = endOfMonth(lastMonthBase);
-    const maxStart = new Date(2020, 0, 1);
 
     return [
       { id: 'today', label: 'Today', getRange: () => ({ from: today, to: today }) },
       { id: 'yesterday', label: 'Yesterday', getRange: () => ({ from: yesterday, to: yesterday }) },
       {
-        id: 'last_7_days',
+        id: 'last_7',
         label: 'Last 7 days',
         getRange: () => ({ from: subDays(today, 6), to: today }),
       },
       {
-        id: 'last_14_days',
+        id: 'last_14',
         label: 'Last 14 days',
         getRange: () => ({ from: subDays(today, 13), to: today }),
       },
       {
-        id: 'last_28_days',
-        label: 'Last 28 days',
-        getRange: () => ({ from: subDays(today, 27), to: today }),
-      },
-      {
-        id: 'last_30_days',
+        id: 'last_30',
         label: 'Last 30 days',
         getRange: () => ({ from: subDays(today, 29), to: today }),
       },
@@ -157,8 +303,8 @@ export default function PeriodDateRangePicker({
       },
       {
         id: 'maximum',
-        label: 'Maximum',
-        getRange: () => ({ from: startOfDay(maxStart), to: today }),
+        label: 'All time',
+        getRange: () => ({ from: startOfDay(new Date(2020, 0, 1)), to: today }),
       },
     ];
   }, []);
@@ -170,6 +316,8 @@ export default function PeriodDateRangePicker({
   useEffect(() => {
     setDraftRange({ from: fromDate, to: toDate });
     setActivePreset(null);
+    setSelectingEnd(false);
+    if (fromDate) setViewMonth(fromDate);
   }, [fromDate, toDate]);
 
   useEffect(() => {
@@ -181,20 +329,19 @@ export default function PeriodDateRangePicker({
       setActivePreset(null);
       return;
     }
-    const found = presets.find((preset) => isSameRange(draftRange, preset.getRange()));
+    const found = presets.find((p) => isSameRange(draftRange, p.getRange()));
     setActivePreset(found?.id ?? null);
   }, [draftRange, presets]);
 
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (rootRef.current?.contains(target)) return;
-      if (popoverRef.current?.contains(target)) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || popoverRef.current?.contains(t)) return;
       setOpen(false);
     };
-    const onEsc = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
       setDraftRange({ from: fromDate, to: toDate });
       setDraftGranularity(granularity);
       setOpen(false);
@@ -209,29 +356,48 @@ export default function PeriodDateRangePicker({
 
   useEffect(() => {
     if (!open) return;
-    const updatePosition = () => {
+    const updatePos = () => {
       const trigger = triggerRef.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
+      const popoverWidth = 320;
       const gutter = 12;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const width = Math.min(720, Math.max(320, viewportWidth - gutter * 2));
-      const left = Math.max(gutter, Math.min(rect.right - width, viewportWidth - width - gutter));
-      const top = rect.bottom + 8;
-      const maxHeight = Math.max(320, viewportHeight - top - gutter);
-      setPopoverStyle({ top, left, width, maxHeight });
-      setMonths(width >= 680 ? 2 : 1);
+      const vw = window.innerWidth;
+      let left = rect.right - popoverWidth;
+      if (left < gutter) left = gutter;
+      if (left + popoverWidth > vw - gutter) left = vw - popoverWidth - gutter;
+      setPopoverStyle({ top: rect.bottom + 8, left });
     };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
     };
   }, [open]);
+
+  function handleDayClick(day: Date) {
+    if (!selectingEnd || !draftRange?.from) {
+      setDraftRange({ from: day, to: undefined });
+      setSelectingEnd(true);
+      setActivePreset(null);
+    } else {
+      const from = draftRange.from;
+      const [start, end] = day < from ? [day, from] : [from, day];
+      setDraftRange({ from: start, to: end });
+      setSelectingEnd(false);
+      setActivePreset(null);
+    }
+  }
+
+  const rangeForCalendar: DateRange | undefined =
+    selectingEnd && draftRange?.from && hoverDate
+      ? {
+          from: hoverDate < draftRange.from ? hoverDate : draftRange.from,
+          to: hoverDate < draftRange.from ? draftRange.from : hoverDate,
+        }
+      : draftRange;
 
   const triggerText =
     fromDate && toDate
@@ -246,176 +412,164 @@ export default function PeriodDateRangePicker({
           <div
             ref={popoverRef}
             role="dialog"
-            className="fixed z-[260] overflow-hidden rounded-2xl border shadow-xl"
+            className="fixed z-[260] w-80 overflow-hidden rounded-2xl border shadow-xl"
             style={{
               top: `${popoverStyle.top}px`,
               left: `${popoverStyle.left}px`,
-              width: `${popoverStyle.width}px`,
-              maxHeight: `${popoverStyle.maxHeight}px`,
               borderColor: 'var(--border)',
               background: 'var(--surface)',
             }}
           >
-            <div className="flex max-h-full min-h-0 flex-col md:flex-row">
-              {/* Presets sidebar */}
-              <aside
-                className="w-full border-b p-2 md:w-[160px] md:shrink-0 md:border-b-0 md:border-e"
+            {/* Granularity row */}
+            {onGranularityChange && (
+              <div
+                className="flex items-center gap-1.5 border-b px-3 py-2.5"
                 style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
               >
-                <div className="flex gap-1.5 overflow-auto md:max-h-[340px] md:flex-col">
-                  {presets.map((preset) => {
-                    const active = activePreset === preset.id;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className={cn(
-                          'h-8 rounded-xl border px-2.5 text-left text-xs font-medium transition-colors md:w-full',
-                          active
-                            ? 'border-transparent text-[color:var(--accent-foreground)]'
-                            : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
-                        )}
-                        style={
-                          active
-                            ? { background: 'var(--accent)', minWidth: '9.5rem' }
-                            : { minWidth: '9.5rem' }
-                        }
-                        onClick={() => {
-                          setDraftRange(preset.getRange());
-                          setActivePreset(preset.id);
-                        }}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </aside>
-
-              {/* Calendar + controls */}
-              <div className="flex min-h-0 flex-1 flex-col">
-                {/* Granularity toggle */}
-                {onGranularityChange && (
-                  <div
-                    className="flex items-center gap-1 border-b px-3 py-2"
-                    style={{ borderColor: 'var(--border)' }}
-                  >
-                    <span
-                      className="me-2 text-xs font-medium"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      View by
-                    </span>
-                    <div
-                      className="flex gap-0.5 rounded-xl border p-0.5"
-                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-                    >
-                      {GRANULARITY_OPTIONS.map((opt) => {
-                        const active = draftGranularity === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className={cn(
-                              'rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150',
-                              active
-                                ? 'text-[color:var(--accent-foreground)]'
-                                : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]',
-                            )}
-                            style={active ? { background: 'var(--accent)' } : {}}
-                            onClick={() => setDraftGranularity(opt.value)}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Calendar */}
-                <div className="min-h-0 flex-1 overflow-auto p-2 md:p-3">
-                  <DayPicker
-                    mode="range"
-                    numberOfMonths={months}
-                    defaultMonth={draftRange?.from ?? fromDate ?? new Date()}
-                    selected={draftRange}
-                    onSelect={(range) => {
-                      setDraftRange(range);
-                      setActivePreset(null);
-                    }}
-                    classNames={{
-                      months: 'flex flex-col gap-3 sm:flex-row sm:gap-4',
-                      month: 'min-w-[236px] space-y-2',
-                      caption:
-                        'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text-primary)]',
-                      caption_label: 'text-sm font-semibold text-[color:var(--text-primary)]',
-                      nav: 'absolute inset-x-0 top-0.5 flex items-center justify-between px-1',
-                      button_previous:
-                        'inline-flex h-7 w-7 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] transition-colors',
-                      button_next:
-                        'inline-flex h-7 w-7 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] transition-colors',
-                      table: 'w-full border-collapse',
-                      head_cell:
-                        'h-8 w-8 text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
-                      cell: 'h-8 w-8 p-0 text-center align-middle',
-                      day: 'inline-flex h-8 w-8 items-center justify-center rounded-xl text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-soft)] transition-colors',
-                      today:
-                        'border border-[color:var(--accent)] font-semibold text-[color:var(--accent)]',
-                      selected:
-                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]',
-                      range_start:
-                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] rounded-xl',
-                      range_end:
-                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] rounded-xl',
-                      range_middle:
-                        'bg-[color:var(--surface-soft)] text-[color:var(--text-primary)] rounded-none',
-                      outside: 'text-[color:var(--text-secondary)] opacity-30',
-                    }}
-                  />
-                </div>
-
-                {/* Footer */}
-                <div
-                  className="flex items-center justify-end gap-2 border-t px-3 py-2"
-                  style={{ borderColor: 'var(--border)' }}
+                <span
+                  className="me-1 text-xs font-medium"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
-                  <button
-                    type="button"
-                    className="h-9 rounded-2xl border px-4 text-sm font-medium transition-colors hover:bg-[color:var(--surface-soft)]"
-                    style={{
-                      borderColor: 'var(--border)',
-                      color: 'var(--text-secondary)',
-                    }}
-                    onClick={() => {
-                      setDraftRange({ from: fromDate, to: toDate });
-                      setDraftGranularity(granularity);
-                      setOpen(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="h-9 rounded-2xl px-4 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
-                    style={{
-                      background: 'var(--accent)',
-                      color: 'var(--accent-foreground)',
-                    }}
-                    disabled={!draftRange?.from || !draftRange?.to}
-                    onClick={() => {
-                      if (!draftRange?.from || !draftRange?.to) return;
-                      onChange(toYmd(draftRange.from), toYmd(draftRange.to));
-                      if (onGranularityChange && draftGranularity !== granularity) {
-                        onGranularityChange(draftGranularity);
+                  View by
+                </span>
+                {GRANULARITY_OPTIONS.map((opt) => {
+                  const active = draftGranularity === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDraftGranularity(opt.value)}
+                      className={cn(
+                        'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
+                        active
+                          ? 'text-[color:var(--accent-foreground)]'
+                          : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]',
+                      )}
+                      style={
+                        active
+                          ? { background: 'var(--accent)' }
+                          : { background: 'var(--surface-soft)' }
                       }
-                      setOpen(false);
-                    }}
-                  >
-                    Apply
-                  </button>
-                </div>
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
+            )}
+
+            {/* Presets — horizontal scrollable chips */}
+            <div
+              className="scrollbar-none flex gap-1.5 overflow-x-auto border-b px-3 py-2.5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              {presets.map((preset) => {
+                const active = activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      const range = preset.getRange();
+                      setDraftRange(range);
+                      setActivePreset(preset.id);
+                      setSelectingEnd(false);
+                      if (range.from) setViewMonth(range.from);
+                    }}
+                    className={cn(
+                      'shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                      active
+                        ? 'border-transparent text-[color:var(--accent-foreground)]'
+                        : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                    )}
+                    style={active ? { background: 'var(--accent)' } : {}}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Calendar */}
+            <div className="px-3 py-3">
+              <MiniCalendar
+                month={viewMonth}
+                range={rangeForCalendar}
+                hoverDate={hoverDate}
+                onDayClick={handleDayClick}
+                onDayHover={(d) => selectingEnd && setHoverDate(d)}
+                onDayLeave={() => setHoverDate(null)}
+                onPrev={() => setViewMonth((m) => addMonths(m, -1))}
+                onNext={() => setViewMonth((m) => addMonths(m, 1))}
+              />
+            </div>
+
+            {/* Selected range display */}
+            <div
+              className="border-t px-3 py-2"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+            >
+              <p
+                className="text-center text-[12px] font-medium"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {draftRange?.from && draftRange?.to ? (
+                  <>
+                    <span style={{ color: 'var(--text-primary)' }}>
+                      {format(draftRange.from, 'MMM d, yyyy')}
+                    </span>{' '}
+                    —{' '}
+                    <span style={{ color: 'var(--text-primary)' }}>
+                      {format(draftRange.to, 'MMM d, yyyy')}
+                    </span>
+                  </>
+                ) : draftRange?.from ? (
+                  <>
+                    <span style={{ color: 'var(--text-primary)' }}>
+                      {format(draftRange.from, 'MMM d, yyyy')}
+                    </span>
+                    <span> — pick end date</span>
+                  </>
+                ) : (
+                  'Pick a start date'
+                )}
+              </p>
+            </div>
+
+            {/* Footer actions */}
+            <div
+              className="flex items-center justify-end gap-2 border-t px-3 py-2.5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftRange({ from: fromDate, to: toDate });
+                  setDraftGranularity(granularity);
+                  setSelectingEnd(false);
+                  setOpen(false);
+                }}
+                className="h-8 rounded-xl border px-3 text-xs font-medium transition-colors hover:bg-[color:var(--surface-soft)]"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!draftRange?.from || !draftRange?.to}
+                onClick={() => {
+                  if (!draftRange?.from || !draftRange?.to) return;
+                  onChange(toYmd(draftRange.from), toYmd(draftRange.to));
+                  if (onGranularityChange && draftGranularity !== granularity) {
+                    onGranularityChange(draftGranularity);
+                  }
+                  setOpen(false);
+                }}
+                className="h-8 rounded-xl px-3 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
+              >
+                Apply
+              </button>
             </div>
           </div>,
           document.body,
@@ -443,7 +597,6 @@ export default function PeriodDateRangePicker({
             {granularityLabel}
           </span>
         )}
-        <ChevronDown className="h-3.5 w-3.5 text-secondary" />
       </button>
       {popover}
     </div>
