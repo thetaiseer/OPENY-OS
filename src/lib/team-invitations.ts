@@ -262,17 +262,32 @@ export async function acceptInvitationToken(
   }
 
   const membershipRole = toWorkspaceMembershipRole(validInvitation.role);
-  const { error: workspaceMembershipError } = await db.from('workspace_memberships').upsert(
-    {
+  const { data: existingMembership } = await db
+    .from('workspace_memberships')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('workspace_key', workspaceKey)
+    .maybeSingle();
+
+  if (existingMembership) {
+    const { error: updateErr } = await db
+      .from('workspace_memberships')
+      .update({ role: membershipRole, is_active: true })
+      .eq('user_id', userId)
+      .eq('workspace_key', workspaceKey);
+    if (updateErr) {
+      return { ok: false as const, status: 500, body: { error: updateErr.message } };
+    }
+  } else {
+    const { error: insertErr } = await db.from('workspace_memberships').insert({
       user_id: userId,
       workspace_key: workspaceKey,
       role: membershipRole,
       is_active: true,
-    },
-    { onConflict: 'user_id,workspace_key' },
-  );
-  if (workspaceMembershipError) {
-    return { ok: false as const, status: 500, body: { error: workspaceMembershipError.message } };
+    });
+    if (insertErr) {
+      return { ok: false as const, status: 500, body: { error: insertErr.message } };
+    }
   }
 
   const acceptedAt = new Date().toISOString();
