@@ -151,14 +151,26 @@ async function fetchUserStateFromTables(
   const email = supabaseUser.email ?? '';
   const meta = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>;
 
-  const [profileRes, memberWsRes] = await Promise.all([
-    supabase.from('profiles').select('name, full_name').eq('id', supabaseUser.id).maybeSingle(),
-    supabase
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', supabaseUser.id)
-      .limit(1)
-      .maybeSingle(),
+  const [profileRes, memberWsRes] = await Promise.race([
+    Promise.all([
+      supabase.from('profiles').select('name, full_name').eq('id', supabaseUser.id).maybeSingle(),
+      supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', supabaseUser.id)
+        .limit(1)
+        .maybeSingle(),
+    ]),
+    new Promise<[{ data: null; error: null }, { data: null; error: null }]>((resolve) =>
+      setTimeout(
+        () =>
+          resolve([
+            { data: null, error: null },
+            { data: null, error: null },
+          ]),
+        5_000,
+      ),
+    ),
   ]);
 
   let profile: { full_name?: string | null; name?: string | null } | null = null;
@@ -212,11 +224,15 @@ async function fetchUserStateFromTables(
     /* team_members lookup timed out or failed */
   }
 
-  const { data: memberships } = await supabase
-    .from('workspace_memberships')
-    .select('workspace_key, role, is_active')
-    .eq('user_id', supabaseUser.id)
-    .eq('is_active', true);
+  const membershipsResult = await Promise.race([
+    supabase
+      .from('workspace_memberships')
+      .select('workspace_key, role, is_active')
+      .eq('user_id', supabaseUser.id)
+      .eq('is_active', true),
+    new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5_000)),
+  ]);
+  const { data: memberships } = membershipsResult;
 
   const workspaceAccess: WorkspaceAccessState = {
     os: false,
@@ -335,8 +351,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // without blocking the UI again.
           loadUser(session.user).catch(() => {});
         } else {
-          await loadUser(session.user);
-          if (mounted) setLoading(false);
+          // Add a hard cap so loadUser DB hangs can never freeze the UI.
+          const loadTimer = setTimeout(() => {
+            if (mounted) setLoading(false);
+          }, 8_000);
+          try {
+            await loadUser(session.user);
+          } finally {
+            clearTimeout(loadTimer);
+            if (mounted) setLoading(false);
+          }
         }
       } else {
         if (mounted) {
