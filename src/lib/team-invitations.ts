@@ -121,6 +121,13 @@ function toWorkspaceMemberRole(role: string | null | undefined): 'owner' | 'admi
   return 'team';
 }
 
+function toWorkspaceMembershipRole(role: string | null | undefined): 'owner' | 'admin' | 'member' {
+  const normalized = (role ?? '').toLowerCase();
+  if (normalized === 'owner') return 'owner';
+  if (normalized === 'admin') return 'admin';
+  return 'member';
+}
+
 export async function acceptInvitationToken(
   request: NextRequest,
   tokenRaw: string,
@@ -254,20 +261,19 @@ export async function acceptInvitationToken(
     return { ok: false as const, status: 500, body: { error: workspaceMemberError.message } };
   }
 
-  await db.from('workspace_memberships').upsert(
+  const membershipRole = toWorkspaceMembershipRole(validInvitation.role);
+  const { error: workspaceMembershipError } = await db.from('workspace_memberships').upsert(
     {
-      workspace_id: validInvitation.workspace_id,
-      workspace_key: workspaceKey,
       user_id: userId,
-      role: memberRole,
+      workspace_key: workspaceKey,
+      role: membershipRole,
       is_active: true,
-      status: 'active',
-      email: invitationEmail,
-      full_name: profileName,
-      job_title: validInvitation.job_title ?? null,
     },
-    { onConflict: 'workspace_id,user_id' },
+    { onConflict: 'user_id,workspace_key' },
   );
+  if (workspaceMembershipError) {
+    return { ok: false as const, status: 500, body: { error: workspaceMembershipError.message } };
+  }
 
   const acceptedAt = new Date().toISOString();
   const { error: invitationError } = await db
