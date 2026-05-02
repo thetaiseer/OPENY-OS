@@ -310,10 +310,7 @@ export default function ActivityTimelinePage() {
           <Filter size={14} />
           {t('activityFilters')}
           {hasActiveFilters && (
-            <span
-              className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold"
-              style={{ color: 'var(--accent)' }}
-            >
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--accent)] text-[10px] font-bold text-[color:var(--accent-foreground)]">
               !
             </span>
           )}

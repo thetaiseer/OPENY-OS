@@ -208,6 +208,16 @@ body {
     color: var(--text-muted) !important;
   }
 
+  /* ── contrast safety: hardcoded bg-white / bg-black must always produce readable text ── */
+  /* bg-white is always a white (#ffffff) surface regardless of theme, so text must be dark. */
+  .bg-white {
+    color: #000000 !important;
+  }
+  /* bg-black is always a black (#000000) surface regardless of theme, so text must be light. */
+  .bg-black {
+    color: #ffffff !important;
+  }
+
   /* ── text colors ── */
   [class*='text-gray-'],
   [class*='text-slate-'],
@@ -624,7 +634,7 @@ select {
   .docs-toolbar-tab-active {
     border-color: var(--accent);
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-foreground);
     opacity: 1;
   }
 
