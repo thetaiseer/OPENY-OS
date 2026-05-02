@@ -63,9 +63,13 @@ export function usePermissions(): UsePermissionsResult {
 
     async function loadPermissions() {
       setLoading(true);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7_000);
       try {
-        // Fetch resolved permissions from the API.
-        const res = await fetch('/api/team/members/me/permissions', { credentials: 'include' });
+        const res = await fetch('/api/team/members/me/permissions', {
+          credentials: 'include',
+          signal: controller.signal,
+        });
         if (!res.ok) {
           if (!cancelled) {
             setPermissions(resolveEffectivePermissions(platformRole, []));
@@ -83,6 +87,7 @@ export function usePermissions(): UsePermissionsResult {
           setPermissions(resolveEffectivePermissions(platformRole, []));
         }
       } finally {
+        clearTimeout(timeout);
         if (!cancelled) setLoading(false);
       }
     }
