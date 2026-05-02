@@ -23,7 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: 'cover',
-  themeColor: '#6366f1',
+  themeColor: 'var(--text-secondary)',
 };
 
 const themeBootScript = `(function(){try{var stored=localStorage.getItem('theme');var theme=stored==='light'||stored==='dark'?stored:'dark';if(!stored){localStorage.setItem('theme',theme);}var root=document.documentElement;root.setAttribute('data-theme',theme);root.classList.toggle('dark',theme==='dark');}catch(e){var root=document.documentElement;root.setAttribute('data-theme','dark');root.classList.add('dark');}})();`;

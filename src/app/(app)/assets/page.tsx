@@ -57,6 +57,12 @@ import { workspaceSearchParamFromPathname } from '@/lib/workspace-access';
 import { LoadingState, ErrorState, EmptyState as GlobalEmptyState } from '@/components/ui/states';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import EntityActionsMenu from '@/components/ui/actions/EntityActionsMenu';
+import {
+  getSafeErrorMessage,
+  logClientError,
+  parseApiError,
+  type ApiErrorShape,
+} from '@/lib/errors/app-error';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -289,7 +295,7 @@ function FolderCard({
           onClick();
         }
       }}
-      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
+      className="relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
       style={{
         background: 'var(--surface)',
         borderColor: allSelected
@@ -351,7 +357,7 @@ function FolderCard({
       <div className="flex min-w-0 flex-1 flex-col items-center gap-3 text-center">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
-          style={{ background: color ? `${color}22` : 'rgba(99,102,241,0.1)' }}
+          style={{ background: color ? `${color}22` : 'var(--surface-2)' }}
         >
           <Folder className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: color ?? 'var(--accent)' }} />
         </div>
@@ -393,7 +399,7 @@ function FolderCard({
               disabled={isDownloading}
               className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
               style={{
-                background: 'rgba(99,102,241,0.1)',
+                background: 'var(--surface-2)',
                 color: 'var(--accent)',
                 border: '1px solid rgba(99,102,241,0.3)',
               }}
@@ -465,7 +471,7 @@ function ClientFolderCard({
           onView();
         }
       }}
-      className="shadow-card relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
+      className="relative flex min-h-[11.5rem] cursor-pointer select-none flex-col gap-3 rounded-2xl border p-5 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:translate-y-0 active:scale-[0.99] sm:min-h-[12rem] sm:p-5"
       style={{
         background: 'var(--surface)',
         borderColor: allSelected
@@ -527,7 +533,7 @@ function ClientFolderCard({
       <div className="flex min-w-0 items-center gap-3">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-200 sm:h-14 sm:w-14"
-          style={{ background: logoUrl ? 'var(--surface-2)' : 'rgba(99,102,241,0.1)' }}
+          style={{ background: logoUrl ? 'var(--surface-2)' : 'var(--surface-2)' }}
         >
           {logoUrl ? (
             <ClientBrandMark
@@ -554,7 +560,7 @@ function ClientFolderCard({
           type="button"
           onClick={onView}
           className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 sm:text-sm"
-          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}
+          style={{ background: 'var(--surface-2)', color: 'var(--accent)' }}
         >
           <FolderOpen size={14} /> {t('assetsView')}
         </button>
@@ -652,11 +658,11 @@ function Breadcrumb({
 // ── Category colors ───────────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'social-media': '#3b82f6',
-  videos: '#8b5cf6',
-  designs: '#f59e0b',
-  documents: '#10b981',
-  other: '#6b7280',
+  'social-media': 'var(--text-primary)',
+  videos: 'var(--text-secondary)',
+  designs: 'var(--text-secondary)',
+  documents: 'var(--text-primary)',
+  other: 'var(--text-secondary)',
 };
 
 function fileTypeFilterLabel(
@@ -832,14 +838,15 @@ function AssetsPage() {
         const res = await fetch(`/api/assets?page=${pageNum}&${workspaceQs}${periodQs}`, {
           signal: controller.signal,
         });
-        let json: { success: boolean; assets?: Asset[]; hasMore?: boolean; error?: string };
-        try {
-          json = await res.json();
-        } catch {
-          throw new Error(t('assetsServerNonJson', { status: res.status }));
-        }
-        if (!res.ok || !json.success) {
-          const msg = json.error ?? t('assetsFailedLoadHttp', { status: res.status });
+        if (!res.ok) throw await parseApiError(res);
+        const json = (await res.json()) as {
+          success?: boolean;
+          assets?: Asset[];
+          hasMore?: boolean;
+          error?: ApiErrorShape;
+        };
+        if (json.success === false) {
+          const msg = json.error?.message ?? t('assetsFailedLoadHttp', { status: res.status });
           setFetchError(msg);
           if (pageNum === 0) setAssets([]);
           return;
@@ -850,11 +857,8 @@ function AssetsPage() {
         setHasMore(json.hasMore ?? false);
       } catch (err: unknown) {
         const isAbort = err instanceof Error && err.name === 'AbortError';
-        const msg = isAbort
-          ? t('assetsLoadTimeout')
-          : err instanceof Error
-            ? err.message
-            : String(err);
+        const msg = isAbort ? t('assetsLoadTimeout') : getSafeErrorMessage(err);
+        if (!isAbort) logClientError('[assets] fetch assets failed', err);
         setFetchError(isAbort ? msg : t('assetsCouldNotReach', { message: msg }));
         if (pageNum === 0) setAssets([]);
       } finally {
@@ -1440,70 +1444,92 @@ function AssetsPage() {
   const handleDeleteClientFolder = useCallback(
     async (clientLabel: string, ids: string[]) => {
       if (!ids.length) return;
+      console.log('[assets] folder delete clicked', { clientLabel, idsCount: ids.length });
       setDeletingClientFolder(clientLabel);
-      const actionLabel = `${t('deleteAction')} / ${clientLabel}`;
       try {
-        const results = await Promise.allSettled(
-          ids.map(async (id) => {
-            const res = await fetch(`/api/assets/${id}?${workspaceQs}`, { method: 'DELETE' });
-            if (!res.ok) {
-              const j = (await res.json().catch(() => ({}))) as { error?: string };
-              throw new Error(j.error ?? `HTTP ${res.status}`);
-            }
-            return id;
+        const payload = {
+          folder: clientLabel,
+        };
+        console.log('[assets] folder delete payload', payload);
+        const res = await fetch('/api/assets/force-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        const resForError = res.clone();
+        const json = (await res.json().catch(() => ({}))) as {
+          deletedCount?: number;
+          success?: boolean;
+          ids?: string[];
+          error?: ApiErrorShape;
+        };
+        console.log('[assets] folder delete response', {
+          status: res.status,
+          ok: res.ok,
+          body: json,
+        });
+        if (!res.ok || !json.success) throw await parseApiError(resForError);
+
+        setAssets((prev) =>
+          prev.filter((asset) => {
+            const folderKey =
+              (asset as Asset & { folder?: string | null }).folder ??
+              asset.client_folder_name ??
+              asset.client_name ??
+              '';
+            return folderKey !== clientLabel;
           }),
         );
-        const deletedIds = results
-          .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        const failedCount = results.length - deletedIds.length;
-        if (deletedIds.length > 0) {
-          const deletedSet = new Set(deletedIds);
-          setAssets((prev) => prev.filter((a) => !deletedSet.has(a.id)));
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            deletedIds.forEach((id) => next.delete(id));
-            return next;
-          });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+        if (folderPath.client === clientLabel) {
+          navigateTo({});
         }
-        if (failedCount > 0) {
-          toast(`${actionLabel}: ${failedCount} failed, ${deletedIds.length} deleted`, 'error');
-          return;
-        }
-        toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
+        await fetchAssets(0);
+        const deletedCount = json.deletedCount ?? ids.length;
+        toast(`Folder deleted successfully. ${deletedCount} assets removed.`, 'success');
       } catch (err: unknown) {
-        toast(
-          `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
-          'error',
-        );
+        logClientError('[assets] folder delete failed', err);
+        toast(`Could not delete folder: ${getSafeErrorMessage(err)}`, 'error');
       } finally {
         setDeletingClientFolder(null);
       }
     },
-    [t, toast, workspaceQs],
+    [toast, folderPath.client, navigateTo, fetchAssets],
   );
 
   const handleDelete = async (asset: Asset) => {
     const actionLabel = `${t('deleteAction')} / ${asset.name}`;
     try {
+      console.log('[assets] delete clicked', { assetId: asset.id, assetName: asset.name });
       setDeletingAssetId(asset.id);
-      const response = await fetch(`/api/assets/${asset.id}?${workspaceQs}`, { method: 'DELETE' });
-      const json = (await response.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-      if (!response.ok || json.success === false) {
-        throw new Error(json.error ?? `HTTP ${response.status}`);
-      }
+      console.log('[assets] calling force-delete API', { assetId: asset.id });
+      const response = await fetch('/api/assets/force-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ assetId: asset.id }),
+      });
+      const responseForError = response.clone();
+      const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      console.log('[assets] delete API response', {
+        assetId: asset.id,
+        status: response.status,
+        ok: response.ok,
+        body: json,
+      });
+      if (!response.ok || json.success !== true) throw await parseApiError(responseForError);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-      void fetchAssets(0);
+      await fetchAssets(0);
       toast(`${actionLabel}: ${t('assetsDeletedSuccess')}`, 'success');
       setPendingDeleteAsset(null);
-    } catch (err) {
-      toast(
-        `${actionLabel}: ${t('assetsDeleteFailed', { error: err instanceof Error ? err.message : t('unknownError') })}`,
-        'error',
-      );
+    } catch (err: unknown) {
+      logClientError('[assets] delete asset failed', err);
+      toast(`${actionLabel}: ${getSafeErrorMessage(err)}`, 'error');
     } finally {
       setDeletingAssetId((current) => (current === asset.id ? null : current));
     }
@@ -1517,13 +1543,7 @@ function AssetsPage() {
       body: JSON.stringify({ name: newName }),
     });
     const json = (await res.json()) as { success?: boolean; error?: string; name?: string };
-    if (!res.ok) {
-      toast(
-        `${actionLabel}: ${t('assetsRenameFailed', { error: String(json.error ?? `HTTP ${res.status}`) })}`,
-        'error',
-      );
-      throw new Error(json.error ?? `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw await parseApiError(res);
     setAssets((prev) =>
       prev.map((a) => (a.id === asset.id ? { ...a, name: json.name ?? newName } : a)),
     );
@@ -1767,12 +1787,27 @@ function AssetsPage() {
             cardHeightClass="min-h-[12rem]"
           />
         ) : fetchError ? (
-          <ErrorState
-            title={t('assetsFailedLoadTitle')}
-            description={fetchError}
-            actionLabel={t('assetsRetry')}
-            onAction={() => void fetchAssets(0)}
-          />
+          <>
+            <div
+              className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+              style={{
+                borderColor: 'var(--color-danger-border)',
+                background: 'var(--color-danger-bg)',
+                color: 'var(--color-danger)',
+              }}
+            >
+              <p className="text-sm font-medium">{fetchError}</p>
+              <Button type="button" variant="danger" onClick={() => void fetchAssets(0)}>
+                {t('assetsRetry')}
+              </Button>
+            </div>
+            <ErrorState
+              title={t('assetsFailedLoadTitle')}
+              description={fetchError}
+              actionLabel={t('assetsRetry')}
+              onAction={() => void fetchAssets(0)}
+            />
+          </>
         ) : filteredAssets.length === 0 ? (
           /* Empty state */
           <GlobalEmptyState

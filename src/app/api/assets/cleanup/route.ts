@@ -37,7 +37,7 @@ async function findOrphanedIds(assets: AssetRow[]): Promise<string[]> {
  * Admin only.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(req, ['admin']);
+  const auth = await requireRole(req, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { configured, missingVars } = getStorageConfigStatus();
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
  * Admin only.
  */
 export async function DELETE(req: NextRequest) {
-  const auth = await requireRole(req, ['admin']);
+  const auth = await requireRole(req, ['owner', 'admin']);
   if (auth instanceof NextResponse) return auth;
 
   const { configured, missingVars } = getStorageConfigStatus();
@@ -96,12 +96,22 @@ export async function DELETE(req: NextRequest) {
   const orphanedIds = await findOrphanedIds(list);
 
   if (orphanedIds.length > 0) {
-    const { error: deleteError } = await supabase.from('assets').delete().in('id', orphanedIds);
+    const nowIso = new Date().toISOString();
+    const { error: softDeleteError } = await supabase
+      .from('assets')
+      .update({
+        deleted_at: nowIso,
+        is_deleted: true,
+        sync_status: 'missing',
+        missing_in_storage: true,
+        updated_at: nowIso,
+      })
+      .in('id', orphanedIds);
 
-    if (deleteError) {
+    if (softDeleteError) {
       return NextResponse.json(
         {
-          error: `Failed to delete orphaned records: ${deleteError.message}`,
+          error: `Failed to mark missing records: ${softDeleteError.message}`,
           attempted: orphanedIds,
         },
         { status: 500 },
@@ -109,5 +119,5 @@ export async function DELETE(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ deleted: orphanedIds.length, ids: orphanedIds });
+  return NextResponse.json({ deleted: orphanedIds.length, ids: orphanedIds, softDeleted: true });
 }

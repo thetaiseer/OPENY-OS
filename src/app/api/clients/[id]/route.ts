@@ -39,8 +39,7 @@ async function countClientDependencies(
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    // TODO: restore role-based delete permissions after debugging.
-    const auth = await requireRole(request, ['owner', 'admin', 'manager', 'team_member']);
+    const auth = await requireRole(request, ['owner', 'admin', 'manager']);
     if (auth instanceof NextResponse) return auth;
 
     const { id: clientId } = await ctx.params;

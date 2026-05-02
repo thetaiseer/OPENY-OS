@@ -48,6 +48,12 @@ import { normalizeWorkspaceKey, WORKSPACE_ROLES } from '@/lib/workspace-access';
 import { OS_MODULES, DOCS_MODULES } from '@/lib/permissions';
 import { looksLikeUuid } from '@/lib/member-display-name';
 import { useRemoveTeamMember } from '@/hooks/mutations/useRemoveTeamMember';
+import {
+  AppError,
+  getSafeErrorMessage,
+  logClientError,
+  parseApiError,
+} from '@/lib/errors/app-error';
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -830,14 +836,14 @@ function MemberSidePanel({
         <div className="border-b px-5 py-5" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-4">
             <div
-              className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
-              style={{ background: isOwner ? 'var(--accent)' : '#6366f1' }}
+              className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[var(--accent-foreground)]"
+              style={{ background: isOwner ? 'var(--accent)' : 'var(--text-secondary)' }}
             >
               {member.full_name.charAt(0).toUpperCase()}
               {isOwner && (
                 <span
                   className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
+                  style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
                   <Crown size={10} />
                 </span>
@@ -1334,24 +1340,8 @@ export default function TeamPage() {
           },
         }),
       });
+      if (!res.ok) throw await parseApiError(res);
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) {
-        if (data?.code === 'ALREADY_MEMBER') {
-          setInviteErrorCode('ALREADY_MEMBER');
-          setActionError('This person is already in your team.');
-          toast('This person is already in your team.', 'error');
-          return;
-        }
-        const errText =
-          (typeof data.error === 'string' && data.error) ||
-          (typeof data.dbError === 'string' && data.dbError) ||
-          t('teamInviteFailed');
-        setActionError(errText);
-        if (data.dbError) console.error('[team] invitation insert error:', data.dbError);
-        console.error('[team] invite API failed:', res.status, data);
-        toast(errText, 'error');
-        return;
-      }
 
       if (data?.regenerated === true) {
         setInviteOpen(false);
@@ -1445,7 +1435,14 @@ export default function TeamPage() {
       await queryClient.invalidateQueries({ queryKey: ['team-data'] });
       await queryClient.refetchQueries({ queryKey: ['team-data'] });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('teamNetworkErrorRetry');
+      if (err instanceof AppError && err.code === 'ALREADY_MEMBER') {
+        setInviteErrorCode('ALREADY_MEMBER');
+        setActionError('This person is already in your team.');
+        toast(getSafeErrorMessage(err), 'error');
+        return;
+      }
+      logClientError('[team] invite request failed', err);
+      const msg = getSafeErrorMessage(err) || t('teamNetworkErrorRetry');
       setActionError(msg);
       toast(msg, 'error');
     } finally {
@@ -1918,7 +1915,7 @@ export default function TeamPage() {
             <button
               type="submit"
               disabled={saving || inviteErrorCode === 'ALREADY_MEMBER'}
-              className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >
               <Send size={14} />
@@ -1998,7 +1995,7 @@ export default function TeamPage() {
             <button
               type="submit"
               disabled={saving}
-              className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              className="h-9 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >
               {saving ? t('loading') : t('save')}
@@ -2092,7 +2089,7 @@ function OwnerCard({
   const { t } = useLang();
   return (
     <div
-      className="shadow-card relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border-2 p-5 shadow-card"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--accent)',
@@ -2106,14 +2103,14 @@ function OwnerCard({
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-white"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold text-[var(--accent-foreground)]"
             style={{ background: 'var(--accent)' }}
           >
             {member.full_name.charAt(0).toUpperCase()}
           </div>
           <span
             className="absolute -bottom-1 end-1 flex h-5 w-5 items-center justify-center rounded-full"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
             title={t('teamWorkspaceOwnerDisplay')}
           >
             <Crown size={10} />
@@ -2320,7 +2317,7 @@ function MemberCard({
   return (
     <div
       className={
-        'shadow-card flex flex-col gap-3 rounded-2xl border p-5 transition-shadow' +
+        'flex flex-col gap-3 rounded-2xl border p-5 shadow-card transition-shadow' +
         (isInteractive ? ' cursor-pointer hover:-translate-y-0.5' : '')
       }
       onClick={() => isInteractive && onView?.(member)}
@@ -2340,8 +2337,8 @@ function MemberCard({
     >
       <div className="flex items-start gap-3">
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-          style={{ background: isInvited ? '#d97706' : 'var(--accent)' }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[var(--accent-foreground)]"
+          style={{ background: isInvited ? 'var(--text-secondary)' : 'var(--accent)' }}
         >
           {member.full_name.charAt(0).toUpperCase()}
         </div>

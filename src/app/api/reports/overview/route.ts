@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
           .from('assets')
           .select('id, client_id, content_type, created_at')
           .eq('workspace_id', workspaceId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false')
+          .not('sync_status', 'in', '("deleted","missing")')
           .gte('created_at', `${rangeStart}T00:00:00Z`)
           .lte('created_at', `${rangeEnd}T23:59:59Z`)
           .limit(2500),

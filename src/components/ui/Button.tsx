@@ -12,21 +12,21 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'min-h-9 px-4 py-2 text-sm',
-  md: 'min-h-10 px-4 py-2 text-sm',
-  lg: 'min-h-11 px-5 py-2.5 text-sm',
-  icon: 'h-10 w-10 min-h-10 min-w-10 shrink-0 p-0',
+  sm: 'min-h-9 px-4 py-2 text-xs gap-1.5',
+  md: 'min-h-11 px-5 py-2.5 text-sm',
+  lg: 'min-h-12 px-6 py-3 text-sm',
+  icon: 'h-11 w-11 min-h-11 min-w-11 shrink-0 rounded-full p-0',
 };
 
 const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_24px_rgba(37,99,235,0.24)] hover:bg-[color:var(--accent-hover)]',
+    'border border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:opacity-90',
   secondary:
-    'border-border bg-[color:var(--surface-soft)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_22px_rgba(15,23,42,0.06)] hover:bg-[color:var(--surface-elevated)]',
+    'border-[1.5px] border-border bg-transparent text-[color:var(--text-primary)] hover:bg-[color:var(--surface-soft)]',
   ghost:
-    'border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text-primary)]',
+    'border border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text-primary)]',
   danger:
-    'border-[color:var(--danger)] bg-[color:var(--danger)] text-[color:var(--danger-foreground)] shadow-[0_10px_24px_rgba(220,38,38,0.2)] hover:brightness-95',
+    'border border-[color:var(--primary)] bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:opacity-90',
 };
 
 export default function Button({
@@ -55,7 +55,7 @@ export default function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium leading-tight transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:translate-y-[1px] disabled:cursor-not-allowed disabled:border-[color:var(--border)] disabled:bg-[color:var(--surface-soft)] disabled:text-[color:var(--text-disabled)] disabled:opacity-100',
+        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-2xl font-medium leading-tight transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40',
         SIZE_CLASS[resolvedSize],
         VARIANT_CLASS[resolvedVariant],
         className,

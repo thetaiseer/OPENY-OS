@@ -79,7 +79,15 @@ interface ReportsData {
   monthlyTrends: MonthlyTrend[];
 }
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
+const CHART_COLORS = [
+  'var(--text-secondary)',
+  'var(--text-primary)',
+  'var(--text-secondary)',
+  'var(--text-primary)',
+  'var(--text-secondary)',
+  'var(--text-primary)',
+  'var(--text-primary)',
+];
 
 function toCSV<T extends object>(rows: T[], headers: Array<keyof T>): string {
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -242,10 +250,10 @@ export default function ReportsPage() {
                     <span
                       className={
                         report.summary.completionRate >= 80
-                          ? 'text-[#10b981]'
+                          ? 'text-[var(--text-primary)]'
                           : report.summary.completionRate >= 50
-                            ? 'text-[#f59e0b]'
-                            : 'text-[#ef4444]'
+                            ? 'text-[var(--text-secondary)]'
+                            : 'text-[var(--text-primary)]'
                       }
                     >
                       {report.summary.completionRate >= 80
@@ -272,16 +280,16 @@ export default function ReportsPage() {
                     >
                       <defs>
                         <linearGradient id="gcT" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--text-secondary)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--text-secondary)" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="gcP" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--text-secondary)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--text-secondary)" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="gcA" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--text-primary)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--text-primary)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -297,7 +305,7 @@ export default function ReportsPage() {
                         type="monotone"
                         dataKey="completedTasks"
                         name={t('chartCompletedTasks')}
-                        stroke="#6366f1"
+                        stroke="var(--text-secondary)"
                         fill="url(#gcT)"
                         strokeWidth={2}
                         dot={false}
@@ -306,7 +314,7 @@ export default function ReportsPage() {
                         type="monotone"
                         dataKey="publishedPosts"
                         name={t('chartPublishedPosts')}
-                        stroke="#8b5cf6"
+                        stroke="var(--text-secondary)"
                         fill="url(#gcP)"
                         strokeWidth={2}
                         dot={false}
@@ -315,7 +323,7 @@ export default function ReportsPage() {
                         type="monotone"
                         dataKey="newAssets"
                         name={t('chartNewAssets')}
-                        stroke="#10b981"
+                        stroke="var(--text-primary)"
                         fill="url(#gcA)"
                         strokeWidth={2}
                         dot={false}
@@ -347,19 +355,19 @@ export default function ReportsPage() {
                       <Bar
                         dataKey="published"
                         name={t('chartPublished')}
-                        fill="#6366f1"
+                        fill="var(--text-secondary)"
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="scheduled"
                         name={t('chartScheduled')}
-                        fill="#8b5cf6"
+                        fill="var(--text-secondary)"
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="missed"
                         name={t('chartMissed')}
-                        fill="#ef4444"
+                        fill="var(--text-primary)"
                         radius={[4, 4, 0, 0]}
                       />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
@@ -472,7 +480,7 @@ export default function ReportsPage() {
                         <Bar
                           dataKey="completedTasks"
                           name={t('chartCompleted')}
-                          fill="#6366f1"
+                          fill="var(--text-secondary)"
                           radius={[0, 4, 4, 0]}
                         />
                       </BarChart>
@@ -517,10 +525,10 @@ export default function ReportsPage() {
                                       width: `${m.completionRate}%`,
                                       background:
                                         m.completionRate >= 80
-                                          ? '#10b981'
+                                          ? 'var(--text-primary)'
                                           : m.completionRate >= 50
-                                            ? '#f59e0b'
-                                            : '#ef4444',
+                                            ? 'var(--text-secondary)'
+                                            : 'var(--text-primary)',
                                     }}
                                   />
                                 </div>
@@ -603,20 +611,20 @@ export default function ReportsPage() {
                         <Bar
                           dataKey="published"
                           name={t('chartPublished')}
-                          fill="#6366f1"
+                          fill="var(--text-secondary)"
                           radius={[4, 4, 0, 0]}
                           stackId="a"
                         />
                         <Bar
                           dataKey="scheduled"
                           name={t('chartScheduled')}
-                          fill="#8b5cf6"
+                          fill="var(--text-secondary)"
                           stackId="a"
                         />
                         <Bar
                           dataKey="missed"
                           name={t('chartMissed')}
-                          fill="#ef4444"
+                          fill="var(--text-primary)"
                           radius={[4, 4, 0, 0]}
                           stackId="a"
                         />
@@ -658,13 +666,13 @@ export default function ReportsPage() {
                     <Bar
                       dataKey="publishedPosts"
                       name={t('chartPublishedPosts')}
-                      fill="#8b5cf6"
+                      fill="var(--text-secondary)"
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
                       dataKey="newAssets"
                       name={t('chartNewAssets')}
-                      fill="#10b981"
+                      fill="var(--text-primary)"
                       radius={[4, 4, 0, 0]}
                     />
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />

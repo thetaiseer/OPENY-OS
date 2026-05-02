@@ -59,7 +59,7 @@ export default function PortalPage() {
           >
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-              style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}
+              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
             >
               <FolderOpen size={18} />
             </div>

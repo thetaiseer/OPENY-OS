@@ -32,10 +32,10 @@ const TYPE_ICON = {
 } as const;
 
 const TYPE_COLOR = {
-  info: '#3b82f6',
-  success: '#16a34a',
-  warning: '#d97706',
-  error: '#dc2626',
+  info: 'var(--text-primary)',
+  success: 'var(--text-primary)',
+  warning: 'var(--text-secondary)',
+  error: 'var(--text-primary)',
 } as const;
 
 function fmtDate(d: string) {
@@ -176,8 +176,13 @@ export default function NotificationDropdown() {
         <Bell size={18} />
         {unreadCount > 0 && (
           <span
-            className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-white"
-            style={{ background: '#ef4444', fontSize: '10px', fontWeight: 700, lineHeight: 1 }}
+            className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[var(--accent-foreground)]"
+            style={{
+              background: 'var(--surface-muted)',
+              fontSize: '10px',
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
@@ -205,8 +210,8 @@ export default function NotificationDropdown() {
               Notifications{' '}
               {unread > 0 && (
                 <span
-                  className="ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold text-white"
-                  style={{ background: '#ef4444' }}
+                  className="ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--surface-muted)' }}
                 >
                   {unread}
                 </span>
@@ -247,7 +252,8 @@ export default function NotificationDropdown() {
               <div className="space-y-0.5 py-1">
                 {notifications.map((n) => {
                   const Icon = TYPE_ICON[n.type as keyof typeof TYPE_ICON] ?? Info;
-                  const color = TYPE_COLOR[n.type as keyof typeof TYPE_COLOR] ?? '#3b82f6';
+                  const color =
+                    TYPE_COLOR[n.type as keyof typeof TYPE_COLOR] ?? 'var(--text-primary)';
                   return (
                     <div
                       key={n.id}

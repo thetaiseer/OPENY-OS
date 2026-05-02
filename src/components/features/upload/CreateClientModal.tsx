@@ -138,8 +138,8 @@ export default function CreateClientModal({ onCreated, onCancel }: CreateClientM
           <div
             className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm"
             style={{
-              background: 'rgba(239,68,68,0.1)',
-              color: '#ef4444',
+              background: 'var(--surface-muted)',
+              color: 'var(--text-primary)',
               border: '1px solid rgba(239,68,68,0.3)',
             }}
           >

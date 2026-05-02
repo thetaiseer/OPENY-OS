@@ -60,7 +60,7 @@ export default async function InviteTokenPage({ params }: PageProps) {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/?next=${encodeURIComponent(`/invite/${normalizedToken}`)}`}
-                className="inline-flex h-10 items-center rounded-lg bg-[color:var(--accent)] px-4 text-sm font-semibold text-white"
+                className="inline-flex h-10 items-center rounded-lg bg-[color:var(--accent)] px-4 text-sm font-semibold text-[var(--accent-foreground)]"
               >
                 Continue with email login
               </Link>

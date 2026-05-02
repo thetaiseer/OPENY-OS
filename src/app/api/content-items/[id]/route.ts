@@ -173,8 +173,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
-  // TODO: restore role-based delete permissions after debugging.
-  const auth = await requireRole(req, ['owner', 'admin', 'manager', 'team_member']);
+  const auth = await requireRole(req, ['owner', 'admin', 'manager']);
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   try {

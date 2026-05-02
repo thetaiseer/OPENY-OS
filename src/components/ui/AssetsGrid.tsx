@@ -162,7 +162,7 @@ function AssetTile({
             ) : isSheet ? (
               <FileSpreadsheet size={28} className="text-emerald-500" />
             ) : isDoc ? (
-              <FileText size={28} className="text-blue-500" />
+              <FileText size={28} className="text-primary" />
             ) : isCode ? (
               <FileCode2 size={28} className="text-violet-500" />
             ) : (
@@ -177,8 +177,8 @@ function AssetTile({
         {video ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
-              className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg"
-              style={{ background: 'rgba(15,23,42,0.55)' }}
+              className="flex h-12 w-12 items-center justify-center rounded-full text-[var(--accent-foreground)] shadow-lg"
+              style={{ background: 'rgba(0,0,0,0.5)' }}
             >
               <span className="ms-0.5 text-lg">▶</span>
             </div>
@@ -285,8 +285,8 @@ function AssetTile({
           {canDelete && onDelete ? (
             <button
               type="button"
-              className="rounded-lg p-1.5 hover:bg-red-50"
-              style={{ color: 'var(--color-danger, #dc2626)' }}
+              className="rounded-lg p-1.5 hover:bg-[color:var(--danger-soft)]"
+              style={{ color: 'var(--color-danger)' }}
               onClick={() => onDelete(asset)}
               title="Delete"
             >

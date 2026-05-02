@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     .upsert(
       {
         name,
-        color: typeof body.color === 'string' ? body.color.trim() : '#6366f1',
+        color: typeof body.color === 'string' ? body.color.trim() : 'var(--text-secondary)',
         description: typeof body.description === 'string' ? body.description.trim() : null,
       },
       { onConflict: 'workspace_id,name' },

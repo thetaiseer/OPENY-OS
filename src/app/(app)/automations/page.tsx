@@ -163,7 +163,7 @@ export default function AutomationsPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] transition-opacity hover:opacity-90"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={16} /> New Rule

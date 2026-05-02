@@ -109,7 +109,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="openy-glass fixed inset-y-0 start-0 z-40 hidden overflow-y-auto border-e md:block"
+      className="fixed inset-y-0 start-0 z-40 hidden overflow-y-auto border-e bg-[color:var(--sidebar)] text-[color:var(--sidebar-foreground)] shadow-[0_20px_48px_var(--openy-glow)] md:block"
       style={{ width: 'var(--openy-sidebar-width)' }}
     >
       <div
@@ -127,7 +127,7 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={() => setCollapsed(true)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--foreground)]"
             aria-label="Collapse sidebar"
           >
             <ChevronsLeft className="h-4 w-4" />
@@ -136,7 +136,7 @@ export default function Sidebar() {
       </div>
       <div className="px-3 pt-3">
         <div
-          className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
+          className="rounded-xl border border-[var(--border)] bg-[color:var(--surface-soft)] px-3 py-2"
           title={workspaceLabel}
         >
           {collapsed ? (
@@ -156,7 +156,7 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className="inline-flex h-8 w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
+            className="inline-flex h-8 w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--foreground)]"
             aria-label="Expand sidebar"
           >
             <ChevronsRight className="h-4 w-4" />

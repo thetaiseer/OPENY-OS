@@ -300,7 +300,7 @@ function GlobalProjectModal({
     client_id: clients[0]?.id ?? '',
     start_date: '',
     end_date: '',
-    color: '#6366f1',
+    color: 'var(--text-secondary)',
   });
 
   const handleSave = async (e: React.FormEvent) => {

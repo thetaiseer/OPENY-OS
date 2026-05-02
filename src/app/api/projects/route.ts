@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     description: typeof body.description === 'string' ? body.description.trim() : null,
     start_date: typeof body.start_date === 'string' ? body.start_date.trim() : null,
     end_date: typeof body.end_date === 'string' ? body.end_date.trim() : null,
-    color: typeof body.color === 'string' ? body.color.trim() : '#6366f1',
+    color: typeof body.color === 'string' ? body.color.trim() : 'var(--text-secondary)',
     created_by: auth.profile.id,
   };
 

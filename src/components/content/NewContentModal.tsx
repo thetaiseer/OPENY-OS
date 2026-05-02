@@ -193,7 +193,11 @@ export default function NewContentModal({
                 className="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
                 style={
                   platforms.includes(p)
-                    ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }
+                    ? {
+                        background: 'var(--accent)',
+                        color: 'var(--accent-foreground)',
+                        borderColor: 'var(--accent)',
+                      }
                     : {
                         background: 'var(--surface-2)',
                         color: 'var(--text-secondary)',

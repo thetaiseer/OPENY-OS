@@ -477,7 +477,7 @@ export default function NewTaskModal({
                 className="rounded-lg border px-3 py-2 text-left text-xs font-medium transition-all"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--surface-2)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--accent-foreground)' : 'var(--text)',
                   borderColor: active ? 'var(--accent)' : 'var(--border)',
                 }}
               >
@@ -512,7 +512,7 @@ export default function NewTaskModal({
                 className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
                 style={{
                   background: active ? p.displayColor : 'var(--surface-2)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--accent-foreground)' : 'var(--text)',
                   borderColor: active ? p.displayColor : 'var(--border)',
                 }}
               >
@@ -544,7 +544,7 @@ export default function NewTaskModal({
                 className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--surface-2)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--accent-foreground)' : 'var(--text)',
                   borderColor: active ? 'var(--accent)' : 'var(--border)',
                 }}
               >
@@ -957,7 +957,7 @@ export default function NewTaskModal({
                         className="h-7 rounded-full border px-3 text-xs font-medium transition-all"
                         style={{
                           background: active ? 'var(--accent)' : 'var(--surface-2)',
-                          color: active ? '#fff' : 'var(--text)',
+                          color: active ? 'var(--accent-foreground)' : 'var(--text)',
                           borderColor: active ? 'var(--accent)' : 'var(--border)',
                         }}
                       >
@@ -1009,11 +1009,11 @@ export default function NewTaskModal({
           {(needsPlatforms || selectedPlatforms.length > 0) && (
             <div
               className="space-y-4 rounded-xl border p-4"
-              style={{ borderColor: '#7c3aed', borderStyle: 'dashed' }}
+              style={{ borderColor: 'var(--text-secondary)', borderStyle: 'dashed' }}
             >
               <p
                 className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: '#7c3aed' }}
+                style={{ color: 'var(--text-secondary)' }}
               >
                 Publishing Details
               </p>
@@ -1041,7 +1041,7 @@ export default function NewTaskModal({
               <button
                 type="button"
                 onClick={() => setPlatforms(['instagram'])}
-                className="flex items-center gap-1 text-xs text-[#7c3aed] hover:underline"
+                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:underline"
               >
                 <Send size={12} /> Add publishing / platform details
               </button>

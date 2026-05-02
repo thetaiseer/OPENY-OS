@@ -90,12 +90,14 @@ function getDisplayName(item: UploadItem): string {
 function FileTypeIcon({ item }: { item: UploadItem }) {
   const { name, type } = item.file;
   const sz = 13;
-  if (isImageFile(name, type)) return <FileImage size={sz} style={{ color: '#3b82f6' }} />;
+  if (isImageFile(name, type))
+    return <FileImage size={sz} style={{ color: 'var(--text-primary)' }} />;
   if (/\.pdf$/i.test(name) || type === 'application/pdf')
-    return <FileText size={sz} style={{ color: '#ef4444' }} />;
+    return <FileText size={sz} style={{ color: 'var(--text-primary)' }} />;
   if (/\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name) || type.startsWith('video/'))
-    return <FileVideo size={sz} style={{ color: '#8b5cf6' }} />;
-  if (type.startsWith('audio/')) return <FileAudio size={sz} style={{ color: '#06b6d4' }} />;
+    return <FileVideo size={sz} style={{ color: 'var(--text-secondary)' }} />;
+  if (type.startsWith('audio/'))
+    return <FileAudio size={sz} style={{ color: 'var(--text-primary)' }} />;
   return <File size={sz} style={{ color: 'var(--text-secondary)' }} />;
 }
 
@@ -106,10 +108,10 @@ const STATUS_COLOR: Record<UploadStatus, string> = {
   uploading: 'var(--accent)',
   uploaded: 'var(--accent)',
   saved: 'var(--accent)',
-  completed: '#16a34a',
-  paused: '#6366f1',
-  failed_db: '#d97706',
-  failed_upload: '#ef4444',
+  completed: 'var(--text-primary)',
+  paused: 'var(--text-secondary)',
+  failed_db: 'var(--text-secondary)',
+  failed_upload: 'var(--text-primary)',
 };
 
 // ── Per-item row ──────────────────────────────────────────────────────────────
@@ -170,10 +172,18 @@ function QueueRow({ item }: { item: UploadItem }) {
             <p className="flex-1 truncate text-xs font-semibold" style={{ color: 'var(--text)' }}>
               {getDisplayName(item)}
             </p>
-            {isComplete && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
-            {isFailedDb && <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0 }} />}
-            {isFailed && <AlertCircle size={13} style={{ color: '#ef4444', flexShrink: 0 }} />}
-            {isPaused && <Pause size={13} style={{ color: '#6366f1', flexShrink: 0 }} />}
+            {isComplete && (
+              <CheckCircle size={13} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
+            )}
+            {isFailedDb && (
+              <AlertTriangle size={13} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            )}
+            {isFailed && (
+              <AlertCircle size={13} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
+            )}
+            {isPaused && (
+              <Pause size={13} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            )}
             {isActive && (
               <Loader2
                 size={13}
@@ -203,7 +213,10 @@ function QueueRow({ item }: { item: UploadItem }) {
               </span>
             )}
             {isPaused && (
-              <span className="ml-auto font-bold tabular-nums" style={{ color: '#6366f1' }}>
+              <span
+                className="ml-auto font-bold tabular-nums"
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 {item.progress}%
               </span>
             )}
@@ -243,7 +256,7 @@ function QueueRow({ item }: { item: UploadItem }) {
                 className="h-full rounded-full transition-all duration-300"
                 style={{
                   width: `${item.progress}%`,
-                  background: isPaused ? '#6366f1' : 'var(--accent)',
+                  background: isPaused ? 'var(--text-secondary)' : 'var(--accent)',
                 }}
               />
             </div>
@@ -272,7 +285,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               onClick={() => pauseItem(item.id)}
               title="Pause upload"
               className="flex h-6 w-6 items-center justify-center rounded-md transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface)', color: '#6366f1' }}
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
             >
               <Pause size={10} />
             </button>
@@ -283,7 +296,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               onClick={() => resumeItem(item.id)}
               title="Resume upload"
               className="flex h-6 w-6 items-center justify-center rounded-md transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface)', color: '#6366f1' }}
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
             >
               <Play size={10} />
             </button>
@@ -305,7 +318,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               onClick={() => retryItem(item.id)}
               title="Retry upload"
               className="flex h-6 w-6 items-center justify-center rounded-md transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface)', color: '#f59e0b' }}
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
             >
               <RotateCcw size={10} />
             </button>
@@ -316,7 +329,7 @@ function QueueRow({ item }: { item: UploadItem }) {
               onClick={() => reconcileItem(item.id)}
               title="Retry saving to system"
               className="flex h-6 w-6 items-center justify-center rounded-md transition-opacity hover:opacity-70"
-              style={{ background: 'var(--surface)', color: '#d97706' }}
+              style={{ background: 'var(--surface)', color: 'var(--text-secondary)' }}
             >
               <RefreshCw size={10} />
             </button>
@@ -378,13 +391,23 @@ function QueueRow({ item }: { item: UploadItem }) {
           )}
           <p className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
             <span style={{ opacity: 0.6 }}>reached storage: </span>
-            <span style={{ color: item.errorDetail.fileReachedStorage ? '#16a34a' : '#ef4444' }}>
+            <span
+              style={{
+                color: item.errorDetail.fileReachedStorage
+                  ? 'var(--text-primary)'
+                  : 'var(--text-primary)',
+              }}
+            >
               {item.errorDetail.fileReachedStorage ? 'yes' : 'no'}
             </span>
           </p>
           <p className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
             <span style={{ opacity: 0.6 }}>db saved: </span>
-            <span style={{ color: item.errorDetail.dbSaved ? '#16a34a' : '#ef4444' }}>
+            <span
+              style={{
+                color: item.errorDetail.dbSaved ? 'var(--text-primary)' : 'var(--text-primary)',
+              }}
+            >
               {item.errorDetail.dbSaved ? 'yes' : 'no'}
             </span>
           </p>
@@ -518,9 +541,9 @@ export default function GlobalUploadQueue() {
               {active > 0 ? (
                 <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
               ) : allDone && failed === 0 && failedDb === 0 ? (
-                <CheckCircle size={14} style={{ color: '#16a34a' }} />
+                <CheckCircle size={14} style={{ color: 'var(--text-primary)' }} />
               ) : allDone && failedDb > 0 && failed === 0 ? (
-                <AlertTriangle size={14} style={{ color: '#d97706' }} />
+                <AlertTriangle size={14} style={{ color: 'var(--text-secondary)' }} />
               ) : (
                 <Upload size={14} style={{ color: 'var(--accent)' }} />
               )}
@@ -619,13 +642,17 @@ export default function GlobalUploadQueue() {
               {overallPct}%
             </span>
           ) : allDone && failed === 0 && failedDb === 0 ? (
-            <CheckCircle className="h-6 w-6" style={{ color: '#16a34a' }} aria-hidden />
+            <CheckCircle className="h-6 w-6" style={{ color: 'var(--text-primary)' }} aria-hidden />
           ) : failed > 0 ? (
-            <AlertCircle className="h-6 w-6" style={{ color: '#ef4444' }} aria-hidden />
+            <AlertCircle className="h-6 w-6" style={{ color: 'var(--text-primary)' }} aria-hidden />
           ) : failedDb > 0 ? (
-            <AlertTriangle className="h-6 w-6" style={{ color: '#d97706' }} aria-hidden />
+            <AlertTriangle
+              className="h-6 w-6"
+              style={{ color: 'var(--text-secondary)' }}
+              aria-hidden
+            />
           ) : paused > 0 && active === 0 ? (
-            <Pause className="h-6 w-6" style={{ color: '#6366f1' }} aria-hidden />
+            <Pause className="h-6 w-6" style={{ color: 'var(--text-secondary)' }} aria-hidden />
           ) : (
             <Upload className="h-6 w-6" style={{ color: 'var(--accent)' }} aria-hidden />
           )}

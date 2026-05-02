@@ -37,7 +37,7 @@ function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="space-y-4 text-center">
-        <CheckCircle size={40} className="mx-auto" style={{ color: '#16a34a' }} />
+        <CheckCircle size={40} className="mx-auto" style={{ color: 'var(--text-primary)' }} />
         <div>
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             Check your email
@@ -85,8 +85,8 @@ function ForgotPasswordForm() {
         <p
           className="rounded-lg px-3 py-2 text-sm"
           style={{
-            background: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
+            background: 'var(--surface-muted)',
+            color: 'var(--text-primary)',
             border: '1px solid rgba(239,68,68,0.25)',
           }}
         >
@@ -98,7 +98,7 @@ function ForgotPasswordForm() {
         type="submit"
         disabled={loading || !email}
         className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
-        style={{ background: 'var(--accent)', color: '#fff' }}
+        style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
         {loading ? 'Sending…' : 'Send reset link'}

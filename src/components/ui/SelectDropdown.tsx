@@ -255,7 +255,7 @@ export default function SelectDropdown({
   );
 
   const panelClass =
-    'max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--surface-elevated)] p-1.5 shadow-[0_20px_44px_rgba(15,23,42,0.14)]';
+    'max-h-64 overflow-auto rounded-[18px] border border-border bg-[color:var(--popover)] p-1.5 text-[color:var(--popover-foreground)] shadow-[0_20px_44px_var(--openy-glow)]';
 
   const rowClass = (active: boolean) =>
     cn(

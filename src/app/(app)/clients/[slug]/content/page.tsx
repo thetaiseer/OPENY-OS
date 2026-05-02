@@ -164,7 +164,7 @@ export default function ClientContentPage() {
       <div className="flex justify-end">
         <button
           onClick={() => setCreateOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+          className="flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)]"
           style={{ background: 'var(--accent)' }}
         >
           <Plus size={14} /> New Content
@@ -333,7 +333,7 @@ export default function ClientContentPage() {
             <button
               type="submit"
               disabled={saving}
-              className="h-9 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60"
+              className="h-9 rounded-lg px-4 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
               style={{ background: 'var(--accent)' }}
             >
               {saving ? 'Creating…' : 'Create'}

@@ -56,7 +56,10 @@ export default function ClientOverviewPage() {
         supabase
           .from('assets')
           .select('id', { count: 'exact', head: true })
-          .eq('client_id', clientId),
+          .eq('client_id', clientId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false'),
         supabase
           .from('content_items')
           .select('id', { count: 'exact', head: true })
@@ -72,6 +75,9 @@ export default function ClientOverviewPage() {
           .from('assets')
           .select('id,name,file_type,created_at,thumbnail_url,preview_url,file_url')
           .eq('client_id', clientId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false')
           .order('created_at', { ascending: false })
           .limit(4),
         supabase
@@ -255,7 +261,11 @@ export default function ClientOverviewPage() {
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     {overdue ? (
-                      <AlertCircle size={12} className="shrink-0" style={{ color: '#ef4444' }} />
+                      <AlertCircle
+                        size={12}
+                        className="shrink-0"
+                        style={{ color: 'var(--text-primary)' }}
+                      />
                     ) : (
                       <Clock
                         size={12}
@@ -271,7 +281,7 @@ export default function ClientOverviewPage() {
                     {task.due_date && (
                       <span
                         className="text-xs"
-                        style={{ color: overdue ? '#ef4444' : 'var(--text-secondary)' }}
+                        style={{ color: overdue ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                       >
                         {fmtDate(task.due_date)}
                       </span>

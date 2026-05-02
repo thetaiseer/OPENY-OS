@@ -217,7 +217,7 @@ function TaskDateFilterPill({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-10 items-center gap-2 rounded-full border bg-white px-3 text-sm font-medium shadow-sm transition-all hover:bg-gray-50"
+        className="inline-flex h-10 items-center gap-2 rounded-full border bg-[color:var(--surface)] px-3 text-sm font-medium shadow-sm transition-all hover:bg-[color:var(--surface-soft)]"
         style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -230,7 +230,7 @@ function TaskDateFilterPill({
       {open && (
         <div
           role="menu"
-          className="animate-openy-fade-in absolute end-0 top-full z-30 mt-2 w-[240px] rounded-xl border bg-white p-1.5 shadow-lg"
+          className="animate-openy-fade-in absolute end-0 top-full z-30 mt-2 w-[240px] rounded-xl border bg-[color:var(--popover)] p-1.5 shadow-lg"
           style={{ borderColor: 'var(--border)' }}
         >
           {TASK_DATE_OPTIONS.map((option) => {
@@ -532,7 +532,7 @@ function TaskForm({ form, setForm, clients, projects, team, saving, onCancel, t 
                   className="h-7 rounded-full px-3 text-xs font-medium transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'var(--surface)',
-                    color: selected ? '#fff' : 'var(--text-secondary)',
+                    color: selected ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                     border: '1px solid var(--border)',
                   }}
                 >
@@ -722,13 +722,13 @@ function TaskCard({
       {((task.platforms && task.platforms.length > 0) ||
         (task.post_types && task.post_types.length > 0)) && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <Send size={11} style={{ color: '#7c3aed' }} />
+          <Send size={11} style={{ color: 'var(--text-secondary)' }} />
           {(task.platforms ?? []).map((p) => {
             const pl = PLATFORMS.find((x) => x.value === p);
             return (
               <span
                 key={p}
-                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-foreground)]"
                 style={{ background: getPlatformDisplayColor(p) }}
               >
                 {pl ? pl.label : p}
@@ -758,7 +758,7 @@ function TaskCard({
             <span
               key={m.id}
               className="rounded-full px-2 py-0.5 text-xs font-medium"
-              style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
             >
               @{m.full_name}
             </span>
@@ -924,7 +924,7 @@ function TaskDetailModal({
                   <span
                     key={m.id}
                     className="rounded-full px-2 py-0.5 text-xs font-medium"
-                    style={{ background: 'var(--accent-soft, #ede9fe)', color: 'var(--accent)' }}
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                   >
                     @{m.full_name}
                   </span>
@@ -2327,7 +2327,7 @@ export default function TasksPage() {
                   key={chip.value}
                   type="button"
                   onClick={() => setQuickFilter(chip.value)}
-                  className="inline-flex h-8 items-center rounded-full border bg-white px-3 text-xs font-medium transition-colors"
+                  className="inline-flex h-8 items-center rounded-full border bg-[color:var(--surface)] px-3 text-xs font-medium transition-colors"
                   style={{
                     borderColor: isActive ? 'var(--accent)' : 'var(--border)',
                     color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
@@ -2400,9 +2400,9 @@ export default function TasksPage() {
                 day: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-[color:var(--text)] hover:bg-[color:var(--surface-soft)]',
                 today: 'border border-[color:var(--accent)] text-[color:var(--accent)]',
                 selected:
-                  'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)] hover:text-white',
-                range_start: 'bg-[color:var(--accent)] text-white',
-                range_end: 'bg-[color:var(--accent)] text-white',
+                  'bg-[color:var(--accent)] text-[var(--accent-foreground)] hover:bg-[color:var(--accent)] hover:text-[var(--accent-foreground)]',
+                range_start: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
+                range_end: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
                 range_middle: 'bg-[color:var(--accent-soft)] text-[color:var(--text)]',
               }}
             />
@@ -2617,7 +2617,7 @@ export default function TasksPage() {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] end-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-200 active:scale-95 sm:bottom-7 sm:end-7"
+          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] end-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-[var(--accent-foreground)] transition-all duration-200 active:scale-95 sm:bottom-7 sm:end-7"
           style={{
             background: 'var(--accent)',
             boxShadow: 'var(--shadow-md)',

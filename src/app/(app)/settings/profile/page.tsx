@@ -42,13 +42,13 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{
         background: ok ? 'rgba(22,163,74,0.10)' : 'rgba(239,68,68,0.10)',
-        color: ok ? '#16a34a' : '#ef4444',
-        border: `1px solid ${ok ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
+        color: ok ? 'var(--text-primary)' : 'var(--text-primary)',
+        border: `1px solid ${ok ? 'rgba(22,163,74,0.25)' : 'var(--surface-muted)'}`,
       }}
     >
       <span
         className="h-1.5 w-1.5 rounded-full"
-        style={{ background: ok ? '#16a34a' : '#ef4444' }}
+        style={{ background: ok ? 'var(--text-primary)' : 'var(--text-primary)' }}
       />
       {label}
     </span>
@@ -61,7 +61,14 @@ function DiagRow({ label, value, ok }: { label: string; value: string; ok?: bool
       <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span
         className="max-w-[180px] truncate text-end font-mono"
-        style={{ color: ok === false ? '#ef4444' : ok === true ? '#16a34a' : 'var(--text)' }}
+        style={{
+          color:
+            ok === false
+              ? 'var(--text-primary)'
+              : ok === true
+                ? 'var(--text-primary)'
+                : 'var(--text)',
+        }}
       >
         {value}
       </span>
@@ -142,9 +149,17 @@ function R2StorageCard() {
             }}
           >
             {status?.configured ? (
-              <CheckCircle size={17} style={{ color: '#16a34a' }} className="mt-0.5 shrink-0" />
+              <CheckCircle
+                size={17}
+                style={{ color: 'var(--text-primary)' }}
+                className="mt-0.5 shrink-0"
+              />
             ) : (
-              <AlertCircle size={17} style={{ color: '#ef4444' }} className="mt-0.5 shrink-0" />
+              <AlertCircle
+                size={17}
+                style={{ color: 'var(--text-primary)' }}
+                className="mt-0.5 shrink-0"
+              />
             )}
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -158,7 +173,7 @@ function R2StorageCard() {
               </div>
               {!status?.configured && (status?.missingVars?.length ?? 0) > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  <p className="text-xs" style={{ color: '#ef4444' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-primary)' }}>
                     {t('r2MissingEnvVarsTitle')}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1">
@@ -167,9 +182,9 @@ function R2StorageCard() {
                         key={v}
                         className="rounded px-1 text-xs"
                         style={{
-                          background: 'rgba(239,68,68,0.12)',
+                          background: 'var(--surface-muted)',
                           fontFamily: 'monospace',
-                          color: '#ef4444',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         {v}
@@ -276,7 +291,7 @@ export default function SettingsProfilePage() {
           <CardTitle>{t('profileSection')}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-4 !p-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-lg font-bold text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-lg font-bold text-[var(--accent-foreground)]">
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -336,7 +351,7 @@ export default function SettingsProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4 !p-0">
           <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-[var(--accent-foreground)]">
               {(user.name || user.email).charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
@@ -359,7 +374,7 @@ export default function SettingsProfilePage() {
         </CardHeader>
         <CardContent className="!p-0">
           {signOutError && (
-            <div className="mb-3 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.1)] px-3 py-2 text-sm text-[#ef4444]">
+            <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text-primary)]">
               {signOutError}
             </div>
           )}

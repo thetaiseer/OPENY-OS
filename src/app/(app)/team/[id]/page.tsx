@@ -186,7 +186,7 @@ export default function TeamMemberDetailPage() {
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-[var(--accent-foreground)]">
               {initials}
             </div>
             <div>
@@ -265,7 +265,7 @@ export default function TeamMemberDetailPage() {
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Team Member">
         <form onSubmit={handleSave} className="space-y-4">
           {saveError ? (
-            <div className="border-danger/30 bg-danger/10 rounded-control border px-3 py-2 text-sm text-danger">
+            <div className="border-danger/30 bg-danger/10 text-danger rounded-control border px-3 py-2 text-sm">
               {saveError}
             </div>
           ) : null}

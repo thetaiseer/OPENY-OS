@@ -48,7 +48,7 @@ export default function Dropdown({ triggerLabel, items, className }: DropdownPro
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="inline-flex h-10 items-center gap-2 rounded-control border border-border bg-[color:var(--surface-elevated)] px-3 text-sm text-[color:var(--text-primary)] shadow-soft transition-colors hover:bg-[color:var(--surface-soft)]"
+        className="inline-flex h-10 items-center gap-2 rounded-control border border-border bg-[color:var(--surface)] px-3 text-sm text-[color:var(--foreground)] shadow-soft transition-colors hover:bg-[color:var(--surface-soft)]"
       >
         {triggerLabel}
         <ChevronDown className="h-4 w-4 text-[color:var(--text-secondary)]" />
@@ -57,7 +57,7 @@ export default function Dropdown({ triggerLabel, items, className }: DropdownPro
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-2 min-w-[12rem] rounded-card border border-border bg-[color:var(--surface-elevated)] p-1.5 shadow-soft-md"
+          className="absolute right-0 top-full z-50 mt-2 min-w-[12rem] rounded-card border border-border bg-[color:var(--popover)] p-1.5 text-[color:var(--popover-foreground)] shadow-soft-md"
         >
           {items.map((item) => (
             <button
@@ -75,7 +75,7 @@ export default function Dropdown({ triggerLabel, items, className }: DropdownPro
                   : 'text-[color:var(--text-primary)]',
                 item.disabled
                   ? 'cursor-not-allowed text-[color:var(--text-disabled)] opacity-100'
-                  : 'hover:bg-[color:var(--surface-soft)]',
+                  : 'hover:bg-[color:var(--accent-soft)]',
               )}
             >
               {item.label}

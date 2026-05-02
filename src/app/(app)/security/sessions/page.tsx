@@ -111,7 +111,7 @@ function StatusBadge({
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
         style={{
           background: 'rgba(107,114,128,0.10)',
-          color: '#6b7280',
+          color: 'var(--text-secondary)',
           border: '1px solid rgba(107,114,128,0.25)',
         }}
       >
@@ -125,7 +125,7 @@ function StatusBadge({
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
         style={{
           background: 'rgba(22,163,74,0.10)',
-          color: '#16a34a',
+          color: 'var(--text-primary)',
           border: '1px solid rgba(22,163,74,0.25)',
         }}
       >
@@ -139,7 +139,7 @@ function StatusBadge({
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
         style={{
           background: 'rgba(59,130,246,0.10)',
-          color: '#3b82f6',
+          color: 'var(--text-primary)',
           border: '1px solid rgba(59,130,246,0.25)',
         }}
       >
@@ -152,7 +152,7 @@ function StatusBadge({
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
       style={{
         background: 'rgba(234,179,8,0.10)',
-        color: '#ca8a04',
+        color: 'var(--text-secondary)',
         border: '1px solid rgba(234,179,8,0.25)',
       }}
     >
@@ -208,8 +208,8 @@ function SessionCard({
         <div
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
           style={{
-            background: 'rgba(239,68,68,0.08)',
-            color: '#ef4444',
+            background: 'var(--surface-muted)',
+            color: 'var(--text-primary)',
             border: '1px solid rgba(239,68,68,0.20)',
           }}
         >
@@ -386,11 +386,15 @@ export default function SecurityPage() {
       {hasRiskFlags && (
         <div
           className="flex items-start gap-3 rounded-xl p-4"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
+          style={{ background: 'var(--surface-muted)', border: '1px solid rgba(239,68,68,0.25)' }}
         >
-          <ShieldAlert size={18} style={{ color: '#ef4444' }} className="mt-0.5 shrink-0" />
+          <ShieldAlert
+            size={18}
+            style={{ color: 'var(--text-primary)' }}
+            className="mt-0.5 shrink-0"
+          />
           <div>
-            <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {t('suspiciousLoginTitle')}
             </p>
             <p className="mt-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -406,8 +410,8 @@ export default function SecurityPage() {
           className="flex items-center gap-2 rounded-xl p-3"
           style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)' }}
         >
-          <CheckCircle2 size={16} style={{ color: '#16a34a' }} />
-          <p className="text-sm" style={{ color: '#16a34a' }}>
+          <CheckCircle2 size={16} style={{ color: 'var(--text-primary)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
             {successMsg}
           </p>
         </div>

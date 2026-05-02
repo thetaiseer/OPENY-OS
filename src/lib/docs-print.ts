@@ -81,7 +81,7 @@ export async function exportPreviewPdf(
   sourceClone.style.width = '210mm';
   sourceClone.style.maxWidth = '210mm';
   sourceClone.style.margin = '0';
-  sourceClone.style.background = '#fff';
+  sourceClone.style.background = 'var(--accent-foreground)';
   /** Page padding is already inside `.openy-doc-page` (12mm); extra jsPDF margin caused scaling/clipping vs on-screen preview. */
   sourceClone.style.overflow = 'visible';
 
@@ -90,7 +90,7 @@ export async function exportPreviewPdf(
   mount.style.left = '-10000px';
   mount.style.top = '0';
   mount.style.width = '210mm';
-  mount.style.background = '#fff';
+  mount.style.background = 'var(--accent-foreground)';
   mount.appendChild(sourceClone);
   document.body.appendChild(mount);
 

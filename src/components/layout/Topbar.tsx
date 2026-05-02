@@ -41,11 +41,11 @@ export default function Topbar({ className }: TopbarProps) {
           />
         </Link>
         <label className="relative flex min-w-0 max-w-md flex-1 items-center">
-          <Search className="pointer-events-none absolute start-3 h-4 w-4 text-secondary" />
+          <Search className="pointer-events-none absolute start-3 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
             placeholder={t('search')}
-            className="focus:ring-[color:var(--accent)]/15 min-h-10 w-full rounded-control border border-border bg-surface py-2 pe-3 ps-9 text-sm text-primary outline-none transition-colors placeholder:text-secondary focus:border-accent focus:ring-2 sm:h-10 sm:py-0"
+            className="focus:ring-[color:var(--ring)]/20 min-h-10 w-full rounded-control border border-input bg-[color:var(--surface)] py-2 pe-3 ps-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 sm:h-10 sm:py-0"
           />
         </label>
         <PeriodDateRangePicker
@@ -60,7 +60,7 @@ export default function Topbar({ className }: TopbarProps) {
         <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-3 py-2 text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:min-w-[4.5rem]"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-border bg-[color:var(--surface)] px-3 py-2 text-muted-foreground transition-colors hover:bg-[color:var(--surface-soft)] hover:text-foreground sm:h-11 sm:min-w-[4.5rem]"
             aria-label={lang === 'ar' ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
             onClick={toggleLang}
             title={lang === 'ar' ? 'Switch to English' : 'اللغة العربية'}
@@ -72,7 +72,7 @@ export default function Topbar({ className }: TopbarProps) {
           </button>
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors hover:bg-[color:var(--surface-elevated)] hover:text-primary sm:h-11 sm:w-11"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control border border-border bg-[color:var(--surface)] text-muted-foreground transition-colors hover:bg-[color:var(--surface-soft)] hover:text-foreground sm:h-11 sm:w-11"
             aria-label={theme === 'light' ? t('switchToDark') : t('switchToLight')}
             aria-pressed={theme === 'dark'}
             onClick={toggleTheme}

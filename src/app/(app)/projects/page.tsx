@@ -133,7 +133,7 @@ export default function ProjectsPage() {
     client_id: '',
     start_date: '',
     end_date: '',
-    color: '#6366f1',
+    color: 'var(--text-secondary)',
   });
 
   const {
@@ -320,7 +320,7 @@ export default function ProjectsPage() {
       client_id: clients[0]?.id ?? '',
       start_date: '',
       end_date: '',
-      color: '#6366f1',
+      color: 'var(--text-secondary)',
     });
     setSaveErr(null);
     setModalOpen(true);
@@ -335,7 +335,7 @@ export default function ProjectsPage() {
       client_id: project.client_id ?? '',
       start_date: project.start_date ?? '',
       end_date: project.end_date ?? '',
-      color: project.color ?? '#6366f1',
+      color: project.color ?? 'var(--text-secondary)',
     });
     setSaveErr(null);
     setModalOpen(true);
@@ -526,9 +526,12 @@ export default function ProjectsPage() {
                   <div className="flex min-w-0 items-start gap-3">
                     <div
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: `${project.color ?? '#6366f1'}22` }}
+                      style={{ background: `${project.color ?? 'var(--text-secondary)'}22` }}
                     >
-                      <FolderKanban size={20} style={{ color: project.color ?? '#6366f1' }} />
+                      <FolderKanban
+                        size={20}
+                        style={{ color: project.color ?? 'var(--text-secondary)' }}
+                      />
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-base font-bold" style={{ color: 'var(--text)' }}>

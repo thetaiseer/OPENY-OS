@@ -364,7 +364,9 @@ export default function CommandPalette({
                   >
                     <action.icon
                       size={16}
-                      style={{ color: isActive ? '#fff' : 'var(--text-secondary)' }}
+                      style={{
+                        color: isActive ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+                      }}
                     />
                   </div>
                   <div className="min-w-0 flex-1">
