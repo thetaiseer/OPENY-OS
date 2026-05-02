@@ -77,21 +77,21 @@ function createSupabaseMock(assetRows: Array<Record<string, unknown>>) {
       },
     };
 
-    return builder as PromiseLike<unknown>;
+    return builder as unknown as PromiseLike<unknown>;
   }
 
   const supabase = {
     from: vi.fn((table: string) => ({
       select: (...args: unknown[]) => {
-        const builder = createBuilder(table, 'select') as Record<string, unknown>;
+        const builder = createBuilder(table, 'select') as unknown as Record<string, unknown>;
         return (builder.select as (...selectArgs: unknown[]) => unknown)(...args);
       },
       update: (...args: unknown[]) => {
-        const builder = createBuilder(table, 'update') as Record<string, unknown>;
+        const builder = createBuilder(table, 'update') as unknown as Record<string, unknown>;
         return (builder.update as (...updateArgs: unknown[]) => unknown)(...args);
       },
       delete: (...args: unknown[]) => {
-        const builder = createBuilder(table, 'delete') as Record<string, unknown>;
+        const builder = createBuilder(table, 'delete') as unknown as Record<string, unknown>;
         return (builder.delete as (...deleteArgs: unknown[]) => unknown)(...args);
       },
     })),
