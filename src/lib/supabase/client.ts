@@ -15,21 +15,23 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 export function createClient(): ReturnType<typeof createBrowserClient> {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Build-time guard: env vars not available yet.
-    // Return a proxy that satisfies type-checking without throwing.
-    return new Proxy({} as ReturnType<typeof createBrowserClient>, {
-      get(_target, prop) {
-        // Return nested proxies so call-chains like supabase.from('x').select() don't throw.
-        if (typeof prop === 'string') {
-          return (..._args: unknown[]) =>
-            new Proxy({} as object, {
-              get(_t2, _p2) {
-                return (..._a: unknown[]) => Promise.resolve({ data: null, error: null });
-              },
-            });
-        }
-        return undefined;
-      },
-    });
+    // Return a fully-recursive callable proxy so deep chains like
+    // supabase.auth.onAuthStateChange(...) and supabase.from('x').select()
+    // never throw at module load time.
+    const makeNoOp = (): ReturnType<typeof createBrowserClient> => {
+      // Use a function as the target so the proxy is both callable and
+      // supports arbitrary property access at any depth.
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const handler: ProxyHandler<object> = {
+        get: () => makeNoOp(),
+        apply: () => Promise.resolve({ data: null, error: null }),
+      };
+      return new Proxy(
+        function () {} as unknown as ReturnType<typeof createBrowserClient>,
+        handler,
+      ) as unknown as ReturnType<typeof createBrowserClient>;
+    };
+    return makeNoOp();
   }
   return createBrowserClient(supabaseUrl, supabaseAnonKey, {
     realtime: {
