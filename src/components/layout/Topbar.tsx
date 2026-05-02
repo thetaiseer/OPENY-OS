@@ -19,7 +19,7 @@ type TopbarProps = {
 export default function Topbar({ className }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { t, lang, toggleLang } = useLang();
-  const { periodFrom, periodTo, setPeriodRange } = useAppPeriod();
+  const { periodFrom, periodTo, setPeriodRange, granularity, setGranularity } = useAppPeriod();
 
   return (
     <header
@@ -52,6 +52,8 @@ export default function Topbar({ className }: TopbarProps) {
           from={periodFrom}
           to={periodTo}
           onChange={setPeriodRange}
+          granularity={granularity}
+          onGranularityChange={setGranularity}
           label={t('appPeriodMonth')}
           className="shrink-0"
         />

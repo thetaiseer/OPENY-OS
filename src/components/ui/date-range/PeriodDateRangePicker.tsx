@@ -17,11 +17,14 @@ import {
   subWeeks,
 } from 'date-fns';
 import { cn } from '@/lib/cn';
+import type { Granularity } from '@/context/app-period-context';
 
 type PeriodDateRangePickerProps = {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
+  granularity?: Granularity;
+  onGranularityChange?: (g: Granularity) => void;
   label?: string;
   className?: string;
 };
@@ -31,6 +34,12 @@ type Preset = {
   label: string;
   getRange: () => DateRange;
 };
+
+const GRANULARITY_OPTIONS: { value: Granularity; label: string; labelAr: string }[] = [
+  { value: 'day', label: 'Day', labelAr: 'يوم' },
+  { value: 'month', label: 'Month', labelAr: 'شهر' },
+  { value: 'year', label: 'Year', labelAr: 'سنة' },
+];
 
 function parseYmd(value: string): Date | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -60,6 +69,8 @@ export default function PeriodDateRangePicker({
   from,
   to,
   onChange,
+  granularity = 'day',
+  onGranularityChange,
   label = 'Period',
   className,
 }: PeriodDateRangePickerProps) {
@@ -75,6 +86,7 @@ export default function PeriodDateRangePicker({
     width: 360,
     maxHeight: 420,
   });
+  const [draftGranularity, setDraftGranularity] = useState<Granularity>(granularity);
 
   const fromDate = useMemo(() => parseYmd(from), [from]);
   const toDate = useMemo(() => parseYmd(to), [to]);
@@ -161,6 +173,10 @@ export default function PeriodDateRangePicker({
   }, [fromDate, toDate]);
 
   useEffect(() => {
+    setDraftGranularity(granularity);
+  }, [granularity]);
+
+  useEffect(() => {
     if (!draftRange?.from || !draftRange?.to) {
       setActivePreset(null);
       return;
@@ -180,6 +196,7 @@ export default function PeriodDateRangePicker({
     const onEsc = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setDraftRange({ from: fromDate, to: toDate });
+      setDraftGranularity(granularity);
       setOpen(false);
     };
     window.addEventListener('pointerdown', onPointerDown);
@@ -188,7 +205,7 @@ export default function PeriodDateRangePicker({
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('keydown', onEsc);
     };
-  }, [open, fromDate, toDate]);
+  }, [open, fromDate, toDate, granularity]);
 
   useEffect(() => {
     if (!open) return;
@@ -218,8 +235,10 @@ export default function PeriodDateRangePicker({
 
   const triggerText =
     fromDate && toDate
-      ? `${format(fromDate, 'MMM d, yyyy')} - ${format(toDate, 'MMM d, yyyy')}`
+      ? `${format(fromDate, 'MMM d, yyyy')} – ${format(toDate, 'MMM d, yyyy')}`
       : 'Select range';
+
+  const granularityLabel = GRANULARITY_OPTIONS.find((o) => o.value === granularity)?.label ?? '';
 
   const popover =
     open && portalReady
@@ -238,6 +257,7 @@ export default function PeriodDateRangePicker({
             }}
           >
             <div className="flex max-h-full min-h-0 flex-col md:flex-row">
+              {/* Presets sidebar */}
               <aside
                 className="w-full border-b p-2 md:w-[160px] md:shrink-0 md:border-b-0 md:border-e"
                 style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
@@ -250,9 +270,9 @@ export default function PeriodDateRangePicker({
                         key={preset.id}
                         type="button"
                         className={cn(
-                          'h-8 rounded-lg border px-2.5 text-left text-xs font-medium md:w-full',
+                          'h-8 rounded-xl border px-2.5 text-left text-xs font-medium transition-colors md:w-full',
                           active
-                            ? 'border-transparent text-[var(--accent-foreground)]'
+                            ? 'border-transparent text-[color:var(--accent-foreground)]'
                             : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
                         )}
                         style={
@@ -272,7 +292,48 @@ export default function PeriodDateRangePicker({
                 </div>
               </aside>
 
+              {/* Calendar + controls */}
               <div className="flex min-h-0 flex-1 flex-col">
+                {/* Granularity toggle */}
+                {onGranularityChange && (
+                  <div
+                    className="flex items-center gap-1 border-b px-3 py-2"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    <span
+                      className="me-2 text-xs font-medium"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      View by
+                    </span>
+                    <div
+                      className="flex gap-0.5 rounded-xl border p-0.5"
+                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                    >
+                      {GRANULARITY_OPTIONS.map((opt) => {
+                        const active = draftGranularity === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={cn(
+                              'rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150',
+                              active
+                                ? 'text-[color:var(--accent-foreground)]'
+                                : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]',
+                            )}
+                            style={active ? { background: 'var(--accent)' } : {}}
+                            onClick={() => setDraftGranularity(opt.value)}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Calendar */}
                 <div className="min-h-0 flex-1 overflow-auto p-2 md:p-3">
                   <DayPicker
                     mode="range"
@@ -287,39 +348,48 @@ export default function PeriodDateRangePicker({
                       months: 'flex flex-col gap-3 sm:flex-row sm:gap-4',
                       month: 'min-w-[236px] space-y-2',
                       caption:
-                        'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text)]',
-                      caption_label: 'text-sm font-semibold text-[color:var(--text)]',
+                        'relative flex items-center justify-center pt-1 text-sm font-semibold text-[color:var(--text-primary)]',
+                      caption_label: 'text-sm font-semibold text-[color:var(--text-primary)]',
                       nav: 'absolute inset-x-0 top-0.5 flex items-center justify-between px-1',
                       button_previous:
-                        'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                        'inline-flex h-7 w-7 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] transition-colors',
                       button_next:
-                        'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)]',
+                        'inline-flex h-7 w-7 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-soft)] transition-colors',
                       table: 'w-full border-collapse',
                       head_cell:
                         'h-8 w-8 text-center text-[11px] font-medium text-[color:var(--text-secondary)]',
                       cell: 'h-8 w-8 p-0 text-center align-middle',
-                      day: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-[color:var(--text)] hover:bg-[color:var(--surface-soft)]',
-                      today: 'border border-[color:var(--accent)] text-[color:var(--accent)]',
+                      day: 'inline-flex h-8 w-8 items-center justify-center rounded-xl text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-soft)] transition-colors',
+                      today:
+                        'border border-[color:var(--accent)] font-semibold text-[color:var(--accent)]',
                       selected:
-                        'bg-[color:var(--accent)] text-[var(--accent-foreground)] hover:bg-[color:var(--accent)] hover:text-[var(--accent-foreground)]',
-                      range_start: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
-                      range_end: 'bg-[color:var(--accent)] text-[var(--accent-foreground)]',
-                      range_middle: 'bg-[color:var(--accent-soft)] text-[color:var(--text)]',
-                      outside: 'text-[color:var(--text-disabled)] opacity-40',
+                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--accent-foreground)]',
+                      range_start:
+                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] rounded-xl',
+                      range_end:
+                        'bg-[color:var(--accent)] text-[color:var(--accent-foreground)] rounded-xl',
+                      range_middle:
+                        'bg-[color:var(--surface-soft)] text-[color:var(--text-primary)] rounded-none',
+                      outside: 'text-[color:var(--text-secondary)] opacity-30',
                     }}
                   />
                 </div>
 
+                {/* Footer */}
                 <div
                   className="flex items-center justify-end gap-2 border-t px-3 py-2"
                   style={{ borderColor: 'var(--border)' }}
                 >
                   <button
                     type="button"
-                    className="h-9 rounded-lg border px-3 text-sm font-medium text-[color:var(--text-secondary)]"
-                    style={{ borderColor: 'var(--border)' }}
+                    className="h-9 rounded-2xl border px-4 text-sm font-medium transition-colors hover:bg-[color:var(--surface-soft)]"
+                    style={{
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-secondary)',
+                    }}
                     onClick={() => {
                       setDraftRange({ from: fromDate, to: toDate });
+                      setDraftGranularity(granularity);
                       setOpen(false);
                     }}
                   >
@@ -327,12 +397,18 @@ export default function PeriodDateRangePicker({
                   </button>
                   <button
                     type="button"
-                    className="h-9 rounded-lg px-3 text-sm font-medium text-[var(--accent-foreground)] disabled:opacity-60"
-                    style={{ background: 'var(--accent)' }}
+                    className="h-9 rounded-2xl px-4 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{
+                      background: 'var(--accent)',
+                      color: 'var(--accent-foreground)',
+                    }}
                     disabled={!draftRange?.from || !draftRange?.to}
                     onClick={() => {
                       if (!draftRange?.from || !draftRange?.to) return;
                       onChange(toYmd(draftRange.from), toYmd(draftRange.to));
+                      if (onGranularityChange && draftGranularity !== granularity) {
+                        onGranularityChange(draftGranularity);
+                      }
                       setOpen(false);
                     }}
                   >
@@ -354,11 +430,19 @@ export default function PeriodDateRangePicker({
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-9 items-center gap-2 rounded-control border border-border bg-surface px-2.5 text-xs text-primary hover:bg-[color:var(--surface-elevated)]"
+        className="inline-flex h-9 items-center gap-2 rounded-control border border-border bg-surface px-2.5 text-xs text-primary transition-colors hover:bg-[color:var(--surface-elevated)]"
       >
         <CalendarDays className="h-3.5 w-3.5 text-secondary" />
         <span className="hidden text-[11px] font-medium text-secondary sm:inline">{label}</span>
         <span className="max-w-[14rem] truncate font-medium">{triggerText}</span>
+        {onGranularityChange && (
+          <span
+            className="hidden rounded-md border px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
+            {granularityLabel}
+          </span>
+        )}
         <ChevronDown className="h-3.5 w-3.5 text-secondary" />
       </button>
       {popover}
