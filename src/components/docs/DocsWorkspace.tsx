@@ -10,9 +10,9 @@ import { cn } from '@/lib/cn';
 
 const DOC_TYPE_LINKS = [
   { href: '/docs', label: 'Home', key: 'home' },
-  { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
   { href: '/docs/quotation', label: 'Quotation', key: 'quotation' },
   { href: '/docs/client-contract', label: 'Client Contract', key: 'client-contract' },
+  { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
   { href: '/docs/hr-contract', label: 'HR Contract', key: 'hr-contract' },
   { href: '/docs/employees', label: 'Employees', key: 'employees' },
   { href: '/docs/accounting', label: 'Accounting', key: 'accounting' },
