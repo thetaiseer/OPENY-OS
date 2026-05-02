@@ -199,10 +199,15 @@ export async function PATCH(request: NextRequest) {
 
     const targetWorkspace = workspaceByKey.get(workspace);
     if (!targetWorkspace?.id) {
-      return NextResponse.json(
-        { error: `Workspace ${workspace} is not configured` },
-        { status: 400 },
-      );
+      // If disabling access to an unconfigured workspace there's nothing to remove — skip.
+      // Only fail when trying to grant access to a workspace that doesn't exist in the DB.
+      if (config.enabled) {
+        return NextResponse.json(
+          { error: `Workspace ${workspace} is not configured` },
+          { status: 400 },
+        );
+      }
+      continue;
     }
 
     updates.push({

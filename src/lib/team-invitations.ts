@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import type { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
+import { normalizeWorkspaceKey } from '@/lib/workspace-access';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -221,6 +222,20 @@ export async function acceptInvitationToken(
     { onConflict: 'id' },
   );
 
+  // Resolve workspace_key ('os' | 'docs') so the middleware can find the membership
+  const { data: workspaceRow } = await db
+    .from('workspaces')
+    .select('slug, name')
+    .eq('id', validInvitation.workspace_id)
+    .maybeSingle();
+  const rawSlug = (workspaceRow as { slug?: string | null } | null)?.slug ?? null;
+  const rawName = (workspaceRow as { name?: string | null } | null)?.name ?? null;
+  const workspaceKey =
+    normalizeWorkspaceKey(rawSlug) ??
+    normalizeWorkspaceKey(rawName) ??
+    normalizeWorkspaceKey(rawName?.toLowerCase().replace(/^openy\s+/, '')) ??
+    'os';
+
   const memberRole = toWorkspaceMemberRole(validInvitation.role);
   const { error: workspaceMemberError } = await db.from('workspace_members').upsert(
     {
@@ -242,6 +257,7 @@ export async function acceptInvitationToken(
   await db.from('workspace_memberships').upsert(
     {
       workspace_id: validInvitation.workspace_id,
+      workspace_key: workspaceKey,
       user_id: userId,
       role: memberRole,
       is_active: true,
