@@ -8,32 +8,37 @@ import {
   BookOpen,
   Users,
   BarChart2,
-  ChevronRight,
+  ArrowRight,
 } from 'lucide-react';
-import { PageShell, PageHeader, SectionHeader } from '@/components/layout/PageLayout';
-import { Card, CardContent } from '@/components/ui/Card';
+import { PageShell, PageHeader } from '@/components/layout/PageLayout';
 import { cn } from '@/lib/cn';
 import { useLang } from '@/context/lang-context';
 
-const MODULES = [
+const CLIENT_MODULES = [
   {
-    href: '/docs/invoice',
-    icon: FileText,
-    labelKey: 'docModuleInvoice',
-    descKey: 'docModuleInvoiceDesc',
-  },
-  {
+    step: 1,
     href: '/docs/quotation',
     icon: ClipboardList,
     labelKey: 'docModuleQuotation',
     descKey: 'docModuleQuotationDesc',
   },
   {
+    step: 2,
     href: '/docs/client-contract',
     icon: FileSignature,
     labelKey: 'docModuleClientContract',
     descKey: 'docModuleClientContractDesc',
   },
+  {
+    step: 3,
+    href: '/docs/invoice',
+    icon: FileText,
+    labelKey: 'docModuleInvoice',
+    descKey: 'docModuleInvoiceDesc',
+  },
+] as const;
+
+const OPS_MODULES = [
   {
     href: '/docs/hr-contract',
     icon: BookOpen,
@@ -54,54 +59,99 @@ const MODULES = [
   },
 ] as const;
 
+function ModuleCard({
+  href,
+  icon: Icon,
+  label,
+  desc,
+  step,
+  isLast,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  desc: string;
+  step?: number;
+  isLast?: boolean;
+}) {
+  return (
+    <div className="relative flex items-stretch gap-0">
+      <Link
+        href={href}
+        className={cn(
+          'group relative flex flex-1 items-start gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 no-underline shadow-card transition-all duration-200 ease-out',
+          'hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-lg',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
+          'active:translate-y-0 active:scale-[0.99]',
+        )}
+      >
+        {step !== undefined && (
+          <span className="absolute end-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--accent-soft)] text-[10px] font-bold text-[color:var(--accent)]">
+            {step}
+          </span>
+        )}
+        <span
+          className="group-hover:border-[color:var(--accent)]/30 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[color:var(--surface-elevated)] text-[color:var(--accent)] transition-colors group-hover:bg-[color:var(--accent-soft)]"
+          aria-hidden
+        >
+          <Icon size={20} strokeWidth={2} />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pe-4">
+          <span className="text-sm font-semibold text-primary transition-colors group-hover:text-[color:var(--accent)]">
+            {label}
+          </span>
+          <span className="text-xs leading-snug text-secondary">{desc}</span>
+        </div>
+      </Link>
+
+      {step !== undefined && !isLast && (
+        <span className="pointer-events-none absolute -end-[18px] top-1/2 z-10 hidden -translate-y-1/2 items-center justify-center xl:flex">
+          <ArrowRight size={14} className="text-[var(--border)]" />
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function DocsHomePage() {
   const { t } = useLang();
   return (
-    <PageShell className="max-w-6xl space-y-6">
+    <PageShell className="max-w-5xl space-y-8">
       <PageHeader title={t('docs')} subtitle={t('docsHomeSubtitle')} />
 
-      <Card padding="sm" className="sm:p-6">
-        <CardContent className="space-y-5 !p-0">
-          <SectionHeader
-            title={t('docsDocumentModules')}
-            subtitle={t('docsDocumentModulesSubtitle')}
-          />
+      {/* Client documents — sequential workflow */}
+      <section className="space-y-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-sm font-semibold text-primary">{t('docsGroupClientDocs')}</h2>
+          <p className="text-xs text-secondary">{t('docsGroupClientDocsSubtitle')}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:gap-5">
+          {CLIENT_MODULES.map(({ href, icon, labelKey, descKey, step }, i) => (
+            <ModuleCard
+              key={href}
+              href={href}
+              icon={icon}
+              label={t(labelKey)}
+              desc={t(descKey)}
+              step={step}
+              isLast={i === CLIENT_MODULES.length - 1}
+            />
+          ))}
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {MODULES.map(({ href, icon: Icon, labelKey, descKey }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'openy-motion-card group flex min-h-[7.5rem] items-stretch gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 no-underline shadow-card transition-all duration-200 ease-out',
-                  'hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-lg',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
-                  'active:translate-y-0 active:scale-[0.99]',
-                )}
-              >
-                <span
-                  className="group-hover:border-[color:var(--accent)]/30 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[color:var(--surface-elevated)] text-[color:var(--accent)] transition-colors group-hover:bg-[color:var(--accent-soft)]"
-                  aria-hidden
-                >
-                  <Icon size={22} strokeWidth={2} />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pe-1">
-                  <span className="text-base font-semibold text-primary transition-colors group-hover:text-[color:var(--accent)]">
-                    {t(labelKey)}
-                  </span>
-                  <span className="text-sm leading-snug text-secondary">{t(descKey)}</span>
-                </div>
-                <span className="flex shrink-0 items-center self-center text-secondary transition-colors group-hover:text-[color:var(--accent)]">
-                  <ChevronRight
-                    className="h-5 w-5 opacity-50 group-hover:opacity-100 rtl:rotate-180"
-                    aria-hidden
-                  />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Operations */}
+      <section className="space-y-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-sm font-semibold text-primary">{t('docsGroupOperations')}</h2>
+          <p className="text-xs text-secondary">{t('docsGroupOperationsSubtitle')}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {OPS_MODULES.map(({ href, icon, labelKey, descKey }) => (
+            <ModuleCard key={href} href={href} icon={icon} label={t(labelKey)} desc={t(descKey)} />
+          ))}
+        </div>
+      </section>
     </PageShell>
   );
 }
