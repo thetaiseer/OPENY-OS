@@ -78,6 +78,8 @@ function clampYmToWindow(ym: string): string {
   return ym;
 }
 
+export type Granularity = 'day' | 'month' | 'year';
+
 export type AppPeriodContextValue = {
   periodFrom: string;
   periodTo: string;
@@ -88,6 +90,8 @@ export type AppPeriodContextValue = {
   periodEnd: string;
   inputMinYm: string;
   inputMaxYm: string;
+  granularity: Granularity;
+  setGranularity: (g: Granularity) => void;
 };
 
 const AppPeriodContext = createContext<AppPeriodContextValue | null>(null);
@@ -97,6 +101,7 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
   const [periodRange, setPeriodRangeState] = useState<{ from: string; to: string }>(
     currentMonthRange,
   );
+  const [granularity, setGranularity] = useState<Granularity>('day');
 
   const setPeriodRange = useCallback((from: string, to: string) => {
     const parsedFrom = parseYmd(from);
@@ -169,6 +174,8 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
       periodEnd,
       inputMinYm,
       inputMaxYm,
+      granularity,
+      setGranularity,
     }),
     [
       periodRange.from,
@@ -180,6 +187,7 @@ export function AppPeriodProvider({ children }: { children: ReactNode }) {
       periodEnd,
       inputMinYm,
       inputMaxYm,
+      granularity,
     ],
   );
 
