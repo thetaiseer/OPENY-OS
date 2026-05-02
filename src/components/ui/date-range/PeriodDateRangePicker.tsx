@@ -317,8 +317,10 @@ export default function PeriodDateRangePicker({
     setDraftRange({ from: fromDate, to: toDate });
     setActivePreset(null);
     setSelectingEnd(false);
-    if (fromDate) setViewMonth(fromDate);
-  }, [fromDate, toDate]);
+    setHoverDate(null);
+    // Only reset viewMonth when the picker is closed to avoid interrupting navigation
+    if (!open && fromDate) setViewMonth(fromDate);
+  }, [fromDate, toDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setDraftGranularity(granularity);
@@ -344,6 +346,8 @@ export default function PeriodDateRangePicker({
       if (e.key !== 'Escape') return;
       setDraftRange({ from: fromDate, to: toDate });
       setDraftGranularity(granularity);
+      setSelectingEnd(false);
+      setHoverDate(null);
       setOpen(false);
     };
     window.addEventListener('pointerdown', onPointerDown);
@@ -361,12 +365,17 @@ export default function PeriodDateRangePicker({
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
       const popoverWidth = 320;
+      const estimatedHeight = 520;
       const gutter = 12;
       const vw = window.innerWidth;
+      const vh = window.innerHeight;
       let left = rect.right - popoverWidth;
       if (left < gutter) left = gutter;
       if (left + popoverWidth > vw - gutter) left = vw - popoverWidth - gutter;
-      setPopoverStyle({ top: rect.bottom + 8, left });
+      // flip above trigger if not enough space below
+      const spaceBelow = vh - rect.bottom - 8 - gutter;
+      const top = spaceBelow >= estimatedHeight ? rect.bottom + 8 : rect.top - estimatedHeight - 8;
+      setPopoverStyle({ top, left });
     };
     updatePos();
     window.addEventListener('resize', updatePos);
@@ -471,10 +480,14 @@ export default function PeriodDateRangePicker({
                     type="button"
                     onClick={() => {
                       const range = preset.getRange();
-                      setDraftRange(range);
-                      setActivePreset(preset.id);
+                      if (!range.from || !range.to) return;
+                      onChange(toYmd(range.from), toYmd(range.to));
+                      if (onGranularityChange && draftGranularity !== granularity) {
+                        onGranularityChange(draftGranularity);
+                      }
                       setSelectingEnd(false);
-                      if (range.from) setViewMonth(range.from);
+                      setHoverDate(null);
+                      setOpen(false);
                     }}
                     className={cn(
                       'shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
@@ -547,6 +560,7 @@ export default function PeriodDateRangePicker({
                   setDraftRange({ from: fromDate, to: toDate });
                   setDraftGranularity(granularity);
                   setSelectingEnd(false);
+                  setHoverDate(null);
                   setOpen(false);
                 }}
                 className="h-8 rounded-xl border px-3 text-xs font-medium transition-colors hover:bg-[color:var(--surface-soft)]"
