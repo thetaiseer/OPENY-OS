@@ -99,7 +99,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
     ]);
   }, [defaultWorkspaceId, queryClient]);
 
-  if (!isAllowed && permissionTarget) {
+  if (!loading && !isAllowed && permissionTarget) {
     return null;
   }
 
