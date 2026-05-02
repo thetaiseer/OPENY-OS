@@ -2,7 +2,7 @@
 
 import { type FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   Loader2,
@@ -90,7 +90,6 @@ function InputField({
 }
 
 function AcceptInvitePage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
 
@@ -172,7 +171,9 @@ function AcceptInvitePage() {
       }
 
       setSuccess(true);
-      setTimeout(() => router.push('/dashboard'), 1500);
+      setTimeout(() => {
+        window.location.href = '/os/dashboard';
+      }, 1500);
     } finally {
       setSubmitting(false);
     }
