@@ -12,47 +12,61 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function countClientDependencies(
+async function tableHasColumn(
   db: ReturnType<typeof getServiceClient>,
   table: string,
-  clientId: string,
-  workspaceId: string,
-): Promise<number> {
-  const primary = await db
-    .from(table)
-    .select('id', { count: 'exact', head: true })
-    .eq('client_id', clientId)
-    .eq('workspace_id', workspaceId);
-  if (!primary.error) return primary.count ?? 0;
-  if (primary.error.code === '42703') {
-    const fallback = await db.from(table).select('id', { count: 'exact', head: true }).eq('client_id', clientId);
-    if (!fallback.error) return fallback.count ?? 0;
-    if (fallback.error.code === '42P01' || fallback.error.code === '42703') return 0;
-    throw new Error(fallback.error.message);
+  column: string,
+): Promise<boolean> {
+  const result = await db.from(table).select(column, { head: true }).limit(1);
+  if (!result.error) return true;
+  if (result.error.code === '42P01' || result.error.code === '42703' || result.error.code === 'PGRST204') {
+    return false;
   }
-  if (primary.error.code === '42P01') return 0;
-  throw new Error(primary.error.message);
+  return true;
 }
 
-async function clearClientReference(
+async function unlinkClientReferences(
   db: ReturnType<typeof getServiceClient>,
   table: string,
   clientId: string,
+  clientName: string,
   workspaceId: string,
 ): Promise<void> {
-  const primary = await db
-    .from(table)
-    .update({ client_id: null })
-    .eq('client_id', clientId)
-    .eq('workspace_id', workspaceId);
-  if (!primary.error) return;
-  if (primary.error.code === '42703') {
-    const fallback = await db.from(table).update({ client_id: null }).eq('client_id', clientId);
-    if (!fallback.error || fallback.error.code === '42P01' || fallback.error.code === '42703') return;
-    throw new Error(fallback.error.message);
+  const hasClientId = await tableHasColumn(db, table, 'client_id');
+  const hasWorkspaceId = await tableHasColumn(db, table, 'workspace_id');
+  const hasClientName = await tableHasColumn(db, table, 'client_name');
+  const hasClientFolderName = await tableHasColumn(db, table, 'client_folder_name');
+
+  const applyWorkspace = <T>(query: T): T => {
+    if (!hasWorkspaceId) return query;
+    return (query as { eq: (column: string, value: string) => T }).eq('workspace_id', workspaceId);
+  };
+
+  if (hasClientId) {
+    const update = applyWorkspace(db.from(table).update({ client_id: null }).eq('client_id', clientId));
+    const { error } = await update;
+    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
+      throw new Error(`${table}.client_id: ${error.message}`);
+    }
   }
-  if (primary.error.code === '42P01') return;
-  throw new Error(primary.error.message);
+
+  if (hasClientName && clientName) {
+    const update = applyWorkspace(db.from(table).update({ client_name: null }).eq('client_name', clientName));
+    const { error } = await update;
+    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
+      throw new Error(`${table}.client_name: ${error.message}`);
+    }
+  }
+
+  if (hasClientFolderName && clientName) {
+    const update = applyWorkspace(
+      db.from(table).update({ client_folder_name: null }).eq('client_folder_name', clientName),
+    );
+    const { error } = await update;
+    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
+      throw new Error(`${table}.client_folder_name: ${error.message}`);
+    }
+  }
 }
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -81,13 +95,17 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
 
     const { data: existing, error: fetchErr } = await db
       .from('clients')
-      .select('id')
+      .select('id, name')
       .eq('id', clientId)
       .eq('workspace_id', workspaceId)
       .maybeSingle();
 
-    if (fetchErr) return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
-    if (!existing) return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+    if (fetchErr) {
+      return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+    }
 
     const dependencyTables = [
       'assets',
@@ -101,14 +119,8 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       'activities',
     ] as const;
 
-    const dependencyCounts: Record<string, number> = {};
     for (const table of dependencyTables) {
-      dependencyCounts[table] = await countClientDependencies(db, table, clientId, workspaceId);
-    }
-
-    // Keep related records/files, but remove the client_id relation first so FK constraints do not block deletion.
-    for (const table of dependencyTables) {
-      if (dependencyCounts[table] > 0) await clearClientReference(db, table, clientId, workspaceId);
+      await unlinkClientReferences(db, table, clientId, existing.name ?? '', workspaceId);
     }
 
     const { error: delErr } = await db
@@ -117,9 +129,11 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       .eq('id', clientId)
       .eq('workspace_id', workspaceId);
 
-    if (delErr) return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });
+    if (delErr) {
+      return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });
+    }
 
-    return NextResponse.json({ success: true, unlinked: dependencyCounts });
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json(
       { success: false, error: err instanceof Error ? err.message : 'Unexpected delete error' },
