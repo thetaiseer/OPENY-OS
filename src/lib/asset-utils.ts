@@ -95,10 +95,10 @@ export function clientToSlug(name: string): string {
 
 /**
  * Build the canonical storage key for OS client files:
- *   openy-assets/os/client-files/{clientSlug}/{mainCategory}/{year}/{month}/{subCategory}/{timestamp}-{filename}
+ *   openy-assets/os/client-files/{clientSlug}/{mainCategory}/{subCategory}/{year}/{month}/{timestamp}-{filename}
  *
  * Example:
- *   openy-assets/os/client-files/pro-icon/social-media/2026/04/posts/1712345678-logo.jpg
+ *   openy-assets/os/client-files/pro-icon/social-media/posts/2026/04/1712345678-logo.jpg
  */
 export function buildStorageKey(params: {
   clientName: string;
@@ -122,7 +122,7 @@ export function buildStorageKey(params: {
     section: 'client-files',
     entityId: clientId || null,
     monthKey,
-    subPath: [clientSlug, mainCategory, year, month, subCategory || 'general'],
+    subPath: [clientSlug, mainCategory, subCategory || 'general', year, month],
     filename: safeFileName,
   });
 }

@@ -71,9 +71,9 @@ import {
 interface FolderPath {
   client?: string; // client_name
   mainCategory?: string; // slug
+  subCategory?: string; // slug
   year?: string;
   month?: string; // "YYYY-MM"
-  subCategory?: string; // slug
 }
 
 const FOLDER_QUERY_KEYS = {
@@ -156,13 +156,13 @@ function assetIdsForFolderEntry(assets: Asset[], pathDepth: number, key: string)
     return assets.filter((a) => (a.main_category ?? 'other') === key).map((a) => a.id);
   }
   if (pathDepth === 2) {
-    return assets.filter((a) => getAssetYear(a) === key).map((a) => a.id);
+    return assets.filter((a) => (a.sub_category ?? 'general') === key).map((a) => a.id);
   }
   if (pathDepth === 3) {
-    return assets.filter((a) => (a.month_key ?? '') === key).map((a) => a.id);
+    return assets.filter((a) => getAssetYear(a) === key).map((a) => a.id);
   }
   if (pathDepth === 4) {
-    return assets.filter((a) => (a.sub_category ?? 'general') === key).map((a) => a.id);
+    return assets.filter((a) => (a.month_key ?? '') === key).map((a) => a.id);
   }
   return [];
 }
@@ -706,9 +706,17 @@ function triggerDownload(url: string, filename: string): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function assetsFetchQuery(folderPath: FolderPath, periodYm: string): string {
-  if (folderPath.month) return `&month_key=${encodeURIComponent(folderPath.month)}`;
-  if (folderPath.year) return `&year=${encodeURIComponent(folderPath.year)}`;
-  return `&month_key=${encodeURIComponent(periodYm)}`;
+  const params = new URLSearchParams();
+  if (folderPath.client) params.set('client_name', folderPath.client);
+  if (folderPath.mainCategory) params.set('main_category', folderPath.mainCategory);
+  if (folderPath.subCategory) params.set('sub_category', folderPath.subCategory);
+  if (folderPath.month) params.set('month_key', folderPath.month);
+  else if (folderPath.year) params.set('year', folderPath.year);
+  else if (!folderPath.client && !folderPath.mainCategory && !folderPath.subCategory) {
+    params.set('month_key', periodYm);
+  }
+  const query = params.toString();
+  return query ? `&${query}` : '';
 }
 
 function AssetsPage() {
@@ -960,9 +968,9 @@ function AssetsPage() {
   // ── Derived: path depth ───────────────────────────────────────────────────
 
   const pathDepth = useMemo(() => {
-    if (folderPath.subCategory) return 5;
-    if (folderPath.month) return 4;
-    if (folderPath.year) return 3;
+    if (folderPath.month) return 5;
+    if (folderPath.year) return 4;
+    if (folderPath.subCategory) return 3;
     if (folderPath.mainCategory) return 2;
     if (folderPath.client) return 1;
     return 0;
@@ -1024,9 +1032,9 @@ function AssetsPage() {
       let key: string | undefined;
       if (pathDepth === 0) key = getAssetClientFolderName(asset) ?? undefined;
       else if (pathDepth === 1) key = asset.main_category ?? 'other';
-      else if (pathDepth === 2) key = getAssetYear(asset);
-      else if (pathDepth === 3) key = asset.month_key ?? '';
-      else if (pathDepth === 4) key = asset.sub_category ?? 'general';
+      else if (pathDepth === 2) key = asset.sub_category ?? 'general';
+      else if (pathDepth === 3) key = getAssetYear(asset);
+      else if (pathDepth === 4) key = asset.month_key ?? '';
       if (!key) continue;
       let row = map.get(key);
       if (!row) {
@@ -1045,7 +1053,7 @@ function AssetsPage() {
         kindSummary: buildFolderKindSummary(row.kinds, t),
       }))
       .sort((a, b) => {
-        if (pathDepth === 2 || pathDepth === 3) return b.key.localeCompare(a.key);
+        if (pathDepth === 3 || pathDepth === 4) return b.key.localeCompare(a.key);
         return a.key.localeCompare(b.key);
       });
   }, [filteredAssets, pathDepth, t, getAssetClientFolderName]);
@@ -1063,12 +1071,23 @@ function AssetsPage() {
         path: { client: folderPath.client, mainCategory: folderPath.mainCategory },
       });
     }
+    if (folderPath.subCategory) {
+      items.push({
+        label: subCategoryLabel(folderPath.mainCategory ?? '', folderPath.subCategory),
+        path: {
+          client: folderPath.client,
+          mainCategory: folderPath.mainCategory,
+          subCategory: folderPath.subCategory,
+        },
+      });
+    }
     if (folderPath.year) {
       items.push({
         label: folderPath.year,
         path: {
           client: folderPath.client,
           mainCategory: folderPath.mainCategory,
+          subCategory: folderPath.subCategory,
           year: folderPath.year,
         },
       });
@@ -1081,15 +1100,10 @@ function AssetsPage() {
         path: {
           client: folderPath.client,
           mainCategory: folderPath.mainCategory,
+          subCategory: folderPath.subCategory,
           year: folderPath.year,
           month: folderPath.month,
         },
-      });
-    }
-    if (folderPath.subCategory) {
-      items.push({
-        label: subCategoryLabel(folderPath.mainCategory ?? '', folderPath.subCategory),
-        path: { ...folderPath },
       });
     }
     return items;
@@ -1112,9 +1126,9 @@ function AssetsPage() {
         let next = prev;
         if (pathDepth === 0) next = { client: key };
         else if (pathDepth === 1) next = { ...prev, mainCategory: key };
-        else if (pathDepth === 2) next = { ...prev, year: key };
-        else if (pathDepth === 3) next = { ...prev, month: key };
-        else if (pathDepth === 4) next = { ...prev, subCategory: key };
+        else if (pathDepth === 2) next = { ...prev, subCategory: key };
+        else if (pathDepth === 3) next = { ...prev, year: key };
+        else if (pathDepth === 4) next = { ...prev, month: key };
         updateAssetsUrl(next, previewAsset?.name ?? null, previewAsset?.id ?? null);
         return next;
       });
@@ -1126,12 +1140,12 @@ function AssetsPage() {
   const goUp = useCallback(() => {
     setFolderPath((prev) => {
       const p = { ...prev };
-      if (p.subCategory) {
-        delete p.subCategory;
-      } else if (p.month) {
+      if (p.month) {
         delete p.month;
       } else if (p.year) {
         delete p.year;
+      } else if (p.subCategory) {
+        delete p.subCategory;
       } else if (p.mainCategory) {
         delete p.mainCategory;
       } else if (p.client) {
@@ -1147,12 +1161,12 @@ function AssetsPage() {
   const folderCardLabel = (key: string): string => {
     if (pathDepth === 0) return key === 'No Client' ? t('assetsNoClient') : key;
     if (pathDepth === 1) return mainCategoryLabel(key);
-    if (pathDepth === 2) return key === 'Unknown' ? t('assetsYearUnknown') : key;
-    if (pathDepth === 3) {
+    if (pathDepth === 2) return subCategoryLabel(folderPath.mainCategory ?? '', key);
+    if (pathDepth === 3) return key === 'Unknown' ? t('assetsYearUnknown') : key;
+    if (pathDepth === 4) {
       if (key.length >= 7) return `${monthLabel(key.slice(5, 7), t)} ${key.slice(0, 4)}`;
       return key || t('assetsUnknownType');
     }
-    if (pathDepth === 4) return subCategoryLabel(folderPath.mainCategory ?? '', key);
     return key;
   };
 

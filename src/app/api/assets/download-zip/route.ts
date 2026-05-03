@@ -7,7 +7,7 @@
  *   ids – required, comma-separated asset UUIDs
  *
  * ZIP folder structure mirrors the storage hierarchy:
- *   {clientName}/{main_category}/{year}/{month}/{sub_category}/{filename}
+ *   {clientName}/{main_category}/{sub_category}/{year}/{month}/{filename}
  *
  * Files missing in R2 are skipped with a warning; a single broken file does
  * not abort the entire archive.
@@ -83,7 +83,7 @@ function buildZipPath(asset: {
     [year, month] = asset.month_key.split('-');
   }
 
-  return `${root}/${cat}/${year}/${month}/${subCat}/${fileName}`;
+  return `${root}/${cat}/${subCat}/${year}/${month}/${fileName}`;
 }
 
 function getAssetStorageKey(asset: {
