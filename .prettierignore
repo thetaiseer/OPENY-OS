@@ -3,4 +3,3 @@ node_modules
 public
 *.sql
 *.md
-src/app/**/clients/**/assets/page.tsx
