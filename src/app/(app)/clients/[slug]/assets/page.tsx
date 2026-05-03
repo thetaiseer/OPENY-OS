@@ -125,9 +125,7 @@ function parseAssetFolderParts(asset: Asset): Partial<ClientAssetFolderPath> {
     };
   }
 
-  const clientFilesOrder = path.match(
-    /client-files\/[^/]+\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\//,
-  );
+  const clientFilesOrder = path.match(/client-files\/[^/]+\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\//);
 
   if (clientFilesOrder) {
     const [, mainCategory, subCategory, year, month] = clientFilesOrder;
