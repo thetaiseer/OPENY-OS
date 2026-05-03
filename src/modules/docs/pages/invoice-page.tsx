@@ -825,8 +825,8 @@ export default function InvoicePage() {
                     'invoice',
                   );
                 }}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                style={{ background: 'var(--surface)' }}
+                className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
               >
                 <Printer size={12} className="me-1 inline" /> {t('docInvPdf')}
               </button>
@@ -834,8 +834,11 @@ export default function InvoicePage() {
                 <button
                   type="button"
                   onClick={() => void deleteInvoice()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                  style={{ background: 'var(--text-primary)' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  style={{
+                    background: 'var(--destructive)',
+                    color: 'var(--destructive-foreground)',
+                  }}
                 >
                   <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
                 </button>

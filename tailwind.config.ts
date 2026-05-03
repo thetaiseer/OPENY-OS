@@ -24,7 +24,6 @@ const config: Config = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        base: 'var(--background)',
         surface: 'var(--surface)',
         elevated: 'var(--surface-elevated)',
         card: 'var(--card)',

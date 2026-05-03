@@ -580,8 +580,8 @@ export default function EmployeesPage() {
                 />
                 <button
                   onClick={exportPayrollCSV}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                  style={{ background: 'var(--surface)' }}
+                  className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                 >
                   <Download size={13} /> {t('docEmpExportCsv')}
                 </button>
@@ -993,8 +993,8 @@ export default function EmployeesPage() {
                       </div>
                       <button
                         onClick={exportPayrollCSV}
-                        className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
-                        style={{ background: 'var(--surface)' }}
+                        className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                       >
                         <Download size={15} /> {t('docEmpExportCsv')}
                       </button>

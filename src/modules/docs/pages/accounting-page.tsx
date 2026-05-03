@@ -1288,8 +1288,8 @@ export default function AccountingPage() {
                   type="button"
                   disabled={pdfBusy}
                   onClick={() => void exportPdf()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] disabled:opacity-50"
-                  style={{ background: 'var(--surface)' }}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                 >
                   <Printer size={12} className="me-1 inline" />{' '}
                   {pdfBusy ? t('docPdfGenerating') : t('docQtToolbarPdf')}
@@ -1297,8 +1297,8 @@ export default function AccountingPage() {
                 <a
                   href={`/api/docs/accounting/export?month_key=${encodeURIComponent(mk)}${accountingDocumentCode ? `&document_code=${encodeURIComponent(accountingDocumentCode)}` : ''}`}
                   download
-                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)] no-underline"
-                  style={{ background: 'var(--text-primary)' }}
+                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold no-underline"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
                   <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </a>
@@ -1455,8 +1455,8 @@ export default function AccountingPage() {
                 <button
                   type="button"
                   onClick={() => setAddExpense(true)}
-                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                  style={{ background: 'var(--surface)' }}
+                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
                   <Plus size={14} /> {t('docAcctAddExpenseBtn')}
                 </button>

@@ -952,8 +952,8 @@ export default function QuotationPage() {
                 </button>
                 <button
                   onClick={exportPdf}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                  style={{ background: 'var(--surface)' }}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                 >
                   <Printer size={12} className="me-1 inline" /> {t('docQtToolbarPdf')}
                 </button>
@@ -983,8 +983,8 @@ export default function QuotationPage() {
                     a.download = `${form.quote_number}.csv`;
                     a.click();
                   }}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                  style={{ background: 'var(--text-secondary)' }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
                   <Download size={12} className="me-1 inline" /> {t('docQtToolbarExcel')}
                 </button>

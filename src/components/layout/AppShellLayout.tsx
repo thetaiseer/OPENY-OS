@@ -104,7 +104,7 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen min-h-screen-dynamic bg-base text-primary">
+    <div className="min-h-screen min-h-screen-dynamic bg-background">
       <Sidebar />
       <Header />
       <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[var(--openy-sidebar-width)] md:pb-6 md:pt-10">
