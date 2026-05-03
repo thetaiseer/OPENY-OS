@@ -62,6 +62,7 @@ export const SUBCATEGORIES: Record<MainCategorySlug, { slug: string; label: stri
     { slug: 'exported', label: 'Exported' },
     { slug: 'thumbnails', label: 'Thumbnails' },
     { slug: 'branding', label: 'Branding' },
+    { slug: 'logos', label: 'Logos' },
   ],
   documents: [
     { slug: 'contracts', label: 'Contracts' },
