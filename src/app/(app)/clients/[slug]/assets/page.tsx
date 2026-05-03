@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useAppPeriod } from '@/context/app-period-context';
-import { Upload, Download } from 'lucide-react';
+import { Upload, Download, Folder, ChevronRight, Home } from 'lucide-react';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
 import { useAuth } from '@/context/auth-context';
@@ -17,6 +17,80 @@ import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import { getSafeErrorMessage, logClientError, parseApiError } from '@/lib/errors/app-error';
+import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
+
+type ClientAssetFolderPath = {
+  mainCategory?: string;
+  subCategory?: string;
+  year?: string;
+  month?: string;
+};
+
+type ClientAssetFolderEntry = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+function getAssetYear(asset: Asset): string {
+  if (asset.month_key && asset.month_key.length >= 4) return asset.month_key.slice(0, 4);
+  if (asset.created_at) return new Date(asset.created_at).getFullYear().toString();
+  return 'Unknown';
+}
+
+function monthLabel(monthKey: string, t: (key: string) => string): string {
+  const mm = monthKey.includes('-') ? monthKey.split('-')[1] : monthKey;
+  const index = Number.parseInt(mm, 10) - 1;
+  if (Number.isNaN(index) || index < 0 || index > 11) return monthKey;
+  const year = monthKey.includes('-') ? monthKey.split('-')[0] : '';
+  const label = t(`calMonth${index}`);
+  return year ? `${label} ${year}` : label;
+}
+
+function groupAssets(
+  assets: Asset[],
+  path: ClientAssetFolderPath,
+  t: (key: string) => string,
+): ClientAssetFolderEntry[] {
+  const groups = new Map<string, ClientAssetFolderEntry>();
+
+  for (const asset of assets) {
+    let key = '';
+    let label = '';
+
+    if (!path.mainCategory) {
+      key = asset.main_category ?? 'other';
+      label = mainCategoryLabel(key);
+    } else if (!path.subCategory) {
+      key = asset.sub_category ?? 'general';
+      label = subCategoryLabel(path.mainCategory, key);
+    } else if (!path.year) {
+      key = getAssetYear(asset);
+      label = key;
+    } else if (!path.month) {
+      key = asset.month_key ?? '';
+      label = key ? monthLabel(key, t) : 'Unknown';
+    } else {
+      continue;
+    }
+
+    if (!groups.has(key)) groups.set(key, { key, label, count: 0 });
+    const current = groups.get(key);
+    if (current) current.count += 1;
+  }
+
+  return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function filterAssetsByFolderPath(assets: Asset[], path: ClientAssetFolderPath): Asset[] {
+  return assets.filter((asset) => {
+    if (path.mainCategory && (asset.main_category ?? 'other') !== path.mainCategory) return false;
+    if (path.subCategory && (asset.sub_category ?? 'general') !== path.subCategory) return false;
+    if (path.year && getAssetYear(asset) !== path.year) return false;
+    if (path.month && (asset.month_key ?? '') !== path.month) return false;
+    return true;
+  });
+}
 
 export default function ClientAssetsPage() {
   const { client, clientId } = useClientWorkspace();
@@ -34,6 +108,7 @@ export default function ClientAssetsPage() {
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [pendingDeleteAsset, setPendingDeleteAsset] = useState<Asset | null>(null);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<ClientAssetFolderPath>({});
 
   const [pendingItems, setPendingItems] = useState<UploadFileItem[]>([]);
   const [uploadMainCategory, setUploadMainCategory] = useState('social-media');
@@ -105,6 +180,56 @@ export default function ClientAssetsPage() {
     });
   }, [latestAsset, clientId, client?.name]);
 
+  const visibleAssets = useMemo(
+    () => filterAssetsByFolderPath(assets, folderPath),
+    [assets, folderPath],
+  );
+  const folderEntries = useMemo(
+    () => groupAssets(visibleAssets, folderPath, t),
+    [visibleAssets, folderPath, t],
+  );
+  const showFiles = Boolean(folderPath.mainCategory && folderPath.subCategory && folderPath.year && folderPath.month);
+
+  const navigateFolder = (entry: ClientAssetFolderEntry) => {
+    setFolderPath((current) => {
+      if (!current.mainCategory) return { mainCategory: entry.key };
+      if (!current.subCategory) return { ...current, subCategory: entry.key };
+      if (!current.year) return { ...current, year: entry.key };
+      if (!current.month) return { ...current, month: entry.key };
+      return current;
+    });
+  };
+
+  const breadcrumbItems = useMemo(() => {
+    const items: { label: string; path: ClientAssetFolderPath }[] = [];
+    if (folderPath.mainCategory) {
+      items.push({ label: mainCategoryLabel(folderPath.mainCategory), path: { mainCategory: folderPath.mainCategory } });
+    }
+    if (folderPath.mainCategory && folderPath.subCategory) {
+      items.push({
+        label: subCategoryLabel(folderPath.mainCategory, folderPath.subCategory),
+        path: { mainCategory: folderPath.mainCategory, subCategory: folderPath.subCategory },
+      });
+    }
+    if (folderPath.mainCategory && folderPath.subCategory && folderPath.year) {
+      items.push({
+        label: folderPath.year,
+        path: {
+          mainCategory: folderPath.mainCategory,
+          subCategory: folderPath.subCategory,
+          year: folderPath.year,
+        },
+      });
+    }
+    if (folderPath.mainCategory && folderPath.subCategory && folderPath.year && folderPath.month) {
+      items.push({
+        label: monthLabel(folderPath.month, t),
+        path: folderPath,
+      });
+    }
+    return items;
+  }, [folderPath, t]);
+
   const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (fileRef.current) fileRef.current.value = '';
@@ -119,9 +244,9 @@ export default function ClientAssetsPage() {
       previewBlob: null,
     }));
     setPendingItems(items);
-    setUploadMainCategory('social-media');
-    setUploadSubCategory('');
-    setUploadMonthKey(periodYm);
+    setUploadMainCategory(folderPath.mainCategory ?? 'social-media');
+    setUploadSubCategory(folderPath.subCategory ?? '');
+    setUploadMonthKey(folderPath.month ?? periodYm);
 
     items.forEach((item) => {
       if (!isVideoFile(item.file.name, item.file.type)) return;
@@ -311,19 +436,58 @@ export default function ClientAssetsPage() {
         />
       </div>
 
+      {breadcrumbItems.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          <button type="button" onClick={() => setFolderPath({})} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'var(--surface-2)' }}>
+            <Home size={13} />
+          </button>
+          {breadcrumbItems.map((item, index) => (
+            <span key={`${item.label}-${index}`} className="flex items-center gap-1">
+              <ChevronRight size={13} className="opacity-50" />
+              <button
+                type="button"
+                onClick={() => setFolderPath(item.path)}
+                className="px-1 text-xs font-medium hover:underline"
+                style={{ color: index === breadcrumbItems.length - 1 ? 'var(--text)' : 'var(--accent)' }}
+              >
+                {item.label}
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {assets.length === 0 ? (
         <div className="py-16 text-center" style={{ color: 'var(--text-secondary)' }}>
           {t('noAssetsYet')}
         </div>
-      ) : (
+      ) : showFiles ? (
         <AssetsGrid
-          assets={assets}
+          assets={visibleAssets}
           canDelete={user?.role === 'admin' || user?.role === 'owner' || user?.role === 'manager'}
           onView={(asset) => setPreviewAsset(asset)}
           onDelete={(asset) => setPendingDeleteAsset(asset)}
           onCopyLink={(asset) => void handleCopyAssetLink(asset)}
           singleClientLogoUrl={client?.logo ?? null}
         />
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {folderEntries.map((folder) => (
+            <button
+              key={folder.key}
+              type="button"
+              onClick={() => navigateFolder(folder)}
+              className="flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-2xl border p-5 text-center shadow-card transition hover:-translate-y-0.5 hover:border-[var(--accent)]"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            >
+              <Folder className="h-10 w-10" style={{ color: 'var(--accent)' }} />
+              <span className="max-w-full truncate text-base font-semibold">{folder.label}</span>
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {folder.count} {folder.count === 1 ? 'file' : 'files'}
+              </span>
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Asset preview modal */}
