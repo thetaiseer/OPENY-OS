@@ -3,4 +3,4 @@ node_modules
 public
 *.sql
 *.md
-src/app/(app)/clients/[slug]/assets/page.tsx
+src/app/**/clients/**/assets/page.tsx
