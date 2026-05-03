@@ -20,6 +20,10 @@ type DbErrorLike = {
   message?: string | null;
 } | null;
 
+type UnlinkUpdateResult = {
+  error?: DbErrorLike;
+};
+
 function isMissingSchemaError(error: DbErrorLike): boolean {
   if (!error) return false;
   if (error.code && MISSING_SCHEMA_ERROR_CODES.has(error.code)) return true;
@@ -38,8 +42,11 @@ async function tableHasColumn(db: DbClient, table: string, column: string): Prom
   return true;
 }
 
-async function runUnlinkUpdate(query: unknown, label: string): Promise<void> {
-  const result = (await query) as { error?: DbErrorLike };
+async function runUnlinkUpdate(
+  query: PromiseLike<UnlinkUpdateResult>,
+  label: string,
+): Promise<void> {
+  const result = await query;
   const error = result.error ?? null;
 
   if (!error) return;
