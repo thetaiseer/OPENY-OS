@@ -11,6 +11,18 @@ import { requireRole } from '@/lib/api-auth';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MISSING_SCHEMA_ERROR_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
+
+function isMissingSchemaError(error: { code?: string | null; message?: string | null } | null): boolean {
+  if (!error) return false;
+  if (error.code && MISSING_SCHEMA_ERROR_CODES.has(error.code)) return true;
+  const message = (error.message ?? '').toLowerCase();
+  return (
+    message.includes('could not find the table') ||
+    message.includes('could not find the column') ||
+    message.includes('schema cache')
+  );
+}
 
 async function tableHasColumn(
   db: ReturnType<typeof getServiceClient>,
@@ -19,10 +31,18 @@ async function tableHasColumn(
 ): Promise<boolean> {
   const result = await db.from(table).select(column, { head: true }).limit(1);
   if (!result.error) return true;
-  if (result.error.code === '42P01' || result.error.code === '42703' || result.error.code === 'PGRST204') {
-    return false;
-  }
+  if (isMissingSchemaError(result.error)) return false;
   return true;
+}
+
+async function runUnlinkUpdate<T extends { error: { code?: string | null; message?: string | null } | null }>(
+  updatePromise: PromiseLike<T>,
+  label: string,
+): Promise<void> {
+  const { error } = await updatePromise;
+  if (!error) return;
+  if (isMissingSchemaError(error)) return;
+  throw new Error(`${label}: ${error.message ?? 'Unknown database error'}`);
 }
 
 async function unlinkClientReferences(
@@ -43,29 +63,26 @@ async function unlinkClientReferences(
   };
 
   if (hasClientId) {
-    const update = applyWorkspace(db.from(table).update({ client_id: null }).eq('client_id', clientId));
-    const { error } = await update;
-    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
-      throw new Error(`${table}.client_id: ${error.message}`);
-    }
+    await runUnlinkUpdate(
+      applyWorkspace(db.from(table).update({ client_id: null }).eq('client_id', clientId)),
+      `${table}.client_id`,
+    );
   }
 
   if (hasClientName && clientName) {
-    const update = applyWorkspace(db.from(table).update({ client_name: null }).eq('client_name', clientName));
-    const { error } = await update;
-    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
-      throw new Error(`${table}.client_name: ${error.message}`);
-    }
+    await runUnlinkUpdate(
+      applyWorkspace(db.from(table).update({ client_name: null }).eq('client_name', clientName)),
+      `${table}.client_name`,
+    );
   }
 
   if (hasClientFolderName && clientName) {
-    const update = applyWorkspace(
-      db.from(table).update({ client_folder_name: null }).eq('client_folder_name', clientName),
+    await runUnlinkUpdate(
+      applyWorkspace(
+        db.from(table).update({ client_folder_name: null }).eq('client_folder_name', clientName),
+      ),
+      `${table}.client_folder_name`,
     );
-    const { error } = await update;
-    if (error && error.code !== '42P01' && error.code !== '42703' && error.code !== 'PGRST204') {
-      throw new Error(`${table}.client_folder_name: ${error.message}`);
-    }
   }
 }
 
