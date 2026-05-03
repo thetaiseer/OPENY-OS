@@ -12,6 +12,8 @@ import {
   FileText,
   Activity,
   Globe,
+  Upload,
+  X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabase from '@/lib/supabase';
@@ -68,6 +70,8 @@ function ClientsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -76,7 +80,82 @@ function ClientsPage() {
     industry: '',
     status: 'active',
     notes: '',
+    logo: '',
   });
+
+  const resetClientForm = () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setForm({
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      industry: '',
+      status: 'active',
+      notes: '',
+      logo: '',
+    });
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
+  const closeClientModal = () => {
+    setModalOpen(false);
+    setSaveError(null);
+  };
+
+  const handleLogoChange = (file: File | null) => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    if (!file) {
+      setLogoFile(null);
+      setLogoPreview(null);
+      setForm((f) => ({ ...f, logo: '' }));
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setSaveError('Please choose an image file for the client logo.');
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('Client logo must be 5 MB or smaller.');
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+    setSaveError(null);
+    setLogoFile(file);
+    setForm((f) => ({ ...f, logo: '' }));
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadClientLogo = async (file: File, clientName: string) => {
+    const formData = new FormData();
+    const monthKey = new Date().toISOString().slice(0, 7);
+    formData.append('file', file);
+    formData.append('fileName', file.name);
+    formData.append('fileType', file.type || 'application/octet-stream');
+    formData.append('fileSize', String(file.size));
+    formData.append('clientName', clientName || 'Client');
+    formData.append('mainCategory', 'brand-assets');
+    formData.append('subCategory', 'logos');
+    formData.append('monthKey', monthKey);
+    formData.append('customFileName', `${clientName || 'client'}-logo`);
+
+    const response = await fetch('/api/upload/presign', {
+      method: 'POST',
+      body: formData,
+    });
+    const result = (await response.json().catch(() => ({}))) as {
+      publicUrl?: string;
+      error?: string;
+    };
+    if (!response.ok || !result.publicUrl) {
+      throw new Error(result.error ?? 'Failed to upload client logo');
+    }
+    return result.publicUrl;
+  };
 
   // React Query caches the client list across navigations — re-visiting this
   // page within the staleTime window renders the cached list immediately
@@ -215,16 +294,18 @@ function ClientsPage() {
 
     // Timeout-safe protection: fail gracefully if the API call hangs.
     // NOTE: clearTimeout is in the finally block so it always runs.
-    const timeoutMs = 15_000;
+    const timeoutMs = 30_000;
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
     try {
+      const logoUrl = logoFile ? await uploadClientLogo(logoFile, form.name.trim()) : form.logo;
+      const payload = { ...form, logo: logoUrl };
       const fetchWithTimeout = new Promise<Response>((resolve, reject) => {
         timeoutHandle = setTimeout(() => reject(new Error(t('requestTimedOut'))), timeoutMs);
         fetch('/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         }).then(resolve, reject);
       });
 
@@ -250,18 +331,10 @@ function ClientsPage() {
       // — SUCCESS PATH —
       // Close modal and reset form immediately; navigation is non-blocking.
       setModalOpen(false);
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        website: '',
-        industry: '',
-        status: 'active',
-        notes: '',
-      });
+      resetClientForm();
 
       // Fire-and-forget activity log — never blocks the UI
-      logActivity(`Client "${form.name}" created`, result.client?.id);
+      logActivity(`Client "${payload.name}" created`, result.client?.id);
 
       if (result.client?.id) {
         queryClient.setQueryData<Client[]>(['clients-list'], (old) => {
@@ -281,7 +354,7 @@ function ClientsPage() {
         });
         router.push(`/clients/${createdClientRouteKey}`);
       } else {
-        toast(t('clientCreatedSuccess', { name: form.name }), 'success');
+        toast(t('clientCreatedSuccess', { name: payload.name }), 'success');
 
         void queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       }
@@ -583,14 +656,11 @@ function ClientsPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setSaveError(null);
-        }}
+        onClose={closeClientModal}
         title={t('newClient')}
         footer={
           <>
-            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="ghost" onClick={closeClientModal}>
               {t('cancel')}
             </Button>
             <Button type="submit" variant="primary" form="client-create-form" disabled={saving}>
@@ -613,6 +683,49 @@ function ClientsPage() {
               <span>{saveError}</span>
             </div>
           )}
+
+          <Field label="Client logo">
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-3">
+              <ClientBrandMark
+                name={form.name || 'Client'}
+                logoUrl={logoPreview || form.logo}
+                size={52}
+                roundedClassName="rounded-xl"
+                className="shadow-sm"
+              />
+              <div className="min-w-0 flex-1">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium transition hover:bg-[var(--surface-2)]">
+                  <Upload size={14} />
+                  Upload logo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(event) => handleLogoChange(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  PNG, JPG, SVG or WebP. Max 5 MB.
+                </p>
+                {logoFile ? (
+                  <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {logoFile.name}
+                  </p>
+                ) : null}
+              </div>
+              {logoFile || logoPreview || form.logo ? (
+                <button
+                  type="button"
+                  onClick={() => handleLogoChange(null)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] hover:bg-[var(--surface-2)]"
+                  aria-label="Remove client logo"
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
+          </Field>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {[
               { label: t('companyName') + ' *', key: 'name', type: 'text', required: true },
