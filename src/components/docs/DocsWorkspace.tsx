@@ -3,22 +3,22 @@
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
+import { Home } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { cn } from '@/lib/cn';
 
 const DOC_TYPE_LINKS = [
-  { href: '/docs', label: 'Home', key: 'home' },
+  { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
   { href: '/docs/quotation', label: 'Quotation', key: 'quotation' },
   { href: '/docs/client-contract', label: 'Client Contract', key: 'client-contract' },
-  { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
   { href: '/docs/hr-contract', label: 'HR Contract', key: 'hr-contract' },
   { href: '/docs/employees', label: 'Employees', key: 'employees' },
   { href: '/docs/accounting', label: 'Accounting', key: 'accounting' },
 ] as const;
 
-export type DocsDocTypeTabKey = (typeof DOC_TYPE_LINKS)[number]['key'];
+export type DocsDocTypeTabKey = (typeof DOC_TYPE_LINKS)[number]['key'] | 'home';
 
 export function DocsDocTypeTabs({ active }: { active: DocsDocTypeTabKey }) {
   return (
@@ -38,7 +38,16 @@ export function DocsDocTypeTabs({ active }: { active: DocsDocTypeTabKey }) {
   );
 }
 
-/** Two-row toolbar: doc-type tabs + actions, then optional metadata / quick fields (shared across Docs workspaces). */
+export function DocsHomeButton() {
+  return (
+    <Link href="/docs" className="docs-home-btn" title="Back to Docs Home">
+      <Home size={14} />
+      <span>Home</span>
+    </Link>
+  );
+}
+
+/** Two-row toolbar: doc-type tabs + actions + home button, then optional metadata / quick fields (shared across Docs workspaces). */
 export function DocsToolbarLayout({
   navigation,
   actions,
@@ -52,7 +61,10 @@ export function DocsToolbarLayout({
     <div className="docs-workspace-quickbar">
       <div className="docs-toolbar-top-row">
         <div className="docs-toolbar-nav">{navigation}</div>
-        <div className="docs-toolbar-actions">{actions}</div>
+        <div className="docs-toolbar-actions">
+          {actions}
+          <DocsHomeButton />
+        </div>
       </div>
       {children != null && children !== false ? (
         <div className="docs-toolbar-meta">{children}</div>
