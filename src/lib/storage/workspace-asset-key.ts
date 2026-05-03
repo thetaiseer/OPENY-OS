@@ -1,6 +1,6 @@
 /**
  * Deterministic R2 keys for OPENY OS workspace assets.
- * Pattern: workspaces/{workspaceId}/clients/{clientId|uncategorized}/{mainCategory}/{year}/{month}/{subCategory}/{safeFileName}
+ * Pattern: workspaces/{workspaceId}/clients/{clientId|uncategorized}/{mainCategory}/{subCategory}/{year}/{month}/{safeFileName}
  */
 
 const UNCATEGORIZED = 'uncategorized';
@@ -21,7 +21,6 @@ function safePathSegment(value: string | null | undefined, fallback: string): st
   );
 }
 
-/** Lowercase, spaces → hyphen, strip unsafe chars; preserve extension in `ext` (includes leading dot or empty). */
 export function splitNameAndExtension(displayName: string): { stem: string; ext: string } {
   const trimmed = displayName.trim();
   const lastDot = trimmed.lastIndexOf('.');
@@ -81,7 +80,7 @@ export function buildWorkspaceAssetR2Key(params: {
   const mainSegment = safePathSegment(mainCategory, 'other');
   const subSegment = safePathSegment(subCategory, 'general');
   const safeName = buildSafeDisplayFileName(stem, ext, uniqueSuffix);
-  return `workspaces/${workspaceId}/clients/${clientSegment}/${mainSegment}/${year}/${month}/${subSegment}/${safeName}`;
+  return `workspaces/${workspaceId}/clients/${clientSegment}/${mainSegment}/${subSegment}/${year}/${month}/${safeName}`;
 }
 
 export function randomKeySuffix(): string {
