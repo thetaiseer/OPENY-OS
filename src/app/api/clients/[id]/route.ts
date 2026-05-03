@@ -6,7 +6,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { PostgrestError } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
@@ -15,7 +14,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const MISSING_SCHEMA_ERROR_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
 
 type DbClient = ReturnType<typeof getServiceClient>;
-type DbErrorLike = Pick<PostgrestError, 'code' | 'message'> | null;
+
+type DbErrorLike = {
+  code?: string | null;
+  message?: string | null;
+} | null;
 
 function isMissingSchemaError(error: DbErrorLike): boolean {
   if (!error) return false;
@@ -35,11 +38,10 @@ async function tableHasColumn(db: DbClient, table: string, column: string): Prom
   return true;
 }
 
-async function runUnlinkUpdate(
-  updatePromise: PromiseLike<{ error: DbErrorLike }>,
-  label: string,
-): Promise<void> {
-  const { error } = await updatePromise;
+async function runUnlinkUpdate(query: unknown, label: string): Promise<void> {
+  const result = (await query) as { error?: DbErrorLike };
+  const error = result.error ?? null;
+
   if (!error) return;
   if (isMissingSchemaError(error)) return;
   throw new Error(`${label}: ${error.message ?? 'Unknown database error'}`);
