@@ -113,7 +113,11 @@ export default function ClientOverviewPage() {
       const contentCount = ct.status === 'fulfilled' ? (ct.value.count ?? 0) : 0;
       const invoiceRows =
         inv.status === 'fulfilled' && !inv.value.error
-          ? ((inv.value.data ?? []) as { id: string; invoice_number?: string; created_at?: string }[])
+          ? ((inv.value.data ?? []) as {
+              id: string;
+              invoice_number?: string;
+              created_at?: string;
+            }[])
           : [];
       const quotationRows =
         quo.status === 'fulfilled' && !quo.value.error
@@ -121,7 +125,11 @@ export default function ClientOverviewPage() {
           : [];
       const contractRows =
         ctr.status === 'fulfilled' && !ctr.value.error
-          ? ((ctr.value.data ?? []) as { id: string; contract_number?: string; created_at?: string }[])
+          ? ((ctr.value.data ?? []) as {
+              id: string;
+              contract_number?: string;
+              created_at?: string;
+            }[])
           : [];
 
       const recentDocs: OverviewDoc[] = [
