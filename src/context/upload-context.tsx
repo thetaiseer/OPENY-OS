@@ -1283,10 +1283,20 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       fromApi.client_id ?? (item.clientId?.trim() ? item.clientId.trim() : undefined);
     const resolvedClientName =
       fromApi.client_name ?? (item.clientName?.trim() ? item.clientName.trim() : undefined);
+    const resolvedMainCategory =
+      fromApi.main_category ?? (item.mainCategory?.trim() ? item.mainCategory.trim() : null);
+    const resolvedSubCategory =
+      fromApi.sub_category ?? (item.subCategory?.trim() ? item.subCategory.trim() : null);
+    const resolvedMonthKey =
+      fromApi.month_key ?? (item.monthKey?.trim() ? item.monthKey.trim() : null);
     const merged: Asset = {
       ...fromApi,
       client_id: resolvedClientId,
       client_name: resolvedClientName,
+      client_folder_name: fromApi.client_folder_name ?? resolvedClientName ?? null,
+      main_category: resolvedMainCategory,
+      sub_category: resolvedSubCategory,
+      month_key: resolvedMonthKey,
     };
     dispatchRef.current({ type: 'SET_LATEST_ASSET', asset: merged });
     setStage(item.id, 'completed', 'Completed', { progress: 100 });
