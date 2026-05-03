@@ -1,22 +1,38 @@
 import { NextRequest } from 'next/server';
 import { getServiceClient } from '@/lib/supabase/service-client';
-import { getApiUser } from '@/lib/api-auth';
 import {
   ASSET_LIST_COLUMNS,
   ASSET_LIST_COLUMNS_LEGACY,
   ASSET_LIST_COLUMNS_MINIMAL,
 } from '@/lib/supabase-list-columns';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
+import { getApiUser } from '@/lib/api-auth';
 import { PG_UNDEFINED_COLUMN } from '@/lib/constants/postgres-errors';
 import { fail, ok } from '@/lib/api/respond';
 import { createRequestId } from '@/lib/errors/app-error';
 
 const PAGE_SIZE = 100;
+
 type AssetLifecycleRow = {
   deleted_at?: string | null;
   is_deleted?: boolean | null;
   missing_in_storage?: boolean | null;
   sync_status?: string | null;
+};
+
+type AssetFolderFallbackRow = AssetLifecycleRow & {
+  file_path?: string | null;
+  storage_path?: string | null;
+  storage_key?: string | null;
+  file_key?: string | null;
+  file_url?: string | null;
+  public_url?: string | null;
+  view_url?: string | null;
+  download_url?: string | null;
+  client_id?: string | null;
+  main_category?: string | null;
+  sub_category?: string | null;
+  month_key?: string | null;
 };
 
 function isActiveAsset(row: AssetLifecycleRow): boolean {
@@ -31,6 +47,48 @@ function isActiveAsset(row: AssetLifecycleRow): boolean {
     syncStatus !== 'deleted' &&
     syncStatus !== 'missing'
   );
+}
+
+function extractStoragePath(value: string | null | undefined): string {
+  if (!value) return '';
+  try {
+    const decoded = decodeURIComponent(value);
+    const marker = '/workspaces/';
+    const markerIndex = decoded.indexOf(marker);
+    if (markerIndex >= 0) return decoded.slice(markerIndex + 1);
+    const plainMarkerIndex = decoded.indexOf('workspaces/');
+    if (plainMarkerIndex >= 0) return decoded.slice(plainMarkerIndex);
+    return decoded;
+  } catch {
+    return value;
+  }
+}
+
+function deriveFolderFieldsFromPath(row: AssetFolderFallbackRow): Partial<AssetFolderFallbackRow> {
+  const rawPath =
+    row.file_path ??
+    row.storage_path ??
+    row.storage_key ??
+    row.file_key ??
+    row.public_url ??
+    row.file_url ??
+    row.view_url ??
+    row.download_url ??
+    '';
+  const path = extractStoragePath(rawPath);
+  const match = path.match(
+    /workspaces\/([^/]+)\/clients\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\/([^/]+)\//,
+  );
+
+  if (!match) return {};
+
+  const [, , clientSegment, mainCategory, year, month, subCategory] = match;
+  return {
+    client_id: row.client_id ?? (clientSegment !== 'uncategorized' ? clientSegment : null),
+    main_category: row.main_category ?? mainCategory,
+    sub_category: row.sub_category ?? subCategory,
+    month_key: row.month_key ?? `${year}-${month}`,
+  };
 }
 
 /**
@@ -97,7 +155,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build query with optional filters (hide soft-deleted + R2-missing rows when columns exist)
     let query = supabase
       .from('assets')
       .select(ASSET_LIST_COLUMNS)
@@ -120,7 +177,6 @@ export async function GET(req: NextRequest) {
     let result = await query.range(from, to);
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #1: lifecycle columns not migrated — keep is_deleted filter only
       let fallback = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS)
@@ -143,7 +199,6 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #2: legacy projection for envs missing `file_path` (and similar).
       let legacy = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS_LEGACY)
@@ -163,7 +218,6 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #3: minimal column list (drops tags / categories / storage_key / file_path).
       let mini = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS_MINIMAL)
@@ -172,8 +226,6 @@ export async function GET(req: NextRequest) {
 
       if (clientId) mini = mini.eq('client_id', clientId);
       if (clientName) mini = mini.eq('client_name', clientName);
-      if (mainCategory) mini = mini.eq('main_category', mainCategory);
-      if (subCategory) mini = mini.eq('sub_category', subCategory);
       if (monthKey) mini = mini.eq('month_key', monthKey);
       if (year) mini = mini.like('month_key', `${year}-%`);
       if (fileType) mini = mini.like('file_type', `${fileType}%`);
@@ -183,28 +235,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #4: minimal + workspace, but omit category filters (older tables).
-      let mini2 = supabase
-        .from('assets')
-        .select(ASSET_LIST_COLUMNS_MINIMAL)
-        .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false });
-
-      if (clientId) mini2 = mini2.eq('client_id', clientId);
-      if (clientName) mini2 = mini2.eq('client_name', clientName);
-      if (monthKey) mini2 = mini2.eq('month_key', monthKey);
-      if (year) mini2 = mini2.like('month_key', `${year}-%`);
-      if (fileType) mini2 = mini2.like('file_type', `${fileType}%`);
-      if (search) mini2 = mini2.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
-
-      result = await mini2.range(from, to);
-    }
-
-    if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #5: legacy single-tenant DBs without `workspace_id` on assets.
       let legacyWs = supabase
         .from('assets')
-        .select(ASSET_LIST_COLUMNS_MINIMAL)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (clientId) legacyWs = legacyWs.eq('client_id', clientId);
@@ -215,18 +248,6 @@ export async function GET(req: NextRequest) {
       if (search) legacyWs = legacyWs.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
 
       result = await legacyWs.range(from, to);
-    }
-
-    if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Retry #6: last resort — full rows, no filters (avoids unknown WHERE columns).
-      console.warn(
-        '[GET /api/assets] Using select(*) without filters — apply migrations for workspace-scoped assets.',
-      );
-      result = await supabase
-        .from('assets')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
     }
 
     const { data, error } = result;
@@ -251,7 +272,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const assets = ((data ?? []) as AssetLifecycleRow[]).filter(isActiveAsset);
+    const assets = ((data ?? []) as AssetFolderFallbackRow[])
+      .filter(isActiveAsset)
+      .map((asset) => ({ ...deriveFolderFieldsFromPath(asset), ...asset }));
+
     return ok({
       assets,
       page,
