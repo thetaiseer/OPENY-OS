@@ -17,13 +17,24 @@ export function ClientBrandMark({
   roundedClassName?: string;
 }) {
   const initial = (name?.trim().charAt(0) || '?').toUpperCase();
+  const squareStyle = {
+    width: size,
+    height: size,
+    minWidth: size,
+    minHeight: size,
+    maxWidth: size,
+    maxHeight: size,
+    aspectRatio: '1 / 1',
+  } as const;
+
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- R2/public URLs; not always optimizable
       <img
         src={logoUrl}
         alt=""
-        className={`shrink-0 object-cover ${roundedClassName} ${className}`}
+        className={`block shrink-0 object-cover ${roundedClassName} ${className}`}
+        style={squareStyle}
         width={size}
         height={size}
         loading="lazy"
@@ -35,8 +46,7 @@ export function ClientBrandMark({
     <div
       className={`flex shrink-0 items-center justify-center font-bold text-[var(--accent-foreground)] ${roundedClassName} ${className}`}
       style={{
-        width: size,
-        height: size,
+        ...squareStyle,
         background: 'var(--accent)',
         fontSize: Math.max(12, Math.round(size * 0.38)),
       }}
