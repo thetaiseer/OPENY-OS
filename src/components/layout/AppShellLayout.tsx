@@ -14,6 +14,7 @@ import Breadcrumbs from '@/components/ui/navigation/Breadcrumbs';
 import RouteTitle from '@/components/ui/navigation/RouteTitle';
 import { useAuth } from '@/context/auth-context';
 import { workspaceKey } from '@/hooks/workspace-query';
+import PageTransition from '@/components/layout/PageTransition';
 
 function routePermissionTarget(
   pathname: string,
@@ -109,16 +110,18 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
       <Header />
       <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[var(--openy-sidebar-width)] md:pb-6 md:pt-10">
         <PageShellProvider>
-          <div className="mx-auto w-full max-w-shell space-y-2 pb-4 pe-[max(1rem,env(safe-area-inset-right,0px))] ps-[max(1rem,env(safe-area-inset-left,0px))] pt-3 sm:pb-5 md:pb-6 md:pe-6 md:ps-6">
-            <div className="sr-only">
-              <RouteTitle />
-            </div>
-            {pathname !== '/dashboard' && (
-              <div className="flex min-h-6 items-center justify-between gap-3">
-                <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
+          <div className="mx-auto w-full max-w-shell pb-4 pe-[max(1rem,env(safe-area-inset-right,0px))] ps-[max(1rem,env(safe-area-inset-left,0px))] pt-3 sm:pb-5 md:pb-6 md:pe-6 md:ps-6">
+            <PageTransition className="space-y-2">
+              <div className="sr-only">
+                <RouteTitle />
               </div>
-            )}
-            {children}
+              {pathname !== '/dashboard' && (
+                <div className="flex min-h-6 items-center justify-between gap-3">
+                  <Breadcrumbs className="min-w-0 flex-1" hideOnDashboard />
+                </div>
+              )}
+              {children}
+            </PageTransition>
           </div>
         </PageShellProvider>
       </main>

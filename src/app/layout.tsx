@@ -6,7 +6,6 @@ import { LangProvider } from '@/context/lang-context';
 import { AuthProvider } from '@/context/auth-context';
 import Providers from './providers';
 import AssetBreadcrumbOrderPatch from '@/components/features/assets/AssetBreadcrumbOrderPatch';
-import PageTransition from '@/components/layout/PageTransition';
 
 export const metadata: Metadata = {
   title: 'OPENY',
@@ -48,9 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <Providers>
                 <AssetBreadcrumbOrderPatch />
-                <PageTransition>
-                  {children}
-                </PageTransition>
+                {children}
               </Providers>
             </AuthProvider>
           </LangProvider>
