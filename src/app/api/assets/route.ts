@@ -80,13 +80,27 @@ function deriveFolderFieldsFromPath(row: AssetFolderFallbackRow): Partial<AssetF
     row.download_url ??
     '';
   const path = extractStoragePath(rawPath);
-  const match = path.match(
+
+  const newOrder = path.match(
+    /workspaces\/([^/]+)\/clients\/([^/]+)\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\//,
+  );
+  if (newOrder) {
+    const [, workspaceId, clientSegment, mainCategory, subCategory, year, month] = newOrder;
+    return {
+      workspace_id: row.workspace_id ?? workspaceId,
+      client_id: row.client_id ?? (clientSegment !== 'uncategorized' ? clientSegment : null),
+      main_category: row.main_category ?? mainCategory,
+      sub_category: row.sub_category ?? subCategory,
+      month_key: row.month_key ?? `${year}-${month}`,
+    };
+  }
+
+  const legacyOrder = path.match(
     /workspaces\/([^/]+)\/clients\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\/([^/]+)\//,
   );
+  if (!legacyOrder) return {};
 
-  if (!match) return {};
-
-  const [, workspaceId, clientSegment, mainCategory, year, month, subCategory] = match;
+  const [, workspaceId, clientSegment, mainCategory, year, month, subCategory] = legacyOrder;
   return {
     workspace_id: row.workspace_id ?? workspaceId,
     client_id: row.client_id ?? (clientSegment !== 'uncategorized' ? clientSegment : null),
@@ -226,8 +240,6 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      // Last resort for partially migrated DBs: avoid WHERE clauses for missing columns
-      // and apply folder/month/category filtering in JavaScript after deriving from storage paths.
       result = await supabase
         .from('assets')
         .select('*')
