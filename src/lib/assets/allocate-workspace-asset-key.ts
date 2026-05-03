@@ -10,6 +10,8 @@ export async function allocateWorkspaceAssetStorageKey(
   clientId: string | null,
   monthKey: string,
   originalFileName: string,
+  mainCategory?: string | null,
+  subCategory?: string | null,
 ): Promise<{ storageKey: string }> {
   for (let attempt = 0; attempt < 16; attempt++) {
     const suffix = attempt === 0 ? undefined : randomKeySuffix();
@@ -19,6 +21,8 @@ export async function allocateWorkspaceAssetStorageKey(
       monthKey,
       originalDisplayName: originalFileName,
       uniqueSuffix: suffix,
+      mainCategory,
+      subCategory,
     });
 
     const inR2 = await fileExists(storageKey);
