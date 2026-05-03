@@ -21,6 +21,7 @@ type AssetLifecycleRow = {
 };
 
 type AssetFolderFallbackRow = AssetLifecycleRow & {
+  workspace_id?: string | null;
   file_path?: string | null;
   storage_path?: string | null;
   storage_key?: string | null;
@@ -30,9 +31,12 @@ type AssetFolderFallbackRow = AssetLifecycleRow & {
   view_url?: string | null;
   download_url?: string | null;
   client_id?: string | null;
+  client_name?: string | null;
   main_category?: string | null;
   sub_category?: string | null;
   month_key?: string | null;
+  file_type?: string | null;
+  name?: string | null;
 };
 
 function isActiveAsset(row: AssetLifecycleRow): boolean {
@@ -82,8 +86,9 @@ function deriveFolderFieldsFromPath(row: AssetFolderFallbackRow): Partial<AssetF
 
   if (!match) return {};
 
-  const [, , clientSegment, mainCategory, year, month, subCategory] = match;
+  const [, workspaceId, clientSegment, mainCategory, year, month, subCategory] = match;
   return {
+    workspace_id: row.workspace_id ?? workspaceId,
     client_id: row.client_id ?? (clientSegment !== 'uncategorized' ? clientSegment : null),
     main_category: row.main_category ?? mainCategory,
     sub_category: row.sub_category ?? subCategory,
@@ -91,33 +96,48 @@ function deriveFolderFieldsFromPath(row: AssetFolderFallbackRow): Partial<AssetF
   };
 }
 
-/**
- * GET /api/assets
- *
- * Returns paginated assets from the database.
- * - admin / team: all assets
- * - client: only assets belonging to their client_id
- *
- * Query params:
- *   page          – 0-indexed page number (default: 0)
- *   client_id     – filter by client UUID
- *   client_name   – filter by client display name
- *   main_category – filter by main category slug
- *   sub_category  – filter by subcategory slug
- *   year          – filter by year (e.g. "2026")
- *   month_key     – filter by month key "YYYY-MM"
- *   file_type     – filter by MIME type prefix (e.g. "image")
- *   search        – full-text search on name / client_name
- */
+function normalizeAsset(row: AssetFolderFallbackRow): AssetFolderFallbackRow {
+  return { ...row, ...deriveFolderFieldsFromPath(row) };
+}
+
+function matchesRequestedFilters(
+  row: AssetFolderFallbackRow,
+  filters: {
+    workspaceId: string;
+    clientId: string;
+    clientName: string;
+    mainCategory: string;
+    subCategory: string;
+    year: string;
+    monthKey: string;
+    fileType: string;
+    search: string;
+  },
+): boolean {
+  if (row.workspace_id && row.workspace_id !== filters.workspaceId) return false;
+  if (filters.clientId && row.client_id !== filters.clientId) return false;
+  if (filters.clientName && row.client_name !== filters.clientName) return false;
+  if (filters.mainCategory && row.main_category !== filters.mainCategory) return false;
+  if (filters.subCategory && row.sub_category !== filters.subCategory) return false;
+  if (filters.monthKey && row.month_key !== filters.monthKey) return false;
+  if (filters.year && !(row.month_key ?? '').startsWith(`${filters.year}-`)) return false;
+  if (filters.fileType && !(row.file_type ?? '').startsWith(filters.fileType)) return false;
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    const name = (row.name ?? '').toLowerCase();
+    const client = (row.client_name ?? '').toLowerCase();
+    if (!name.includes(q) && !client.includes(q)) return false;
+  }
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   const requestId = createRequestId();
   try {
     const auth = await getApiUser(req);
-    if (!auth) {
-      return fail(401, 'UNAUTHORIZED', 'Unauthorized', undefined, requestId);
-    }
-    const { profile } = auth;
+    if (!auth) return fail(401, 'UNAUTHORIZED', 'Unauthorized', undefined, requestId);
 
+    const { profile } = auth;
     const { searchParams } = new URL(req.url);
     const page = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
     const clientId = searchParams.get('client_id') ?? '';
@@ -131,12 +151,7 @@ export async function GET(req: NextRequest) {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Client role: profiles no longer carry client_id, so we cannot scope
-    // results to a specific client — return an empty list to avoid exposing
-    // all assets until RLS policies are tightened.
-    if (profile.role === 'client') {
-      return ok({ assets: [], page, hasMore: false, requestId });
-    }
+    if (profile.role === 'client') return ok({ assets: [], page, hasMore: false, requestId });
 
     const supabase = getServiceClient();
     const { workspaceId, error: workspaceError } = await resolveWorkspaceForRequest(
@@ -179,11 +194,8 @@ export async function GET(req: NextRequest) {
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
       let fallback = supabase
         .from('assets')
-        .select(ASSET_LIST_COLUMNS)
+        .select(ASSET_LIST_COLUMNS_LEGACY)
         .eq('workspace_id', workspaceId)
-        .is('deleted_at', null)
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .or('sync_status.is.null,sync_status.neq.deleted')
         .order('created_at', { ascending: false });
 
       if (clientId) fallback = fallback.eq('client_id', clientId);
@@ -199,69 +211,33 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      let legacy = supabase
-        .from('assets')
-        .select(ASSET_LIST_COLUMNS_LEGACY)
-        .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false });
-
-      if (clientId) legacy = legacy.eq('client_id', clientId);
-      if (clientName) legacy = legacy.eq('client_name', clientName);
-      if (mainCategory) legacy = legacy.eq('main_category', mainCategory);
-      if (subCategory) legacy = legacy.eq('sub_category', subCategory);
-      if (monthKey) legacy = legacy.eq('month_key', monthKey);
-      if (year) legacy = legacy.like('month_key', `${year}-%`);
-      if (fileType) legacy = legacy.like('file_type', `${fileType}%`);
-      if (search) legacy = legacy.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
-
-      result = await legacy.range(from, to);
-    }
-
-    if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      let mini = supabase
+      let minimal = supabase
         .from('assets')
         .select(ASSET_LIST_COLUMNS_MINIMAL)
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
-      if (clientId) mini = mini.eq('client_id', clientId);
-      if (clientName) mini = mini.eq('client_name', clientName);
-      if (monthKey) mini = mini.eq('month_key', monthKey);
-      if (year) mini = mini.like('month_key', `${year}-%`);
-      if (fileType) mini = mini.like('file_type', `${fileType}%`);
-      if (search) mini = mini.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
+      if (clientId) minimal = minimal.eq('client_id', clientId);
+      if (clientName) minimal = minimal.eq('client_name', clientName);
+      if (fileType) minimal = minimal.like('file_type', `${fileType}%`);
+      if (search) minimal = minimal.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
 
-      result = await mini.range(from, to);
+      result = await minimal.range(from, to);
     }
 
     if (result.error?.code === PG_UNDEFINED_COLUMN) {
-      let legacyWs = supabase
+      // Last resort for partially migrated DBs: avoid WHERE clauses for missing columns
+      // and apply folder/month/category filtering in JavaScript after deriving from storage paths.
+      result = await supabase
         .from('assets')
         .select('*')
-        .order('created_at', { ascending: false });
-
-      if (clientId) legacyWs = legacyWs.eq('client_id', clientId);
-      if (clientName) legacyWs = legacyWs.eq('client_name', clientName);
-      if (monthKey) legacyWs = legacyWs.eq('month_key', monthKey);
-      if (year) legacyWs = legacyWs.like('month_key', `${year}-%`);
-      if (fileType) legacyWs = legacyWs.like('file_type', `${fileType}%`);
-      if (search) legacyWs = legacyWs.or(`name.ilike.%${search}%,client_name.ilike.%${search}%`);
-
-      result = await legacyWs.range(from, to);
+        .order('created_at', { ascending: false })
+        .range(from, to);
     }
 
     const { data, error } = result;
 
     if (error) {
-      if (error.code === PG_UNDEFINED_COLUMN) {
-        return fail(
-          503,
-          'ASSET_COLUMNS_MISSING',
-          `Assets cannot load: the database is missing required columns (${error.message}). Apply Supabase migrations (e.g. workspace + assets patches in supabase/migrations), then retry.`,
-          { dbHint: error.hint ?? null },
-          requestId,
-        );
-      }
       console.error('[GET /api/assets] Supabase error:', error.message, error.details ?? '');
       return fail(
         500,
@@ -272,16 +248,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const filters = {
+      workspaceId,
+      clientId,
+      clientName,
+      mainCategory,
+      subCategory,
+      year,
+      monthKey,
+      fileType,
+      search,
+    };
     const assets = ((data ?? []) as AssetFolderFallbackRow[])
       .filter(isActiveAsset)
-      .map((asset) => ({ ...deriveFolderFieldsFromPath(asset), ...asset }));
+      .map(normalizeAsset)
+      .filter((asset) => matchesRequestedFilters(asset, filters));
 
-    return ok({
-      assets,
-      page,
-      hasMore: assets.length === PAGE_SIZE,
-      requestId,
-    });
+    return ok({ assets, page, hasMore: assets.length === PAGE_SIZE, requestId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[GET /api/assets] unexpected error:', msg);
