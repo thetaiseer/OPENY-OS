@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -12,6 +11,7 @@ import {
   Receipt,
   FileSignature,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useClientWorkspace } from '../client-context';
 import supabase from '@/lib/supabase';
 import { useLang } from '@/context/lang-context';
@@ -26,28 +26,30 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+type OverviewDoc = {
+  id: string;
+  title: string;
+  type: 'invoice' | 'quotation' | 'contract';
+  created_at?: string | null;
+};
+
+type OverviewData = {
+  counts: { tasks: number; assets: number; content: number; docs: number };
+  recentTasks: Task[];
+  recentAssets: Asset[];
+  recentContent: ContentItem[];
+  recentDocs: OverviewDoc[];
+};
+
 export default function ClientOverviewPage() {
   const { client, clientId } = useClientWorkspace();
   const { slug } = useParams<{ slug: string }>();
   const { t } = useLang();
 
-  const [counts, setCounts] = useState({ tasks: 0, assets: 0, content: 0, docs: 0 });
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
-  const [recentAssets, setRecentAssets] = useState<Asset[]>([]);
-  const [recentContent, setRecentContent] = useState<ContentItem[]>([]);
-  const [recentDocs, setRecentDocs] = useState<
-    {
-      id: string;
-      title: string;
-      type: 'invoice' | 'quotation' | 'contract';
-      created_at?: string | null;
-    }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!clientId || !client?.name) return;
-    void (async () => {
+  const { data, isLoading: loading } = useQuery<OverviewData>({
+    queryKey: ['client-overview-data', clientId, client?.name],
+    enabled: !!clientId && !!client?.name,
+    queryFn: async () => {
       const [tk, ast, ct, rtk, rast, rct, inv, quo, ctr] = await Promise.allSettled([
         supabase
           .from('tasks')
@@ -89,32 +91,29 @@ export default function ClientOverviewPage() {
         supabase
           .from('docs_invoices')
           .select('id,invoice_number,created_at')
-          .ilike('client_name', `%${client.name}%`)
+          .ilike('client_name', `%${client!.name}%`)
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
           .from('docs_quotations')
           .select('id,quote_number,created_at')
-          .ilike('client_name', `%${client.name}%`)
+          .ilike('client_name', `%${client!.name}%`)
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
           .from('docs_client_contracts')
           .select('id,contract_number,created_at')
-          .ilike('party2_client_name', `%${client.name}%`)
+          .ilike('party2_client_name', `%${client!.name}%`)
           .order('created_at', { ascending: false })
           .limit(5),
       ]);
+
       const taskCount = tk.status === 'fulfilled' ? (tk.value.count ?? 0) : 0;
       const assetCount = ast.status === 'fulfilled' ? (ast.value.count ?? 0) : 0;
       const contentCount = ct.status === 'fulfilled' ? (ct.value.count ?? 0) : 0;
       const invoiceRows =
         inv.status === 'fulfilled' && !inv.value.error
-          ? ((inv.value.data ?? []) as {
-              id: string;
-              invoice_number?: string;
-              created_at?: string;
-            }[])
+          ? ((inv.value.data ?? []) as { id: string; invoice_number?: string; created_at?: string }[])
           : [];
       const quotationRows =
         quo.status === 'fulfilled' && !quo.value.error
@@ -122,19 +121,10 @@ export default function ClientOverviewPage() {
           : [];
       const contractRows =
         ctr.status === 'fulfilled' && !ctr.value.error
-          ? ((ctr.value.data ?? []) as {
-              id: string;
-              contract_number?: string;
-              created_at?: string;
-            }[])
+          ? ((ctr.value.data ?? []) as { id: string; contract_number?: string; created_at?: string }[])
           : [];
-      setCounts({
-        tasks: taskCount,
-        assets: assetCount,
-        content: contentCount,
-        docs: invoiceRows.length + quotationRows.length + contractRows.length,
-      });
-      const docs = [
+
+      const recentDocs: OverviewDoc[] = [
         ...invoiceRows.map((d) => ({
           id: d.id,
           title: d.invoice_number || 'Invoice',
@@ -156,16 +146,34 @@ export default function ClientOverviewPage() {
       ]
         .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
         .slice(0, 4);
-      setRecentDocs(docs);
-      if (rtk.status === 'fulfilled' && !rtk.value.error)
-        setRecentTasks((rtk.value.data ?? []) as Task[]);
-      if (rast.status === 'fulfilled' && !rast.value.error)
-        setRecentAssets((rast.value.data ?? []) as Asset[]);
-      if (rct.status === 'fulfilled' && !rct.value.error)
-        setRecentContent((rct.value.data ?? []) as ContentItem[]);
-      setLoading(false);
-    })();
-  }, [clientId, client?.name]);
+
+      return {
+        counts: {
+          tasks: taskCount,
+          assets: assetCount,
+          content: contentCount,
+          docs: invoiceRows.length + quotationRows.length + contractRows.length,
+        },
+        recentTasks:
+          rtk.status === 'fulfilled' && !rtk.value.error ? ((rtk.value.data ?? []) as Task[]) : [],
+        recentAssets:
+          rast.status === 'fulfilled' && !rast.value.error
+            ? ((rast.value.data ?? []) as Asset[])
+            : [],
+        recentContent:
+          rct.status === 'fulfilled' && !rct.value.error
+            ? ((rct.value.data ?? []) as ContentItem[])
+            : [],
+        recentDocs,
+      };
+    },
+  });
+
+  const counts = data?.counts ?? { tasks: 0, assets: 0, content: 0, docs: 0 };
+  const recentTasks = data?.recentTasks ?? [];
+  const recentAssets = data?.recentAssets ?? [];
+  const recentContent = data?.recentContent ?? [];
+  const recentDocs = data?.recentDocs ?? [];
 
   if (!client) return null;
 

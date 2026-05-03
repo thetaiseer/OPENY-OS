@@ -110,7 +110,13 @@ function ClientsPage() {
     queryKey: ['clients-stats'],
     queryFn: async () => {
       const [assetRows, taskRows, contentRows, activityRows] = await Promise.all([
-        supabase.from('assets').select('client_id').not('client_id', 'is', null),
+        supabase
+          .from('assets')
+          .select('client_id')
+          .not('client_id', 'is', null)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .or('missing_in_storage.is.null,missing_in_storage.eq.false'),
         supabase.from('tasks').select('client_id').not('client_id', 'is', null),
         supabase.from('content_items').select('client_id').not('client_id', 'is', null),
         supabase
