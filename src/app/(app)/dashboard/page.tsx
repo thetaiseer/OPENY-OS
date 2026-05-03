@@ -441,6 +441,18 @@ function PerformanceLineChart({ data }: { data: { date: string; completed: numbe
   );
 }
 
+function calcTrend(
+  current: number,
+  previous: number,
+  higherIsBetter = true,
+): { value: string; positive: boolean } {
+  if (previous === 0 && current === 0) return { value: '0%', positive: true };
+  if (previous === 0) return { value: '100%', positive: higherIsBetter };
+  const pct = Math.round((Math.abs(current - previous) / previous) * 100);
+  const increased = current >= previous;
+  return { value: `${pct}%`, positive: higherIsBetter ? increased : !increased };
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -451,6 +463,20 @@ export default function DashboardPage() {
     () => toUtcRangeBounds(periodStart, periodEnd),
     [periodStart, periodEnd],
   );
+
+  // Previous period: same duration, immediately before current period
+  const { prevStart, prevEnd } = useMemo(() => {
+    const startMs = new Date(periodStart).getTime();
+    const endMs = new Date(periodEnd).getTime();
+    const durationMs = endMs - startMs;
+    const prevEndMs = startMs - 86400000;
+    const prevStartMs = prevEndMs - durationMs;
+    return {
+      prevStart: new Date(prevStartMs).toISOString().slice(0, 10),
+      prevEnd: new Date(prevEndMs).toISOString().slice(0, 10),
+    };
+  }, [periodStart, periodEnd]);
+
   const { triggerQuickAction } = useQuickActions();
   const [taskTab, setTaskTab] = useState<'upcoming' | 'overdue'>('upcoming');
 
@@ -757,6 +783,40 @@ export default function DashboardPage() {
     retry: 1,
   });
 
+  // Fetch previous-period stats for trend comparison
+  const { data: prevStats } = useQuery({
+    queryKey: ['dashboard-prev-stats', prevStart, prevEnd],
+    queryFn: async () => {
+      const terminal = '("done","delivered","completed","published","cancelled")';
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const [prevProjects, prevOverdue] = await Promise.all([
+        applyUtcTimestampRange(
+          supabase.from('projects').select('id,status'),
+          'created_at',
+          prevStart,
+          prevEnd,
+        ),
+        applyDateOnlyRange(
+          supabase.from('tasks').select('id', { count: 'exact', head: true }),
+          'due_date',
+          prevStart,
+          prevEnd,
+        )
+          .lt('due_date', todayStr)
+          .not('status', 'in', terminal),
+      ]);
+      const projects = (prevProjects.data ?? []) as { id: string; status: string }[];
+      return {
+        totalProjects: projects.length,
+        inProgress: projects.filter((p) => p.status === 'active').length,
+        completed: projects.filter((p) => p.status === 'completed').length,
+        overdueCount: prevOverdue.count ?? 0,
+      };
+    },
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   const recentPace =
     (trendsData ?? []).slice(-7).reduce((s, d) => s + d.completed, 0) / Math.max(7, 1);
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -824,7 +884,7 @@ export default function DashboardPage() {
               value: totalProjects,
               icon: <FolderKanban size={20} />,
               color: 'blue' as const,
-              trend: { value: '12%', positive: true },
+              trend: calcTrend(totalProjects, prevStats?.totalProjects ?? 0),
               href: '/projects',
             },
             {
@@ -832,7 +892,10 @@ export default function DashboardPage() {
               value: donutData.find((d) => d.id === 'in_progress')?.value ?? 0,
               icon: <TrendingUp size={20} />,
               color: 'mint' as const,
-              trend: { value: '8%', positive: true },
+              trend: calcTrend(
+                donutData.find((d) => d.id === 'in_progress')?.value ?? 0,
+                prevStats?.inProgress ?? 0,
+              ),
               href: '/projects?status=active',
             },
             {
@@ -840,7 +903,10 @@ export default function DashboardPage() {
               value: donutData.find((d) => d.id === 'completed')?.value ?? 0,
               icon: <CheckSquare size={20} />,
               color: 'green' as const,
-              trend: { value: '20%', positive: true },
+              trend: calcTrend(
+                donutData.find((d) => d.id === 'completed')?.value ?? 0,
+                prevStats?.completed ?? 0,
+              ),
               href: '/projects?status=completed',
             },
             {
@@ -848,7 +914,7 @@ export default function DashboardPage() {
               value: stats?.overdueTasks ?? 0,
               icon: <AlertTriangle size={20} />,
               color: 'rose' as const,
-              trend: { value: '5%', positive: false },
+              trend: calcTrend(stats?.overdueTasks ?? 0, prevStats?.overdueCount ?? 0, false),
               href: '/tasks/all?filter=overdue',
             },
           ].map((card) => (
