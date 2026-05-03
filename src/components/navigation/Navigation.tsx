@@ -97,21 +97,26 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'group flex items-center rounded-xl border transition-all duration-200',
-                      collapsed ? 'h-10 w-10 justify-center' : 'h-10 gap-2.5 px-3',
-
-                      // 🔥 NEW CLEAR ACTIVE STYLE
+                      'group relative flex items-center overflow-hidden rounded-xl border transition-all duration-200',
+                      collapsed ? 'h-10 w-10 justify-center' : 'h-10 gap-2.5 px-3 ps-4',
                       active
-                        ? 'border-[var(--accent)] bg-[color:var(--surface-2)] text-[var(--text)] shadow-sm ring-1 ring-[var(--accent)]'
+                        ? 'border-[var(--accent)] bg-[color:var(--surface-2)] text-[var(--text)] shadow-md ring-2 ring-[var(--accent)]'
                         : 'border-transparent text-[var(--sidebar-foreground)] hover:border-[var(--border)] hover:bg-[color:var(--surface-soft)]',
                     )}
                     title={collapsed ? item.label : undefined}
                   >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'absolute inset-y-1 start-1 w-1 rounded-full bg-[var(--accent)] transition-opacity duration-200',
+                        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40',
+                      )}
+                    />
                     <Icon className="h-4 w-4 shrink-0" />
 
                     {!collapsed ? (
                       <>
-                        <span className="truncate text-sm font-medium">{item.label}</span>
+                        <span className="truncate text-sm font-semibold">{item.label}</span>
 
                         {badge > 0 ? (
                           <span className="ms-auto inline-flex min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--color-danger-bg)] px-1.5 text-[10px] font-semibold text-[var(--color-danger)]">
