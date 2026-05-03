@@ -191,7 +191,7 @@ function AssetTile({
             <img
               src={overlayLogoUrl}
               alt=""
-              className="h-8 w-8 rounded-lg border-2 border-white object-cover shadow-md"
+              className="h-8 w-8 rounded-lg border-2 border-[color:var(--surface)] object-cover shadow-md"
               loading="lazy"
             />
           </div>
