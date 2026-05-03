@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { ClipboardList, FileText, Users, Briefcase, Calculator } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
