@@ -138,7 +138,7 @@ function ClientsPage() {
     formData.append('fileType', file.type || 'application/octet-stream');
     formData.append('fileSize', String(file.size));
     formData.append('clientName', clientName || 'Client');
-    formData.append('mainCategory', 'brand-assets');
+    formData.append('mainCategory', 'designs');
     formData.append('subCategory', 'logos');
     formData.append('monthKey', monthKey);
     formData.append('customFileName', `${clientName || 'client'}-logo`);
