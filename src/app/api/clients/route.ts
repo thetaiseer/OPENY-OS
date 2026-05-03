@@ -6,7 +6,7 @@
  * Auth: requires 'admin', 'manager', or 'team_member' role.
  *
  * Request body (JSON):
- *   { name, email?, phone?, website?, industry?, status?, notes? }
+ *   { name, email?, phone?, website?, industry?, status?, notes?, logo? }
  *
  * Success response:
  *   { success: true, client: { ...createdClient } }
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
     'industry',
     'status',
     'notes',
+    'logo',
     'default_currency',
   ] as const;
   for (const field of optionalFields) {
