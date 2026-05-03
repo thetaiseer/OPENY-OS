@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { requireRole } from '@/lib/api-auth';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
@@ -13,7 +14,10 @@ import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MISSING_SCHEMA_ERROR_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
 
-function isMissingSchemaError(error: { code?: string | null; message?: string | null } | null): boolean {
+type DbClient = ReturnType<typeof getServiceClient>;
+type DbErrorLike = Pick<PostgrestError, 'code' | 'message'> | null;
+
+function isMissingSchemaError(error: DbErrorLike): boolean {
   if (!error) return false;
   if (error.code && MISSING_SCHEMA_ERROR_CODES.has(error.code)) return true;
   const message = (error.message ?? '').toLowerCase();
@@ -24,19 +28,15 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
   );
 }
 
-async function tableHasColumn(
-  db: ReturnType<typeof getServiceClient>,
-  table: string,
-  column: string,
-): Promise<boolean> {
+async function tableHasColumn(db: DbClient, table: string, column: string): Promise<boolean> {
   const result = await db.from(table).select(column, { head: true }).limit(1);
   if (!result.error) return true;
   if (isMissingSchemaError(result.error)) return false;
   return true;
 }
 
-async function runUnlinkUpdate<T extends { error: { code?: string | null; message?: string | null } | null }>(
-  updatePromise: PromiseLike<T>,
+async function runUnlinkUpdate(
+  updatePromise: PromiseLike<{ error: DbErrorLike }>,
   label: string,
 ): Promise<void> {
   const { error } = await updatePromise;
@@ -46,7 +46,7 @@ async function runUnlinkUpdate<T extends { error: { code?: string | null; messag
 }
 
 async function unlinkClientReferences(
-  db: ReturnType<typeof getServiceClient>,
+  db: DbClient,
   table: string,
   clientId: string,
   clientName: string,
@@ -57,32 +57,25 @@ async function unlinkClientReferences(
   const hasClientName = await tableHasColumn(db, table, 'client_name');
   const hasClientFolderName = await tableHasColumn(db, table, 'client_folder_name');
 
-  const applyWorkspace = <T>(query: T): T => {
-    if (!hasWorkspaceId) return query;
-    return (query as { eq: (column: string, value: string) => T }).eq('workspace_id', workspaceId);
-  };
-
   if (hasClientId) {
-    await runUnlinkUpdate(
-      applyWorkspace(db.from(table).update({ client_id: null }).eq('client_id', clientId)),
-      `${table}.client_id`,
-    );
+    let query = db.from(table).update({ client_id: null }).eq('client_id', clientId);
+    if (hasWorkspaceId) query = query.eq('workspace_id', workspaceId);
+    await runUnlinkUpdate(query, `${table}.client_id`);
   }
 
   if (hasClientName && clientName) {
-    await runUnlinkUpdate(
-      applyWorkspace(db.from(table).update({ client_name: null }).eq('client_name', clientName)),
-      `${table}.client_name`,
-    );
+    let query = db.from(table).update({ client_name: null }).eq('client_name', clientName);
+    if (hasWorkspaceId) query = query.eq('workspace_id', workspaceId);
+    await runUnlinkUpdate(query, `${table}.client_name`);
   }
 
   if (hasClientFolderName && clientName) {
-    await runUnlinkUpdate(
-      applyWorkspace(
-        db.from(table).update({ client_folder_name: null }).eq('client_folder_name', clientName),
-      ),
-      `${table}.client_folder_name`,
-    );
+    let query = db
+      .from(table)
+      .update({ client_folder_name: null })
+      .eq('client_folder_name', clientName);
+    if (hasWorkspaceId) query = query.eq('workspace_id', workspaceId);
+    await runUnlinkUpdate(query, `${table}.client_folder_name`);
   }
 }
 
