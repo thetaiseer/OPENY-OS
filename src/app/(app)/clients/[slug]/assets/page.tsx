@@ -84,8 +84,12 @@ function groupAssets(
 
 function filterAssetsByFolderPath(assets: Asset[], path: ClientAssetFolderPath): Asset[] {
   return assets.filter((asset) => {
-    if (path.mainCategory && (asset.main_category ?? 'other') !== path.mainCategory) return false;
-    if (path.subCategory && (asset.sub_category ?? 'general') !== path.subCategory) return false;
+    if (path.mainCategory && (asset.main_category ?? 'other') !== path.mainCategory) {
+      return false;
+    }
+    if (path.subCategory && (asset.sub_category ?? 'general') !== path.subCategory) {
+      return false;
+    }
     if (path.year && getAssetYear(asset) !== path.year) return false;
     if (path.month && (asset.month_key ?? '') !== path.month) return false;
     return true;
@@ -188,7 +192,9 @@ export default function ClientAssetsPage() {
     () => groupAssets(visibleAssets, folderPath, t),
     [visibleAssets, folderPath, t],
   );
-  const showFiles = Boolean(folderPath.mainCategory && folderPath.subCategory && folderPath.year && folderPath.month);
+  const showFiles = Boolean(
+    folderPath.mainCategory && folderPath.subCategory && folderPath.year && folderPath.month,
+  );
 
   const navigateFolder = (entry: ClientAssetFolderEntry) => {
     setFolderPath((current) => {
@@ -203,7 +209,10 @@ export default function ClientAssetsPage() {
   const breadcrumbItems = useMemo(() => {
     const items: { label: string; path: ClientAssetFolderPath }[] = [];
     if (folderPath.mainCategory) {
-      items.push({ label: mainCategoryLabel(folderPath.mainCategory), path: { mainCategory: folderPath.mainCategory } });
+      items.push({
+        label: mainCategoryLabel(folderPath.mainCategory),
+        path: { mainCategory: folderPath.mainCategory },
+      });
     }
     if (folderPath.mainCategory && folderPath.subCategory) {
       items.push({
@@ -437,8 +446,16 @@ export default function ClientAssetsPage() {
       </div>
 
       {breadcrumbItems.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-          <button type="button" onClick={() => setFolderPath({})} className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'var(--surface-2)' }}>
+        <div
+          className="flex flex-wrap items-center gap-1 rounded-xl border px-3 py-2"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setFolderPath({})}
+            className="flex h-7 w-7 items-center justify-center rounded-lg"
+            style={{ background: 'var(--surface-2)' }}
+          >
             <Home size={13} />
           </button>
           {breadcrumbItems.map((item, index) => (
@@ -448,7 +465,9 @@ export default function ClientAssetsPage() {
                 type="button"
                 onClick={() => setFolderPath(item.path)}
                 className="px-1 text-xs font-medium hover:underline"
-                style={{ color: index === breadcrumbItems.length - 1 ? 'var(--text)' : 'var(--accent)' }}
+                style={{
+                  color: index === breadcrumbItems.length - 1 ? 'var(--text)' : 'var(--accent)',
+                }}
               >
                 {item.label}
               </button>
@@ -478,7 +497,11 @@ export default function ClientAssetsPage() {
               type="button"
               onClick={() => navigateFolder(folder)}
               className="flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-2xl border p-5 text-center shadow-card transition hover:-translate-y-0.5 hover:border-[var(--accent)]"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              style={{
+                background: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)',
+              }}
             >
               <Folder className="h-10 w-10" style={{ color: 'var(--accent)' }} />
               <span className="max-w-full truncate text-base font-semibold">{folder.label}</span>
