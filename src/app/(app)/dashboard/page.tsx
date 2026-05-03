@@ -360,7 +360,7 @@ function ProjectsStatusDonut({
       <div className="w-full max-w-xs space-y-2">
         <p className="text-center text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
           {total}
-          <span className="ml-1 text-sm font-semibold text-[var(--text-secondary)]">
+          <span className="ml-1 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
             {t('donutTotal')}
           </span>
         </p>
@@ -896,10 +896,15 @@ export default function DashboardPage() {
                   className="rounded-xl border p-4 transition-all hover:border-[var(--accent)] hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                  <p
+                    className="text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
                     {item.label}
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-[var(--text)]">{item.value}</p>
+                  <p className="mt-2 text-2xl font-bold" style={{ color: 'var(--text)' }}>
+                    {item.value}
+                  </p>
                   <p className="text-readable-muted mt-1 text-xs font-medium">{item.hint}</p>
                 </Link>
               ))}
@@ -928,7 +933,7 @@ export default function DashboardPage() {
               className="rounded-xl border px-4 py-10 text-center"
               style={{ borderColor: 'var(--border)' }}
             >
-              <p className="text-sm font-medium text-[var(--text)]">
+              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                 {t('noCompletedTasksPeriod')}
               </p>
               <p className="text-readable-muted mt-1 text-xs font-medium">
@@ -1063,7 +1068,8 @@ export default function DashboardPage() {
               <CardTitle className="!text-lg">{t('recentActivity')}</CardTitle>
               <Link
                 href="/activity"
-                className="text-xs font-semibold text-[var(--accent)] hover:underline"
+                className="text-xs font-semibold hover:underline"
+                style={{ color: 'var(--accent)' }}
               >
                 View all activity
               </Link>
@@ -1372,8 +1378,8 @@ export default function DashboardPage() {
                     style={{ background: 'var(--surface-2)' }}
                   >
                     <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-[var(--accent-foreground)]"
-                      style={{ background: 'var(--accent)' }}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+                      style={{ background: 'var(--accent)', color: 'var(--accent-foreground)' }}
                     >
                       {client.name.charAt(0).toUpperCase()}
                     </div>
