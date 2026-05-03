@@ -11,7 +11,13 @@ export function useDeleteAsset() {
       queryKey: ['assets'],
       remove: (old = [], assetId) => old.filter((asset) => asset.id !== assetId),
     },
-    invalidateKeys: [['assets'], ['dashboard-assets'], ['activity']],
+    invalidateKeys: [
+      ['assets'],
+      ['dashboard-assets'],
+      ['activity'],
+      ['clients-stats'],
+      ['client-overview-data'],
+    ],
     successMessage: 'Asset deleted',
     failureMessage: 'Failed to delete asset',
   });

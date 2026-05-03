@@ -17,7 +17,13 @@ export function useDeleteContentItem() {
             }
           : old,
     },
-    invalidateKeys: [['content-items'], ['content'], ['activity']],
+    invalidateKeys: [
+      ['content-items'],
+      ['content'],
+      ['activity'],
+      ['clients-stats'],
+      ['client-overview-data'],
+    ],
     successMessage: 'Content deleted',
     failureMessage: 'Failed to delete content item',
   });

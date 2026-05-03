@@ -18,6 +18,8 @@ export function useDeleteTask() {
       ['dashboard-overdue-tasks'],
       ['dashboard-upcoming-tasks'],
       ['activity'],
+      ['clients-stats'],
+      ['client-overview-data'],
     ],
     successMessage: 'Task deleted',
     failureMessage: 'Failed to delete task',
