@@ -25,15 +25,33 @@ async function countClientDependencies(
     .eq('workspace_id', workspaceId);
   if (!primary.error) return primary.count ?? 0;
   if (primary.error.code === '42703') {
-    const fallback = await db
-      .from(table)
-      .select('id', { count: 'exact', head: true })
-      .eq('client_id', clientId);
+    const fallback = await db.from(table).select('id', { count: 'exact', head: true }).eq('client_id', clientId);
     if (!fallback.error) return fallback.count ?? 0;
     if (fallback.error.code === '42P01' || fallback.error.code === '42703') return 0;
     throw new Error(fallback.error.message);
   }
   if (primary.error.code === '42P01') return 0;
+  throw new Error(primary.error.message);
+}
+
+async function clearClientReference(
+  db: ReturnType<typeof getServiceClient>,
+  table: string,
+  clientId: string,
+  workspaceId: string,
+): Promise<void> {
+  const primary = await db
+    .from(table)
+    .update({ client_id: null })
+    .eq('client_id', clientId)
+    .eq('workspace_id', workspaceId);
+  if (!primary.error) return;
+  if (primary.error.code === '42703') {
+    const fallback = await db.from(table).update({ client_id: null }).eq('client_id', clientId);
+    if (!fallback.error || fallback.error.code === '42P01' || fallback.error.code === '42703') return;
+    throw new Error(fallback.error.message);
+  }
+  if (primary.error.code === '42P01') return;
   throw new Error(primary.error.message);
 }
 
@@ -60,20 +78,6 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
         { status: 403 },
       );
     }
-    const membershipCheck = await db
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', auth.profile.id)
-      .maybeSingle();
-    const membershipFound = Boolean(membershipCheck.data?.id);
-    // eslint-disable-next-line no-console
-    console.info('[debug-delete] route=/api/clients/[id] step=authorized', {
-      recordId: clientId,
-      workspaceId,
-      requesterUserId: auth.profile.id,
-      membershipFound,
-    });
 
     const { data: existing, error: fetchErr } = await db
       .from('clients')
@@ -82,12 +86,8 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       .eq('workspace_id', workspaceId)
       .maybeSingle();
 
-    if (fetchErr) {
-      return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
-    }
-    if (!existing) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
-    }
+    if (fetchErr) return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
+    if (!existing) return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
 
     const dependencyTables = [
       'assets',
@@ -100,29 +100,15 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       'client_contracts',
       'activities',
     ] as const;
+
     const dependencyCounts: Record<string, number> = {};
     for (const table of dependencyTables) {
       dependencyCounts[table] = await countClientDependencies(db, table, clientId, workspaceId);
     }
-    const hasBlockingDependencies = Object.values(dependencyCounts).some((count) => count > 0);
-    if (hasBlockingDependencies) {
-      // eslint-disable-next-line no-console
-      console.info('[debug-delete] route=/api/clients/[id] step=blocked_dependencies', {
-        recordId: clientId,
-        workspaceId,
-        requesterUserId: auth.profile.id,
-        membershipFound,
-        deleteResult: 'blocked',
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          code: 'CLIENT_HAS_DEPENDENCIES',
-          error: 'This client has related data. Remove related projects/tasks/assets first.',
-          dependencies: dependencyCounts,
-        },
-        { status: 409 },
-      );
+
+    // Keep related records/files, but remove the client_id relation first so FK constraints do not block deletion.
+    for (const table of dependencyTables) {
+      if (dependencyCounts[table] > 0) await clearClientReference(db, table, clientId, workspaceId);
     }
 
     const { error: delErr } = await db
@@ -131,19 +117,9 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
       .eq('id', clientId)
       .eq('workspace_id', workspaceId);
 
-    if (delErr) {
-      return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });
-    }
-    // eslint-disable-next-line no-console
-    console.info('[debug-delete] route=/api/clients/[id] step=deleted', {
-      recordId: clientId,
-      workspaceId,
-      requesterUserId: auth.profile.id,
-      membershipFound,
-      deleteResult: 'success',
-    });
+    if (delErr) return NextResponse.json({ success: false, error: delErr.message }, { status: 500 });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, unlinked: dependencyCounts });
   } catch (err) {
     return NextResponse.json(
       { success: false, error: err instanceof Error ? err.message : 'Unexpected delete error' },
