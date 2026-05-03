@@ -14,7 +14,7 @@ describe('workspace-asset-key', () => {
       originalDisplayName: 'WhatsApp Image 2026-04-12 at 17.34.58.jpeg',
     });
     expect(key).toBe(
-      'workspaces/ws-1/clients/client-uuid/other/2026/04/general/whatsapp-image-2026-04-12-at-17.34.58.jpeg',
+      'workspaces/ws-1/clients/client-uuid/other/general/2026/04/whatsapp-image-2026-04-12-at-17.34.58.jpeg',
     );
   });
 
@@ -28,7 +28,7 @@ describe('workspace-asset-key', () => {
       subCategory: 'Client Logos',
     });
     expect(key).toBe(
-      'workspaces/ws-1/clients/client-uuid/brand-assets/2026/04/client-logos/logo.png',
+      'workspaces/ws-1/clients/client-uuid/brand-assets/client-logos/2026/04/logo.png',
     );
   });
 
@@ -39,7 +39,7 @@ describe('workspace-asset-key', () => {
       monthKey: '2026-04',
       originalDisplayName: 'Report.PDF',
     });
-    expect(key).toContain('/clients/uncategorized/other/2026/04/general/');
+    expect(key).toContain('/clients/uncategorized/other/general/2026/04/');
     expect(key.endsWith('.pdf')).toBe(true);
   });
 
