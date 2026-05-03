@@ -12,34 +12,34 @@
   --surface-elevated: #ffffff;
   --border: #e0e0e0;
   --input: #e0e0e0;
-  --ring: #000000;
-  --primary: #000000;
+  --ring: #2563EB;
+  --primary: #2563EB;
   --primary-foreground: #ffffff;
   --secondary: #f5f5f5;
   --secondary-foreground: #000000;
   --muted: #eeeeee;
   --muted-foreground: #666666;
-  --accent: #000000;
+  --accent: #2563EB;
   --accent-foreground: #ffffff;
-  --destructive: #000000;
+  --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --success: #000000;
-  --warning: #333333;
+  --success: #059669;
+  --warning: #D97706;
   --card: #ffffff;
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;
   --sidebar: #ffffff;
   --sidebar-foreground: #000000;
-  --sidebar-active: #000000;
+  --sidebar-active: #2563EB;
   --sidebar-active-foreground: #ffffff;
 
-  --openy-blue: #000000;
-  --openy-blue-hover: #222222;
-  --openy-cyan: #333333;
-  --openy-navy: #000000;
-  --openy-deep: #000000;
-  --openy-glow: rgba(0, 0, 0, 0.12);
+  --openy-blue: #2563EB;
+  --openy-blue-hover: #1D4ED8;
+  --openy-cyan: #0EA5E9;
+  --openy-navy: #1E3A8A;
+  --openy-deep: #1E40AF;
+  --openy-glow: rgba(37, 99, 235, 0.15);
 
   --text-primary: #000000;
   --text-secondary: #444444;
@@ -47,8 +47,8 @@
   --text-disabled: #aaaaaa;
   --danger: var(--destructive);
   --danger-foreground: var(--destructive-foreground);
-  --danger-soft: rgba(0, 0, 0, 0.08);
-  --danger-text: #333333;
+  --danger-soft: rgba(239, 68, 68, 0.08);
+  --danger-text: #DC2626;
   --border-strong: #cccccc;
   --border-subtle: var(--border);
 
@@ -101,34 +101,34 @@
   --surface-elevated: #1a1a1a;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
-  --ring: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
+  --ring: #3B82F6;
+  --primary: #3B82F6;
+  --primary-foreground: #ffffff;
   --secondary: #1a1a1a;
   --secondary-foreground: #ffffff;
   --muted: #222222;
   --muted-foreground: #888888;
-  --accent: #ffffff;
-  --accent-foreground: #000000;
-  --destructive: #ffffff;
-  --destructive-foreground: #000000;
-  --success: #ffffff;
-  --warning: #aaaaaa;
+  --accent: #3B82F6;
+  --accent-foreground: #ffffff;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --success: #10B981;
+  --warning: #F59E0B;
   --card: #111111;
   --card-foreground: #ffffff;
   --popover: #111111;
   --popover-foreground: #ffffff;
   --sidebar: #0a0a0a;
   --sidebar-foreground: #cccccc;
-  --sidebar-active: #ffffff;
-  --sidebar-active-foreground: #000000;
+  --sidebar-active: #3B82F6;
+  --sidebar-active-foreground: #ffffff;
 
-  --openy-blue: #ffffff;
-  --openy-blue-hover: #cccccc;
-  --openy-cyan: #cccccc;
-  --openy-navy: #000000;
-  --openy-deep: #000000;
-  --openy-glow: rgba(255, 255, 255, 0.1);
+  --openy-blue: #3B82F6;
+  --openy-blue-hover: #2563EB;
+  --openy-cyan: #38BDF8;
+  --openy-navy: #1E3A8A;
+  --openy-deep: #1E40AF;
+  --openy-glow: rgba(59, 130, 246, 0.2);
 
   --text-primary: #ffffff;
   --text-secondary: #aaaaaa;
@@ -136,8 +136,8 @@
   --text-disabled: #555555;
   --danger: var(--destructive);
   --danger-foreground: var(--destructive-foreground);
-  --danger-soft: rgba(255, 255, 255, 0.08);
-  --danger-text: #cccccc;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --danger-text: #FCA5A5;
   --border-strong: #444444;
   --border-subtle: #1e1e1e;
 
@@ -152,7 +152,7 @@
   --text-tertiary: var(--text-secondary);
   --accent-hover: var(--openy-blue-hover);
   --accent-soft: color-mix(in srgb, var(--accent) 15%, transparent);
-  --accent-contrast: #000000;
+  --accent-contrast: #ffffff;
   --border-glass: var(--border);
   --color-danger: var(--destructive);
   --color-danger-bg: color-mix(in srgb, var(--destructive) 10%, transparent);
@@ -198,9 +198,10 @@ body {
   -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-/* Intentional bridge: map all Tailwind color utilities to semantic B&W tokens globally */
+/* Color utilities: neutral grays map to semantic tokens for dark-mode compatibility;
+   colored utilities (blue, green, red, etc.) render their natural Tailwind values. */
 @layer utilities {
-  /* ── semantic token text classes (secondary/muted map to background colors, fix them) ── */
+  /* ── semantic token text classes ── */
   .text-secondary {
     color: var(--text-secondary) !important;
   }
@@ -208,17 +209,15 @@ body {
     color: var(--text-muted) !important;
   }
 
-  /* ── contrast safety: hardcoded bg-white / bg-black must always produce readable text ── */
-  /* bg-white is always a white (#ffffff) surface regardless of theme, so text must be dark. */
+  /* ── contrast safety ── */
   .bg-white {
     color: #000000 !important;
   }
-  /* bg-black is always a black (#000000) surface regardless of theme, so text must be light. */
   .bg-black {
     color: #ffffff !important;
   }
 
-  /* ── text colors ── */
+  /* ── neutral text → semantic tokens (handles dark mode) ── */
   [class*='text-gray-'],
   [class*='text-slate-'],
   [class*='text-zinc-'],
@@ -226,27 +225,8 @@ body {
   [class*='text-stone-'] {
     color: var(--text-secondary) !important;
   }
-  [class*='text-blue-'],
-  [class*='text-indigo-'],
-  [class*='text-violet-'],
-  [class*='text-purple-'],
-  [class*='text-sky-'],
-  [class*='text-cyan-'],
-  [class*='text-teal-'],
-  [class*='text-emerald-'],
-  [class*='text-green-'],
-  [class*='text-lime-'],
-  [class*='text-yellow-'],
-  [class*='text-amber-'],
-  [class*='text-orange-'],
-  [class*='text-red-'],
-  [class*='text-rose-'],
-  [class*='text-pink-'],
-  [class*='text-fuchsia-'] {
-    color: var(--text-primary) !important;
-  }
 
-  /* ── background colors ── */
+  /* ── neutral backgrounds → semantic surface tokens ── */
   [class*='bg-gray-'],
   [class*='bg-slate-'],
   [class*='bg-zinc-'],
@@ -254,70 +234,17 @@ body {
   [class*='bg-stone-'] {
     background-color: var(--surface-soft) !important;
   }
-  [class*='bg-blue-'],
-  [class*='bg-indigo-'],
-  [class*='bg-violet-'],
-  [class*='bg-purple-'],
-  [class*='bg-sky-'],
-  [class*='bg-cyan-'],
-  [class*='bg-teal-'],
-  [class*='bg-emerald-'],
-  [class*='bg-green-'],
-  [class*='bg-lime-'],
-  [class*='bg-yellow-'],
-  [class*='bg-amber-'],
-  [class*='bg-orange-'],
-  [class*='bg-red-'],
-  [class*='bg-rose-'],
-  [class*='bg-pink-'],
-  [class*='bg-fuchsia-'] {
-    background-color: var(--surface-muted) !important;
-    color: var(--text-primary) !important;
-  }
 
-  /* ── border colors ── */
+  /* ── neutral borders → semantic border token ── */
   [class*='border-gray-'],
   [class*='border-slate-'],
   [class*='border-zinc-'],
   [class*='border-neutral-'],
-  [class*='border-stone-'],
-  [class*='border-blue-'],
-  [class*='border-indigo-'],
-  [class*='border-violet-'],
-  [class*='border-purple-'],
-  [class*='border-sky-'],
-  [class*='border-cyan-'],
-  [class*='border-teal-'],
-  [class*='border-emerald-'],
-  [class*='border-green-'],
-  [class*='border-lime-'],
-  [class*='border-yellow-'],
-  [class*='border-amber-'],
-  [class*='border-orange-'],
-  [class*='border-red-'],
-  [class*='border-rose-'],
-  [class*='border-pink-'],
-  [class*='border-fuchsia-'] {
+  [class*='border-stone-'] {
     border-color: var(--border) !important;
   }
 
-  /* ── ring colors ── */
-  [class*='ring-blue-'],
-  [class*='ring-indigo-'],
-  [class*='ring-violet-'],
-  [class*='ring-purple-'],
-  [class*='ring-sky-'],
-  [class*='ring-cyan-'],
-  [class*='ring-teal-'],
-  [class*='ring-emerald-'],
-  [class*='ring-green-'],
-  [class*='ring-red-'],
-  [class*='ring-rose-'],
-  [class*='ring-orange-'],
-  [class*='ring-yellow-'],
-  [class*='ring-amber-'],
-  [class*='ring-pink-'],
-  [class*='ring-fuchsia-'],
+  /* ── neutral rings → semantic ring token ── */
   [class*='ring-gray-'],
   [class*='ring-slate-'],
   [class*='ring-zinc-'] {
