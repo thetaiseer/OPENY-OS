@@ -17,7 +17,7 @@ import { useClientWorkspace } from '../client-context';
 import type { Asset } from '@/lib/types';
 import ConfirmDialog from '@/components/ui/actions/ConfirmDialog';
 import { getSafeErrorMessage, logClientError, parseApiError } from '@/lib/errors/app-error';
-import { mainCategoryLabel, subCategoryLabel } from '@/lib/asset-utils';
+import { mainCategoryLabel, subCategoryLabel, SUBCATEGORIES } from '@/lib/asset-utils';
 
 type ClientAssetFolderPath = {
   mainCategory?: string;
@@ -32,8 +32,144 @@ type ClientAssetFolderEntry = {
   count: number;
 };
 
+type AssetPathFields = Partial<
+  Record<
+    | 'main_category'
+    | 'sub_category'
+    | 'month_key'
+    | 'file_path'
+    | 'storage_path'
+    | 'storage_key'
+    | 'file_key'
+    | 'public_url'
+    | 'file_url'
+    | 'view_url'
+    | 'download_url',
+    string | null
+  >
+>;
+
+const MAIN_CATEGORY_FROM_SUBCATEGORY = Object.entries(SUBCATEGORIES).reduce<Record<string, string>>(
+  (acc, [mainCategory, subcategories]) => {
+    subcategories.forEach((subcategory) => {
+      acc[subcategory.slug] = mainCategory;
+      acc[subcategory.label.toLowerCase()] = mainCategory;
+    });
+    return acc;
+  },
+  {},
+);
+
+function getAssetTextField(asset: Asset, key: keyof AssetPathFields): string {
+  const value = (asset as AssetPathFields)[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function extractAssetPath(asset: Asset): string {
+  const rawPath =
+    getAssetTextField(asset, 'file_path') ||
+    getAssetTextField(asset, 'storage_path') ||
+    getAssetTextField(asset, 'storage_key') ||
+    getAssetTextField(asset, 'file_key') ||
+    getAssetTextField(asset, 'public_url') ||
+    getAssetTextField(asset, 'file_url') ||
+    getAssetTextField(asset, 'view_url') ||
+    getAssetTextField(asset, 'download_url');
+
+  if (!rawPath) return '';
+
+  try {
+    const decoded = decodeURIComponent(rawPath);
+    const marker = '/workspaces/';
+    const markerIndex = decoded.indexOf(marker);
+    if (markerIndex >= 0) return decoded.slice(markerIndex + 1);
+
+    const plainMarkerIndex = decoded.indexOf('workspaces/');
+    if (plainMarkerIndex >= 0) return decoded.slice(plainMarkerIndex);
+
+    return decoded;
+  } catch {
+    return rawPath;
+  }
+}
+
+function parseAssetFolderParts(asset: Asset): Partial<ClientAssetFolderPath> {
+  const path = extractAssetPath(asset);
+  if (!path) return {};
+
+  const newOrder = path.match(
+    /workspaces\/[^/]+\/clients\/[^/]+\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\//,
+  );
+
+  if (newOrder) {
+    const [, mainCategory, subCategory, year, month] = newOrder;
+    return {
+      mainCategory,
+      subCategory,
+      year,
+      month: `${year}-${month}`,
+    };
+  }
+
+  const legacyOrder = path.match(
+    /workspaces\/[^/]+\/clients\/[^/]+\/([^/]+)\/(\d{4})\/(\d{2})\/([^/]+)\//,
+  );
+
+  if (legacyOrder) {
+    const [, mainCategory, year, month, subCategory] = legacyOrder;
+    return {
+      mainCategory,
+      subCategory,
+      year,
+      month: `${year}-${month}`,
+    };
+  }
+
+  const clientFilesOrder = path.match(
+    /client-files\/[^/]+\/([^/]+)\/([^/]+)\/(\d{4})\/(\d{2})\//,
+  );
+
+  if (clientFilesOrder) {
+    const [, mainCategory, subCategory, year, month] = clientFilesOrder;
+    return {
+      mainCategory,
+      subCategory,
+      year,
+      month: `${year}-${month}`,
+    };
+  }
+
+  return {};
+}
+
+function assetSubCategory(asset: Asset): string {
+  const direct = getAssetTextField(asset, 'sub_category');
+  if (direct) return direct;
+  return parseAssetFolderParts(asset).subCategory ?? 'general';
+}
+
+function assetMainCategory(asset: Asset): string {
+  const direct = getAssetTextField(asset, 'main_category');
+  if (direct && direct !== 'other') return direct;
+
+  const parsed = parseAssetFolderParts(asset).mainCategory;
+  if (parsed && parsed !== 'other') return parsed;
+
+  const subCategory = assetSubCategory(asset).toLowerCase();
+  return MAIN_CATEGORY_FROM_SUBCATEGORY[subCategory] ?? direct ?? parsed ?? 'other';
+}
+
+function assetMonthKey(asset: Asset): string {
+  const direct = getAssetTextField(asset, 'month_key');
+  if (direct) return direct;
+  return parseAssetFolderParts(asset).month ?? '';
+}
+
 function getAssetYear(asset: Asset): string {
-  if (asset.month_key && asset.month_key.length >= 4) return asset.month_key.slice(0, 4);
+  const monthKey = assetMonthKey(asset);
+  if (monthKey.length >= 4) return monthKey.slice(0, 4);
+  const parsedYear = parseAssetFolderParts(asset).year;
+  if (parsedYear) return parsedYear;
   if (asset.created_at) return new Date(asset.created_at).getFullYear().toString();
   return 'Unknown';
 }
@@ -59,16 +195,16 @@ function groupAssets(
     let label = '';
 
     if (!path.mainCategory) {
-      key = asset.main_category ?? 'other';
+      key = assetMainCategory(asset);
       label = mainCategoryLabel(key);
     } else if (!path.subCategory) {
-      key = asset.sub_category ?? 'general';
+      key = assetSubCategory(asset);
       label = subCategoryLabel(path.mainCategory, key);
     } else if (!path.year) {
       key = getAssetYear(asset);
       label = key;
     } else if (!path.month) {
-      key = asset.month_key ?? '';
+      key = assetMonthKey(asset);
       label = key ? monthLabel(key, t) : 'Unknown';
     } else {
       continue;
@@ -84,14 +220,10 @@ function groupAssets(
 
 function filterAssetsByFolderPath(assets: Asset[], path: ClientAssetFolderPath): Asset[] {
   return assets.filter((asset) => {
-    if (path.mainCategory && (asset.main_category ?? 'other') !== path.mainCategory) {
-      return false;
-    }
-    if (path.subCategory && (asset.sub_category ?? 'general') !== path.subCategory) {
-      return false;
-    }
+    if (path.mainCategory && assetMainCategory(asset) !== path.mainCategory) return false;
+    if (path.subCategory && assetSubCategory(asset) !== path.subCategory) return false;
     if (path.year && getAssetYear(asset) !== path.year) return false;
-    if (path.month && (asset.month_key ?? '') !== path.month) return false;
+    if (path.month && assetMonthKey(asset) !== path.month) return false;
     return true;
   });
 }
