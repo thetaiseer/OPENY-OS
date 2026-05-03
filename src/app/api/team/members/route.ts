@@ -3,6 +3,7 @@ import { getApiUser } from '@/lib/api-auth';
 import { getServiceClient } from '@/lib/supabase/service-client';
 import { resolveWorkspaceForRequest } from '@/lib/api-workspace';
 import { pickMemberDisplayName } from '@/lib/member-display-name';
+import { OWNER_EMAIL } from '@/lib/constants/auth';
 
 type MemberStatus = 'active' | 'invited' | 'pending' | 'inactive' | 'suspended';
 
@@ -25,6 +26,12 @@ type WorkspaceRow = {
   owner_id: string | null;
   created_at: string | null;
 };
+
+const STANDARD_OWNER = {
+  fullName: 'Taiseer',
+  email: OWNER_EMAIL || 'thetaiseer@gmail.com',
+  jobTitle: 'CEO',
+} as const;
 
 function normalizeMemberRole(role: string | null | undefined): string {
   if (role === 'owner') return 'owner';
@@ -182,14 +189,16 @@ export async function GET(request: NextRequest) {
     const team = teamByProfileId.get(member.user_id);
     const profile = profileById.get(member.user_id);
     const isOwner = member.user_id === workspaceRow.owner_id;
-    const fullName = pickMemberDisplayName({
-      teamFullName: team?.full_name,
-      profileFullName: profile?.full_name,
-      profileName: profile?.name,
-      profileEmail: profile?.email,
-      fallbackLabel: isOwner ? 'Workspace owner' : undefined,
-    });
-    const email = team?.email ?? profile?.email ?? '';
+    const fullName = isOwner
+      ? STANDARD_OWNER.fullName
+      : pickMemberDisplayName({
+          teamFullName: team?.full_name,
+          profileFullName: profile?.full_name,
+          profileName: profile?.name,
+          profileEmail: profile?.email,
+          fallbackLabel: undefined,
+        });
+    const email = isOwner ? STANDARD_OWNER.email : (team?.email ?? profile?.email ?? '');
     return {
       id: team?.id ?? member.user_id,
       membership_id: member.id ?? null,
@@ -198,7 +207,7 @@ export async function GET(request: NextRequest) {
       email,
       role: isOwner ? 'owner' : normalizeMemberRole(team?.role ?? member.role),
       status: isOwner ? 'active' : normalizeMemberStatus(team?.status),
-      job_title: team?.job_title ?? null,
+      job_title: isOwner ? STANDARD_OWNER.jobTitle : (team?.job_title ?? null),
       profile_id: member.user_id,
       created_at: team?.created_at ?? member.joined_at ?? new Date().toISOString(),
       updated_at: team?.updated_at ?? null,
@@ -247,7 +256,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  members.sort((a, b) => a.full_name.localeCompare(b.full_name));
+  members.sort((a, b) => {
+    if (a.role === 'owner') return -1;
+    if (b.role === 'owner') return 1;
+    return a.full_name.localeCompare(b.full_name);
+  });
 
   return NextResponse.json({ members });
 }
