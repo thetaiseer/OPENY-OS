@@ -1447,8 +1447,10 @@ function AssetsPage() {
       console.log('[assets] folder delete clicked', { clientLabel, idsCount: ids.length });
       setDeletingClientFolder(clientLabel);
       try {
+        const client = clientByName.get(clientLabel);
         const payload = {
           folder: clientLabel,
+          clientId: client?.id,
         };
         console.log('[assets] folder delete payload', payload);
         const res = await fetch('/api/assets/force-delete', {
@@ -1499,7 +1501,7 @@ function AssetsPage() {
         setDeletingClientFolder(null);
       }
     },
-    [toast, folderPath.client, navigateTo, fetchAssets],
+    [toast, folderPath.client, navigateTo, fetchAssets, clientByName],
   );
 
   const handleDelete = async (asset: Asset) => {

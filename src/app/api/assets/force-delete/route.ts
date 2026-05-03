@@ -6,6 +6,7 @@ import { deleteObject } from '@/lib/storage/r2';
 type ForceDeleteBody = {
   assetId?: string;
   folder?: string;
+  clientId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -26,8 +27,9 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as ForceDeleteBody;
     const assetId = typeof body.assetId === 'string' ? body.assetId.trim() : '';
     const folder = typeof body.folder === 'string' ? body.folder.trim() : '';
+    const clientId = typeof body.clientId === 'string' ? body.clientId.trim() : '';
 
-    if (!assetId && !folder) {
+    if (!assetId && !folder && !clientId) {
       return NextResponse.json(
         { success: false, error: { message: 'Missing assetId or folder', requestId } },
         { status: 400 },
@@ -89,46 +91,63 @@ export async function POST(req: NextRequest) {
         );
       }
       assets = data ?? [];
-    } else if (folder) {
-      // Primary match by `folder` column if present, fallback to grouping columns when empty.
-      const { data, error } = await admin
-        .from('assets')
-        .select('id, name, folder, storage_key, file_path, storage_provider')
-        .eq('workspace_id', workspaceId)
-        .is('deleted_at', null)
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .eq('folder', folder);
-
-      if (error && error.code !== '42703') {
-        return NextResponse.json(
-          { success: false, error: { message: error.message, requestId } },
-          { status: 500 },
-        );
-      }
-
-      // If primary query returned results, use them. Otherwise fall back to
-      // client_name / client_folder_name (the legacy grouping columns), which
-      // covers assets uploaded before the `folder` column was introduced or
-      // assets whose `folder` field is NULL.
-      if (!error && (data ?? []).length > 0) {
-        assets = data!;
-      } else {
-        const fallback = await admin
+    } else if (clientId || folder) {
+      // Primary match by client_id FK (most reliable for assets linked to a client record).
+      if (clientId) {
+        const { data, error } = await admin
           .from('assets')
-          .select(
-            'id, name, client_name, client_folder_name, storage_key, file_path, storage_provider',
-          )
+          .select('id, name, storage_key, file_path, storage_provider')
           .eq('workspace_id', workspaceId)
           .is('deleted_at', null)
           .or('is_deleted.is.null,is_deleted.eq.false')
-          .or(`client_name.eq.${folder},client_folder_name.eq.${folder}`);
-        if (fallback.error) {
+          .eq('client_id', clientId);
+        if (error) {
           return NextResponse.json(
-            { success: false, error: { message: fallback.error.message, requestId } },
+            { success: false, error: { message: error.message, requestId } },
             { status: 500 },
           );
         }
-        assets = fallback.data ?? [];
+        assets = data ?? [];
+      }
+
+      // If clientId produced no results (or was not supplied), fall back to matching
+      // by the `folder` column and then by the legacy client_name / client_folder_name columns.
+      if (!assets?.length && folder) {
+        const { data, error } = await admin
+          .from('assets')
+          .select('id, name, folder, storage_key, file_path, storage_provider')
+          .eq('workspace_id', workspaceId)
+          .is('deleted_at', null)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .eq('folder', folder);
+
+        if (error && error.code !== '42703') {
+          return NextResponse.json(
+            { success: false, error: { message: error.message, requestId } },
+            { status: 500 },
+          );
+        }
+
+        if (!error && (data ?? []).length > 0) {
+          assets = data!;
+        } else {
+          const fallback = await admin
+            .from('assets')
+            .select(
+              'id, name, client_name, client_folder_name, storage_key, file_path, storage_provider',
+            )
+            .eq('workspace_id', workspaceId)
+            .is('deleted_at', null)
+            .or('is_deleted.is.null,is_deleted.eq.false')
+            .or(`client_name.eq."${folder}",client_folder_name.eq."${folder}"`);
+          if (fallback.error) {
+            return NextResponse.json(
+              { success: false, error: { message: fallback.error.message, requestId } },
+              { status: 500 },
+            );
+          }
+          assets = fallback.data ?? [];
+        }
       }
     }
 
