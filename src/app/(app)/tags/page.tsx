@@ -245,8 +245,7 @@ export default function TagsPage() {
                   {form.color === color && (
                     <Check
                       size={12}
-                      className="drop-shadow-[0_0_2px_rgba(0,0,0,0.6)]"
-                      style={{ color: '#ffffff' }}
+                      style={{ color: 'white', mixBlendMode: 'difference' }}
                     />
                   )}
                 </button>

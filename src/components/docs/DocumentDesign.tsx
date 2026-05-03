@@ -21,7 +21,7 @@ export function OpenyDocumentPage({
   return (
     <div
       id={id}
-      className="openy-doc-page w-full bg-white text-[color:var(--text-primary)]"
+      className="openy-doc-page w-full bg-white"
       dir={dir}
       style={{
         fontFamily: fontFamily ?? 'var(--font-arabic), Inter, system-ui, sans-serif',

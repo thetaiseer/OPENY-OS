@@ -9,7 +9,7 @@ export default function Skeleton({ className, ...props }: HTMLAttributes<HTMLDiv
     <div
       {...props}
       className={cn(
-        'animate-pulse rounded-control bg-[linear-gradient(90deg,var(--surface-elevated),var(--surface),var(--surface-elevated))] bg-[length:200%_100%]',
+        'animate-pulse rounded-control bg-[linear-gradient(90deg,var(--surface-muted),var(--surface-soft),var(--surface-muted))] bg-[length:200%_100%]',
         className,
       )}
     />

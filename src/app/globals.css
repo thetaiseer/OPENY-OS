@@ -198,6 +198,15 @@ body {
   -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
+/* Enforce foreground color on body for both modes so all text inherits correct defaults */
+:root body {
+  color: var(--foreground);
+}
+
+.dark body {
+  color: var(--foreground);
+}
+
 /* Color utilities: neutral grays map to semantic tokens for dark-mode compatibility;
    colored utilities (blue, green, red, etc.) render their natural Tailwind values. */
 @layer utilities {
@@ -208,13 +217,45 @@ body {
   .text-muted {
     color: var(--text-muted) !important;
   }
+  .text-readable {
+    color: var(--text-primary) !important;
+  }
+  .text-readable-muted {
+    color: var(--text-secondary) !important;
+  }
+  .text-readable-subtle {
+    color: var(--text-muted) !important;
+  }
 
-  /* ── contrast safety ── */
+  /* ── contrast safety: hardcoded bg classes force readable text ── */
   .bg-white {
     color: #000000 !important;
   }
   .bg-black {
     color: #ffffff !important;
+  }
+
+  /* ── light-mode guard: prevent light/white text on light surfaces ── */
+  :root .text-white,
+  :root [style*='color: white'],
+  :root [style*='color:white'],
+  :root [style*='color: #fff'],
+  :root [style*='color:#fff'],
+  :root [style*='color: #FFF'],
+  :root [style*='color: rgb(255, 255, 255)'] {
+    color: var(--text-primary) !important;
+  }
+
+  /* ── dark-mode guard: prevent black/dark text on dark surfaces ── */
+  .dark .text-black,
+  .dark [style*='color: black'],
+  .dark [style*='color:black'],
+  .dark [style*='color: #000'],
+  .dark [style*='color:#000'],
+  .dark [style*='color: #000000'],
+  .dark [style*='color:#000000'],
+  .dark [style*='color: rgb(0, 0, 0)'] {
+    color: var(--text-primary) !important;
   }
 
   /* ── neutral text → semantic tokens (handles dark mode) ── */
@@ -457,15 +498,15 @@ select {
   }
 
   .text-readable {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
   }
 
   .text-readable-muted {
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
   }
 
   .text-readable-subtle {
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
   }
 
   .openy-modal-btn-primary {
