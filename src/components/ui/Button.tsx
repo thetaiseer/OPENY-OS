@@ -12,10 +12,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const SIZE_CLASS: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'min-h-9 px-4 py-2 text-xs gap-1.5',
-  md: 'min-h-11 px-5 py-2.5 text-sm',
-  lg: 'min-h-12 px-6 py-3 text-sm',
-  icon: 'h-11 w-11 min-h-11 min-w-11 shrink-0 rounded-full p-0',
+  sm: 'min-h-8 px-3 py-1.5 text-xs gap-1.5',
+  md: 'min-h-10 px-4 py-2 text-sm',
+  lg: 'min-h-11 px-5 py-2.5 text-sm',
+  icon: 'h-10 w-10 min-h-10 min-w-10 shrink-0 rounded-full p-0',
 };
 
 const VARIANT_CLASS: Record<NonNullable<ButtonProps['variant']>, string> = {
@@ -55,7 +55,7 @@ export default function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-2xl font-medium leading-tight transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40',
+        'focus-visible:ring-[color:var(--accent)]/30 inline-flex items-center justify-center gap-2 rounded-xl font-medium leading-tight transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40',
         SIZE_CLASS[resolvedSize],
         VARIANT_CLASS[resolvedVariant],
         className,
