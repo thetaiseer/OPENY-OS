@@ -1,12 +1,24 @@
 /**
  * Deterministic R2 keys for OPENY OS workspace assets.
- * Pattern: workspaces/{workspaceId}/clients/{clientId|uncategorized}/{year}/{month}/{safeFileName}
+ * Pattern: workspaces/{workspaceId}/clients/{clientId|uncategorized}/{mainCategory}/{year}/{month}/{subCategory}/{safeFileName}
  */
 
 const UNCATEGORIZED = 'uncategorized';
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
+}
+
+function safePathSegment(value: string | null | undefined, fallback: string): string {
+  return (
+    (value ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9._-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^[-.]+|[-.]+$/g, '') || fallback
+  );
 }
 
 /** Lowercase, spaces → hyphen, strip unsafe chars; preserve extension in `ext` (includes leading dot or empty). */
@@ -22,15 +34,7 @@ export function splitNameAndExtension(displayName: string): { stem: string; ext:
 }
 
 export function safeFileStem(stem: string): string {
-  return (
-    stem
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9._-]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^[-.]+|[-.]+$/g, '') || 'file'
-  );
+  return safePathSegment(stem, 'file');
 }
 
 export function buildSafeDisplayFileName(
@@ -59,13 +63,25 @@ export function buildWorkspaceAssetR2Key(params: {
   monthKey: string;
   originalDisplayName: string;
   uniqueSuffix?: string;
+  mainCategory?: string | null;
+  subCategory?: string | null;
 }): string {
-  const { workspaceId, clientId, monthKey, originalDisplayName, uniqueSuffix } = params;
+  const {
+    workspaceId,
+    clientId,
+    monthKey,
+    originalDisplayName,
+    uniqueSuffix,
+    mainCategory,
+    subCategory,
+  } = params;
   const { year, month } = parseMonthKey(monthKey);
   const { stem, ext } = splitNameAndExtension(originalDisplayName);
-  const clientSegment = (clientId ?? '').trim() || UNCATEGORIZED;
+  const clientSegment = safePathSegment(clientId, UNCATEGORIZED);
+  const mainSegment = safePathSegment(mainCategory, 'other');
+  const subSegment = safePathSegment(subCategory, 'general');
   const safeName = buildSafeDisplayFileName(stem, ext, uniqueSuffix);
-  return `workspaces/${workspaceId}/clients/${clientSegment}/${year}/${month}/${safeName}`;
+  return `workspaces/${workspaceId}/clients/${clientSegment}/${mainSegment}/${year}/${month}/${subSegment}/${safeName}`;
 }
 
 export function randomKeySuffix(): string {
