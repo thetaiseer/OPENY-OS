@@ -243,10 +243,7 @@ export default function TagsPage() {
                   style={{ background: color }}
                 >
                   {form.color === color && (
-                    <Check
-                      size={12}
-                      style={{ color: 'white', mixBlendMode: 'difference' }}
-                    />
+                    <Check size={12} style={{ color: 'white', mixBlendMode: 'difference' }} />
                   )}
                 </button>
               ))}
