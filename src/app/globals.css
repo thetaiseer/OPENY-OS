@@ -920,6 +920,11 @@ select {
     color: var(--text-primary);
   }
 
+  /* Ensure card sections always carry readable text color (catches any missed Tailwind class) */
+  [class*='rounded-'][class*='border'][class*='bg-[color:var(--card)]'] {
+    color: var(--text-primary);
+  }
+
   input::placeholder,
   textarea::placeholder,
   .openy-control::placeholder {

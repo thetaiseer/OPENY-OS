@@ -13,7 +13,7 @@ const paddingClasses = {
 } as const;
 
 export const cardSurfaceClass =
-  'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--card-foreground)] shadow-[var(--shadow-sm)] transition-shadow duration-200 hover:shadow-[var(--shadow-hover)]';
+  'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--card)] shadow-[var(--shadow-sm)] transition-shadow duration-200 hover:shadow-[var(--shadow-hover)]';
 
 export function Card({
   children,
@@ -36,25 +36,24 @@ export function CardHeader({ children, className, ...props }: DivProps) {
   );
 }
 
-export function CardTitle({ children, className, ...props }: DivProps) {
+export function CardTitle({ children, className, style, ...props }: DivProps) {
   return (
     <h3
       {...props}
-      className={cn(
-        'bg-transparent text-lg font-semibold text-[color:var(--text-primary)]',
-        className,
-      )}
+      className={cn('bg-transparent text-lg font-semibold', className)}
+      style={{ color: 'var(--text-primary)', ...style }}
     >
       {children}
     </h3>
   );
 }
 
-export function CardDescription({ children, className, ...props }: DivProps) {
+export function CardDescription({ children, className, style, ...props }: DivProps) {
   return (
     <p
       {...props}
-      className={cn('bg-transparent text-sm text-[color:var(--text-secondary)]', className)}
+      className={cn('bg-transparent text-sm', className)}
+      style={{ color: 'var(--text-secondary)', ...style }}
     >
       {children}
     </p>
