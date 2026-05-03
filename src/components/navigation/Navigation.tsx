@@ -42,22 +42,26 @@ function isActivePath(pathname: string, item: RouteMeta): boolean {
 export default function Navigation({ collapsed, iconMap, badges, onNavigate }: NavigationProps) {
   const pathname = usePathname();
   const { role } = useAuth();
+
   const grouped = useMemo(() => {
     const userRole = (role ?? 'viewer') as UserRoleKey;
     const routes = getSidebarRoutes().filter((route) => {
       if (!route.allowedRoles) return true;
       return route.allowedRoles.includes(userRole);
     });
+
     const buckets: Record<NavSectionKey, RouteMeta[]> = {
       core: [],
       work: [],
       business: [],
       system: [],
     };
+
     for (const route of routes) {
       const section = route.section ?? 'core';
       buckets[section].push(route);
     }
+
     return buckets;
   }, [role]);
 
@@ -68,6 +72,7 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
       {sectionOrder.map((sectionKey) => {
         const items = grouped[sectionKey];
         if (!items.length) return null;
+
         return (
           <section key={sectionKey} className="space-y-1.5">
             {!collapsed ? (
@@ -75,13 +80,16 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
                 {SECTION_LABELS[sectionKey]}
               </p>
             ) : null}
+
             <div className="space-y-1">
               {items.map((item) => {
                 if (!item.iconKey) return null;
                 const Icon = iconMap[item.iconKey];
                 if (!Icon) return null;
+
                 const active = isActivePath(pathname, item);
                 const badge = badges?.[item.key] ?? 0;
+
                 return (
                   <Link
                     key={item.key}
@@ -89,18 +97,22 @@ export default function Navigation({ collapsed, iconMap, badges, onNavigate }: N
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'group flex items-center rounded-xl border transition-all duration-150',
+                      'group flex items-center rounded-xl border transition-all duration-200',
                       collapsed ? 'h-10 w-10 justify-center' : 'h-10 gap-2.5 px-3',
+
+                      // 🔥 NEW CLEAR ACTIVE STYLE
                       active
-                        ? 'border-[var(--sidebar-active)] bg-[color:var(--sidebar-active)] text-[var(--sidebar-active-foreground)] shadow-[0_8px_24px_var(--openy-glow)]'
+                        ? 'border-[var(--accent)] bg-[color:var(--surface-2)] text-[var(--text)] shadow-sm ring-1 ring-[var(--accent)]'
                         : 'border-transparent text-[var(--sidebar-foreground)] hover:border-[var(--border)] hover:bg-[color:var(--surface-soft)]',
                     )}
                     title={collapsed ? item.label : undefined}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
+
                     {!collapsed ? (
                       <>
                         <span className="truncate text-sm font-medium">{item.label}</span>
+
                         {badge > 0 ? (
                           <span className="ms-auto inline-flex min-w-[1.2rem] items-center justify-center rounded-full bg-[var(--color-danger-bg)] px-1.5 text-[10px] font-semibold text-[var(--color-danger)]">
                             {badge > 99 ? '99+' : badge}
