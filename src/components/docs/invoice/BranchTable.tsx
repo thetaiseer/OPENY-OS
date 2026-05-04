@@ -4,11 +4,11 @@ import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
 
 const DOC_BLACK = OPENY_DOC_BLACK;
 const ROWS_PER_PAGE_CHUNK = 999;
+const GRID_LINE = '#c7c7c7';
+const SUBTOTAL_BG = '#f1f1f1';
 
 const th: CSSProperties = {
-  border: `1px solid ${DOC_BLACK}`,
-  borderRight: '1px solid #fff',
-  borderBottom: '2px solid #fff',
+  border: `1px solid ${GRID_LINE}`,
   padding: 0,
   fontSize: 10,
   fontWeight: 800,
@@ -23,13 +23,13 @@ const th: CSSProperties = {
 };
 
 const td: CSSProperties = {
-  border: `1px solid ${DOC_BLACK}`,
+  border: `1px solid ${GRID_LINE}`,
   padding: 0,
-  fontSize: 10.5,
+  fontSize: 11,
   textAlign: 'center',
   verticalAlign: 'middle',
   background: 'var(--accent-foreground)',
-  lineHeight: 1.15,
+  lineHeight: 1.2,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   wordBreak: 'normal',
@@ -38,11 +38,11 @@ const td: CSSProperties = {
 const cellBox: CSSProperties = {
   boxSizing: 'border-box',
   display: 'table',
-  minHeight: 31,
+  minHeight: 34,
   width: '100%',
-  padding: '5px 8px',
+  padding: '7px 8px',
   textAlign: 'center',
-  lineHeight: 1.05,
+  lineHeight: 1.15,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   wordBreak: 'normal',
@@ -89,8 +89,8 @@ function CellContent({
     <div
       style={{
         ...cellBox,
-        minHeight: compact ? 28 : cellBox.minHeight,
-        padding: compact ? '4px 6px' : cellBox.padding,
+        minHeight: compact ? 30 : cellBox.minHeight,
+        padding: compact ? '6px 6px' : cellBox.padding,
         fontWeight: strong ? 700 : undefined,
       }}
     >
@@ -128,7 +128,14 @@ export default function BranchTable({
         return (
           <div key={`${branchTable.id}-chunk-${chunkIndex}`} className="avoid-break">
             {chunkIndex > 0 ? <div className="html2pdf__page-break" /> : null}
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed',
+                border: `1px solid ${GRID_LINE}`,
+              }}
+            >
               <colgroup>
                 <col style={{ width: '12%' }} />
                 <col style={{ width: '13%' }} />
@@ -151,7 +158,7 @@ export default function BranchTable({
                       textTransform: 'uppercase',
                       textAlign: 'center',
                       verticalAlign: 'middle',
-                      borderBottom: '2px solid #fff',
+                      borderBottom: `1px solid ${GRID_LINE}`,
                       lineHeight: 1.15,
                       whiteSpace: 'normal',
                       overflowWrap: 'anywhere',
@@ -174,7 +181,6 @@ export default function BranchTable({
                   <th
                     style={{
                       ...th,
-                      borderRight: `1px solid ${DOC_BLACK}`,
                     }}
                   >
                     <CellContent strong compact>
@@ -244,7 +250,7 @@ export default function BranchTable({
                       colSpan={5}
                       style={{
                         ...td,
-                        background: 'var(--border)',
+                        background: SUBTOTAL_BG,
                         fontWeight: 700,
                         verticalAlign: 'middle',
                       }}
@@ -254,7 +260,7 @@ export default function BranchTable({
                     <td
                       style={{
                         ...td,
-                        background: 'var(--border)',
+                        background: SUBTOTAL_BG,
                         fontWeight: 700,
                         verticalAlign: 'middle',
                       }}
