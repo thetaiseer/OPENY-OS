@@ -110,8 +110,8 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
       <Header />
       <main className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-[calc(3.25rem+env(safe-area-inset-top,0px))] md:ms-[var(--openy-sidebar-width)] md:pb-6 md:pt-10">
         <PageShellProvider>
-          <PageTransition>
-            <div className="mx-auto w-full max-w-shell space-y-2 pb-4 pe-[max(1rem,env(safe-area-inset-right,0px))] ps-[max(1rem,env(safe-area-inset-left,0px))] pt-3 sm:pb-5 md:pb-6 md:pe-6 md:ps-6">
+          <div className="mx-auto w-full max-w-shell pb-4 pe-[max(1rem,env(safe-area-inset-right,0px))] ps-[max(1rem,env(safe-area-inset-left,0px))] pt-3 sm:pb-5 md:pb-6 md:pe-6 md:ps-6">
+            <PageTransition className="space-y-2">
               <div className="sr-only">
                 <RouteTitle />
               </div>
@@ -121,8 +121,8 @@ export default function AppShellLayout({ children }: { children?: ReactNode }) {
                 </div>
               )}
               {children}
-            </div>
-          </PageTransition>
+            </PageTransition>
+          </div>
         </PageShellProvider>
       </main>
       <MobileBottomNav />
