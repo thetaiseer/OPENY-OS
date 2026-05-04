@@ -4,10 +4,10 @@ import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { Home } from 'lucide-react';
-import { PageShell } from '@/components/layout/PageLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { cn } from '@/lib/cn';
+import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const DOC_TYPE_LINKS = [
   { href: '/docs/invoice', label: 'Invoice', key: 'invoice' },
@@ -60,6 +60,9 @@ export function DocsToolbarLayout({
   return (
     <div className="docs-workspace-quickbar">
       <div className="docs-toolbar-top-row">
+        <div className="docs-toolbar-brand">
+          <OpenyLogo width={210} height={54} forceVariant="light" />
+        </div>
         <div className="docs-toolbar-nav">{navigation}</div>
         <div className="docs-toolbar-actions">
           {actions}
@@ -112,7 +115,7 @@ export function DocsWorkspaceShell({
   const hasHistory = Boolean(history);
 
   return (
-    <PageShell className={cn('max-w-[96rem]', shellClassName)}>
+    <div className={cn('docs-workspace-shell', shellClassName)}>
       <div className="docs-workspace">
         <header className="docs-workspace-toolbar">{toolbar}</header>
 
@@ -184,7 +187,7 @@ export function DocsWorkspaceShell({
           </div>
         </div>
       </div>
-    </PageShell>
+    </div>
   );
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
@@ -29,7 +28,6 @@ import {
   DocsToolbarLayout,
   DocsWorkspaceShell,
 } from '@/components/docs/DocsWorkspace';
-import { DocsTabs } from '@/components/docs/DocsUi';
 import SelectDropdown from '@/components/ui/SelectDropdown';
 import InvoicePreview from '@/components/docs/invoice/InvoicePreview';
 import ScaledDocumentPreview from '@/components/docs/ScaledDocumentPreview';
@@ -48,7 +46,6 @@ import {
   createDefaultProIconKsaBranchConfigs,
   deriveProIconKsaBranchConfigs,
   generateProIconKsaInvoice,
-  getProIconKsaPlatformPreviewBudget,
   PRO_ICON_KSA_TEMPLATE_CONFIG,
   PRO_ICON_KSA_TEMPLATE_KEY,
   toPositiveInt,
@@ -198,42 +195,29 @@ function distributePercentages(rawValues: number[]) {
   const safe = rawValues.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const sum = safe.reduce((s, v) => s + v, 0);
   if (sum <= 0) {
-    const even = Math.floor(100 / rawValues.length);
+    const even = Number((100 / rawValues.length).toFixed(3));
     const values = Array.from({ length: rawValues.length }, () => even);
-    let rem = 100 - even * rawValues.length;
-    let index = 0;
-    while (rem > 0) {
-      values[index % values.length] += 1;
-      rem -= 1;
-      index += 1;
-    }
+    values[values.length - 1] = Number(
+      (100 - values.slice(0, -1).reduce((s, value) => s + value, 0)).toFixed(3),
+    );
     return values;
   }
-  const scaled = safe.map((value) => (value / sum) * 100);
-  const floored = scaled.map((value) => Math.floor(value));
-  let remainder = 100 - floored.reduce((s, value) => s + value, 0);
-  const order = scaled
-    .map((value, index) => ({ index, frac: value - Math.floor(value) }))
-    .sort((a, b) => b.frac - a.frac);
-  let cursor = 0;
-  while (remainder > 0 && order.length > 0) {
-    const entry = order[cursor % order.length];
-    if (!entry) break;
-    floored[entry.index] += 1;
-    remainder -= 1;
-    cursor += 1;
-  }
-  return floored;
+  const scaled = safe.map((value) => Number(((value / sum) * 100).toFixed(3)));
+  const correction = Number((100 - scaled.reduce((s, value) => s + value, 0)).toFixed(3));
+  const correctionIndex = scaled.findIndex((value) => value > 0);
+  if (correctionIndex >= 0)
+    scaled[correctionIndex] = Number((scaled[correctionIndex] + correction).toFixed(3));
+  return scaled;
 }
 
 function normalizeKsaBranchConfigs(configs: ProIconKsaBranchConfig[]) {
   const next = configs.map((branch) => ({
     ...branch,
-    allocationPct: branch.enabled ? Math.max(0, Math.round(branch.allocationPct || 0)) : 0,
+    allocationPct: branch.enabled ? Math.max(0, Number(branch.allocationPct || 0)) : 0,
     platforms: branch.platforms.map((platform) => ({
       ...platform,
       campaignCount: toPositiveInt(platform.campaignCount),
-      allocationPct: platform.enabled ? Math.max(0, Math.round(platform.allocationPct || 0)) : 0,
+      allocationPct: platform.enabled ? Math.max(0, Number(platform.allocationPct || 0)) : 0,
     })),
   }));
   const enabledBranches = next.filter((branch) => branch.enabled);
@@ -275,6 +259,14 @@ function formatInvoiceAmount(n: number, lang: 'en' | 'ar') {
   return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA' : 'en-US').format(n);
 }
 
+function getKsaAdSpendBudget(totalBudget: number) {
+  const deduction =
+    PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
+      ? PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount
+      : 0;
+  return Math.max(0, Math.round(totalBudget || 0) - Math.max(0, Math.round(deduction || 0)));
+}
+
 function toForm(invoice: DocsInvoice): FormState {
   return {
     id: invoice.id,
@@ -312,9 +304,6 @@ export default function InvoicePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [editorPanel, setEditorPanel] = useState<'setup' | 'generator' | 'data' | 'totals'>(
-    'setup',
-  );
   const [expandedBranchRows, setExpandedBranchRows] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -481,69 +470,52 @@ export default function InvoicePage() {
     setGenerationSeed(nextSeed);
   }
 
-  function toggleKsaBranch(branchIndex: number, enabled: boolean) {
+  function toggleKsaPlatformForAll(platformIndex: number, enabled: boolean) {
     setKsaBranchConfigs((prev) =>
       normalizeKsaBranchConfigs(
-        prev.map((branch, idx) =>
-          idx === branchIndex
-            ? {
-                ...branch,
-                enabled,
-                allocationPct: enabled ? Math.max(1, branch.allocationPct || 1) : 0,
-              }
-            : branch,
-        ),
-      ),
-    );
-  }
-
-  function updateKsaBranchAllocation(branchIndex: number, value: number) {
-    setKsaBranchConfigs((prev) =>
-      normalizeKsaBranchConfigs(
-        prev.map((branch, idx) =>
-          idx === branchIndex
-            ? { ...branch, allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))) }
-            : branch,
-        ),
-      ),
-    );
-  }
-
-  function toggleKsaPlatform(branchIndex: number, platformIndex: number, enabled: boolean) {
-    setKsaBranchConfigs((prev) =>
-      normalizeKsaBranchConfigs(
-        prev.map((branch, idx) => {
-          if (idx !== branchIndex) return branch;
-          return {
-            ...branch,
-            platforms: branch.platforms.map((platform, pIdx) =>
-              pIdx === platformIndex
-                ? {
-                    ...platform,
-                    enabled,
-                    allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0,
-                  }
-                : platform,
-            ),
-          };
-        }),
-      ),
-    );
-  }
-
-  function updateKsaCampaignCount(branchIndex: number, platformIndex: number, value: number) {
-    setKsaBranchConfigs((prev) =>
-      prev.map((branch, idx) => {
-        if (idx !== branchIndex) return branch;
-        return {
+        prev.map((branch) => ({
           ...branch,
           platforms: branch.platforms.map((platform, pIdx) =>
             pIdx === platformIndex
-              ? { ...platform, campaignCount: toPositiveInt(value) }
+              ? {
+                  ...platform,
+                  enabled,
+                  allocationPct: enabled ? Math.max(1, platform.allocationPct || 1) : 0,
+                }
               : platform,
           ),
-        };
-      }),
+        })),
+      ),
+    );
+  }
+
+  function updateKsaCampaignCountForAll(platformIndex: number, value: number) {
+    setKsaBranchConfigs((prev) =>
+      prev.map((branch) => ({
+        ...branch,
+        platforms: branch.platforms.map((platform, pIdx) =>
+          pIdx === platformIndex ? { ...platform, campaignCount: toPositiveInt(value) } : platform,
+        ),
+      })),
+    );
+  }
+
+  function updateKsaPlatformAllocationForAll(platformIndex: number, value: number) {
+    setKsaBranchConfigs((prev) =>
+      normalizeKsaBranchConfigs(
+        prev.map((branch) => ({
+          ...branch,
+          platforms: branch.platforms.map((platform, pIdx) =>
+            pIdx === platformIndex
+              ? {
+                  ...platform,
+                  allocationPct: Math.max(0, Math.min(100, Math.round(value || 0))),
+                  enabled: value > 0 ? true : platform.enabled,
+                }
+              : platform,
+          ),
+        })),
+      ),
     );
   }
 
@@ -771,9 +743,11 @@ export default function InvoicePage() {
     setTimeout(() => setSuccess(''), 1800);
   }
 
-  const totalAllocation = ksaBranchConfigs
-    .filter((branch) => branch.enabled)
-    .reduce((sum, branch) => sum + branch.allocationPct, 0);
+  const ksaPlatformConfigs = ksaBranchConfigs[0]?.platforms ?? [];
+  const totalAllocation = ksaPlatformConfigs
+    .filter((platform) => platform.enabled)
+    .reduce((sum, platform) => sum + platform.allocationPct, 0);
+  const ksaAdSpendBudget = getKsaAdSpendBudget(totalBudget);
 
   function toggleBranchDetails(branchId: string) {
     setExpandedBranchRows((prev) => ({ ...prev, [branchId]: !prev[branchId] }));
@@ -785,149 +759,7 @@ export default function InvoicePage() {
   return (
     <DocsWorkspaceShell
       toolbar={
-        <DocsToolbarLayout
-          navigation={<DocsDocTypeTabs active="invoice" />}
-          actions={
-            <>
-              <button
-                type="button"
-                onClick={createNew}
-                className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-              >
-                <Plus size={12} className="me-1 inline" /> {t('docInvNew')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveInvoice()}
-                disabled={saving || loading}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                style={{ background: 'var(--accent)' }}
-              >
-                <Save size={12} className="me-1 inline" />{' '}
-                {saving ? t('docCommonSaving') : t('docCommonSave')}
-              </button>
-              {form.id ? (
-                <a
-                  href={`/api/docs/invoices/${form.id}/export`}
-                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  <Download size={12} className="me-1 inline" /> {t('docInvExcel')}
-                </a>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  void exportPreviewPdf(
-                    'invoice-preview',
-                    form.invoice_number || 'invoice',
-                    'invoice',
-                  );
-                }}
-                className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-                style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-              >
-                <Printer size={12} className="me-1 inline" /> {t('docInvPdf')}
-              </button>
-              {form.id ? (
-                <button
-                  type="button"
-                  onClick={() => void deleteInvoice()}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                  style={{
-                    background: 'var(--destructive)',
-                    color: 'var(--destructive-foreground)',
-                  }}
-                >
-                  <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
-                </button>
-              ) : null}
-            </>
-          }
-        >
-          <>
-            <div className="docs-workspace-quickbar-grid">
-              <div>
-                <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
-                <SelectDropdown
-                  id="invoice-template"
-                  fullWidth
-                  className={inputClass}
-                  value={form.invoice_template}
-                  onChange={(v) => applyTemplate(asTemplateName(v))}
-                  options={INVOICE_TEMPLATE_OPTIONS.map((template) => ({
-                    value: template.key,
-                    label: template.label,
-                  }))}
-                />
-              </div>
-              <div>
-                <label>{t('docInvClientField')}</label>
-                <SelectDropdown
-                  fullWidth
-                  className={inputClass}
-                  value={form.client_profile_id ?? ''}
-                  onChange={(value) => {
-                    setField('client_profile_id', value || null);
-                    const profile = profiles.find((p) => p.client_id === value);
-                    if (profile) setField('client_name', profile.client_name);
-                  }}
-                  options={[
-                    { value: '', label: t('docCommonSelectClient') },
-                    ...profiles.map((profile) => ({
-                      value: profile.client_id,
-                      label: profile.client_name,
-                    })),
-                  ]}
-                />
-              </div>
-              <div>
-                <label htmlFor="invoice-campaign-month">{t('docInvCampaignMonth')}</label>
-                <input
-                  id="invoice-campaign-month"
-                  type="month"
-                  className={inputClass}
-                  value={form.campaign_month}
-                  onChange={(e) => setField('campaign_month', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="invoice-date">{t('docInvInvoiceDate')}</label>
-                <input
-                  id="invoice-date"
-                  type="date"
-                  className={inputClass}
-                  value={form.invoice_date}
-                  onChange={(e) => setField('invoice_date', e.target.value)}
-                />
-              </div>
-            </div>
-            <div
-              className="mt-4 rounded-xl border px-3 py-2.5"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'var(--bg-elevated)',
-              }}
-            >
-              <div>
-                <label>{t('docInvHistory')}</label>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Link
-                    href="/docs/invoice/history"
-                    className="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    {t('docInvOpenHistoryPage')}
-                  </Link>
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {t('docInvSavedCount', { count: invoices.length })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </>
-        </DocsToolbarLayout>
+        <DocsToolbarLayout navigation={<DocsDocTypeTabs active="invoice" />} actions={null} />
       }
       editor={
         <div className="space-y-3 overflow-y-auto pe-1">
@@ -956,617 +788,686 @@ export default function InvoicePage() {
             </div>
           ) : null}
 
-          <div className="docs-editor-subtabs">
-            <DocsTabs
-              value={editorPanel}
-              onChange={setEditorPanel}
-              items={[
-                { value: 'setup', label: t('docTabSetup') },
-                { value: 'generator', label: t('docTabGenerator') },
-                { value: 'data', label: t('docTabCampaignData') },
-                { value: 'totals', label: t('docTabTotals') },
-              ]}
-            />
+          <div className="docs-view-tabs" role="tablist" aria-label="Invoice workspace">
+            <button type="button" className="docs-view-tab docs-view-tab-active">
+              Editor
+            </button>
+            <a href="/docs/invoice/history" className="docs-view-tab">
+              History
+              <span className="docs-view-tab-count">{invoices.length}</span>
+            </a>
           </div>
 
-          {editorPanel === 'setup' ? (
-            <DocsEditorCard title={t('docCardDocumentSetup')}>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label>{t('docInvInvoiceNumber')}</label>
-                  <input
-                    className={inputClass}
-                    value={form.invoice_number}
-                    readOnly={!form.id}
-                    title={!form.id ? t('docDocNumberAutoHint') : undefined}
-                    onChange={(e) => setField('invoice_number', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label>{t('docInvCurrency')}</label>
-                  <SelectDropdown
-                    fullWidth
-                    className={inputClass}
-                    value={form.currency}
-                    onChange={(v) => setField('currency', v)}
-                    options={DOCS_CURRENCIES.map((currency) => ({
-                      value: currency,
-                      label: currency,
-                    }))}
-                  />
-                </div>
-                <div>
-                  <label>{t('docInvStatus')}</label>
-                  <SelectDropdown
-                    fullWidth
-                    className={inputClass}
-                    value={form.status}
-                    onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
-                    options={[
-                      { value: 'unpaid', label: t('docStatusUnpaid') },
-                      { value: 'paid', label: t('docStatusPaid') },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <label>{t('docInvClientName')}</label>
-                  <input
-                    className={inputClass}
-                    value={form.client_name}
-                    onChange={(e) => setField('client_name', e.target.value)}
-                    placeholder={selectedProfile?.client_name || t('docInvClientNamePh')}
-                  />
-                </div>
-              </div>
-              <ClientProfileSelector
-                profiles={profiles}
-                selectedClientId={form.client_profile_id ?? ''}
-                onSelectClientId={(value) => {
-                  setField('client_profile_id', value || null);
-                  if (!value) return;
-                  const profile = profiles.find((p) => p.client_id === value);
-                  if (profile) setField('client_name', profile.client_name);
-                }}
-              />
+          <DocsEditorCard
+            title={t('docCardDocumentSetup')}
+            actions={
+              <>
+                <button
+                  type="button"
+                  onClick={createNew}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <Plus size={12} className="me-1 inline" /> {t('docInvNew')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveInvoice()}
+                  disabled={saving || loading}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--accent-foreground)]"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  <Save size={12} className="me-1 inline" />{' '}
+                  {saving ? t('docCommonSaving') : t('docCommonSave')}
+                </button>
+              </>
+            }
+          >
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor="invoice-notes">{t('notes')}</label>
-                <textarea
-                  id="invoice-notes"
+                <label htmlFor="invoice-template">{t('docInvModeTemplate')}</label>
+                <SelectDropdown
+                  id="invoice-template"
+                  fullWidth
                   className={inputClass}
-                  rows={3}
-                  value={form.notes}
-                  onChange={(e) => setField('notes', e.target.value)}
+                  value={form.invoice_template}
+                  onChange={(v) => applyTemplate(asTemplateName(v))}
+                  options={INVOICE_TEMPLATE_OPTIONS.map((template) => ({
+                    value: template.key,
+                    label: template.label,
+                  }))}
                 />
               </div>
-            </DocsEditorCard>
-          ) : null}
+              <div>
+                <label>{t('docInvInvoiceNumber')}</label>
+                <input
+                  className={inputClass}
+                  value={form.invoice_number}
+                  readOnly={!form.id}
+                  title={!form.id ? t('docDocNumberAutoHint') : undefined}
+                  onChange={(e) => setField('invoice_number', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvCurrency')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputClass}
+                  value={form.currency}
+                  onChange={(v) => setField('currency', v)}
+                  options={DOCS_CURRENCIES.map((currency) => ({
+                    value: currency,
+                    label: currency,
+                  }))}
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-campaign-month">{t('docInvCampaignMonth')}</label>
+                <input
+                  id="invoice-campaign-month"
+                  type="month"
+                  className={inputClass}
+                  value={form.campaign_month}
+                  onChange={(e) => setField('campaign_month', e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-date">{t('docInvInvoiceDate')}</label>
+                <input
+                  id="invoice-date"
+                  type="date"
+                  className={inputClass}
+                  value={form.invoice_date}
+                  onChange={(e) => setField('invoice_date', e.target.value)}
+                />
+              </div>
+              <div>
+                <label>{t('docInvStatus')}</label>
+                <SelectDropdown
+                  fullWidth
+                  className={inputClass}
+                  value={form.status}
+                  onChange={(v) => setField('status', v as 'paid' | 'unpaid')}
+                  options={[
+                    { value: 'unpaid', label: t('docStatusUnpaid') },
+                    { value: 'paid', label: t('docStatusPaid') },
+                  ]}
+                />
+              </div>
+              <div>
+                <label>{t('docInvClientName')}</label>
+                <input
+                  className={inputClass}
+                  value={form.client_name}
+                  onChange={(e) => setField('client_name', e.target.value)}
+                  placeholder={selectedProfile?.client_name || t('docInvClientNamePh')}
+                />
+              </div>
+            </div>
+            <ClientProfileSelector
+              profiles={profiles}
+              selectedClientId={form.client_profile_id ?? ''}
+              onSelectClientId={(value) => {
+                setField('client_profile_id', value || null);
+                if (!value) return;
+                const profile = profiles.find((p) => p.client_id === value);
+                if (profile) setField('client_name', profile.client_name);
+              }}
+            />
+            <div>
+              <label htmlFor="invoice-notes">{t('notes')}</label>
+              <textarea
+                id="invoice-notes"
+                className={inputClass}
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setField('notes', e.target.value)}
+              />
+            </div>
+          </DocsEditorCard>
 
-          {editorPanel === 'generator' ? (
-            <DocsEditorCard
-              title={t('docCardTemplateGenerator')}
-              actions={
-                <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  {t('docAllocationTotal', { n: totalAllocation })}
-                </div>
-              }
-            >
-              {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-[1fr_180px] gap-2">
-                    <div>
-                      <label htmlFor="invoice-total-budget">{t('docTotalBudget')}</label>
-                      <input
-                        id="invoice-total-budget"
-                        type="number"
-                        min={0}
-                        className={inputClass}
-                        value={totalBudget}
-                        onChange={(e) =>
-                          setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))
-                        }
-                      />
+          <DocsEditorCard
+            title={t('docCardTemplateGenerator')}
+            actions={
+              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                {t('docAllocationTotal', { n: totalAllocation })}
+              </div>
+            }
+          >
+            {form.invoice_template === PRO_ICON_KSA_TEMPLATE_KEY ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-[1fr_180px] gap-2">
+                  <div>
+                    <label htmlFor="invoice-total-budget">{t('docTotalBudget')}</label>
+                    <input
+                      id="invoice-total-budget"
+                      type="number"
+                      min={0}
+                      className={inputClass}
+                      value={totalBudget}
+                      onChange={(e) =>
+                        setTotalBudget(Math.max(0, Math.round(Number(e.target.value) || 0)))
+                      }
+                    />
+                  </div>
+                  <div
+                    className="space-y-1 rounded-xl border p-2 text-xs"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span style={{ color: 'var(--text-secondary)' }}>{t('docDeduction')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                        {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
+                          ? `${formatInvoiceAmount(PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount, lang)} ${form.currency}`
+                          : `0 ${form.currency}`}
+                      </span>
                     </div>
-                    <div
-                      className="space-y-1 rounded-xl border p-2 text-xs"
-                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span style={{ color: 'var(--text-secondary)' }}>{t('docDeduction')}</span>
-                        <span className="font-semibold" style={{ color: 'var(--text)' }}>
-                          {PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.type === 'fixed'
-                            ? `${formatInvoiceAmount(PRO_ICON_KSA_TEMPLATE_CONFIG.deduction.fixedAmount, lang)} ${form.currency}`
-                            : `0 ${form.currency}`}
-                        </span>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span style={{ color: 'var(--text-secondary)' }}>{t('docFinalBudget')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                        {formatInvoiceAmount(ksaAdSpendBudget, lang)} {form.currency}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  {ksaBranchConfigs.map((branch, branchIndex) => {
-                    const branchBudget = Math.round((totalBudget * branch.allocationPct) / 100);
-                    const activeCampaigns = branch.platforms
-                      .filter((item) => item.enabled)
-                      .reduce((sum, item) => sum + toPositiveInt(item.campaignCount), 0);
+                <div
+                  className="space-y-3 rounded-xl border p-3"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                >
+                  <div
+                    className="flex items-center justify-between gap-2 border-b pb-2"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+                        Active Platforms & Campaigns (KSA Branch)
+                      </p>
+                      <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                        Riyadh, Jeddah, and Khobar use the same platform order and campaign count.
+                      </p>
+                    </div>
+                    <span
+                      className="text-sm font-black"
+                      style={{
+                        color: totalAllocation === 100 ? '#15803d' : 'var(--text-primary)',
+                      }}
+                    >
+                      {totalAllocation}%
+                    </span>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between rounded-xl border px-3 py-3"
+                    style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                      Total Allocation
+                    </span>
+                    <span className="text-lg font-black" style={{ color: '#15803d' }}>
+                      {totalAllocation}%
+                    </span>
+                  </div>
+
+                  {ksaPlatformConfigs.map((platform, platformIndex) => {
+                    const platformBudget = Math.round(
+                      (ksaAdSpendBudget * (platform.enabled ? platform.allocationPct : 0)) / 100,
+                    );
                     return (
                       <div
-                        key={branch.id}
-                        className="space-y-3 rounded-xl border p-3"
-                        style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                        key={platform.id}
+                        className="overflow-hidden rounded-xl border"
+                        style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div
+                          className="grid grid-cols-[1fr_auto] items-center gap-3 border-b px-3 py-3"
+                          style={{ borderColor: 'var(--border)' }}
+                        >
                           <label
-                            className="flex items-center gap-2 text-sm font-semibold"
+                            className="flex items-center gap-2 text-base font-bold"
                             style={{ color: 'var(--text)' }}
                           >
                             <input
                               type="checkbox"
-                              checked={branch.enabled}
-                              onChange={(e) => toggleKsaBranch(branchIndex, e.target.checked)}
-                            />
-                            {branch.name}
-                          </label>
-                          <span
-                            className="text-sm font-semibold"
-                            style={{ color: 'var(--accent)' }}
-                          >
-                            {branch.enabled
-                              ? `${formatInvoiceAmount(branchBudget, lang)} ${form.currency}`
-                              : t('docDisabled')}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[1fr_120px] items-end gap-2">
-                          <div>
-                            <label htmlFor={`branch-allocation-range-${branch.id}`}>
-                              {t('docBranchAllocationPct')}
-                            </label>
-                            <input
-                              id={`branch-allocation-range-${branch.id}`}
-                              type="range"
-                              min={0}
-                              max={100}
-                              disabled={!branch.enabled}
-                              className="w-full"
-                              value={branch.allocationPct}
+                              checked={platform.enabled}
                               onChange={(e) =>
-                                updateKsaBranchAllocation(branchIndex, Number(e.target.value))
+                                toggleKsaPlatformForAll(platformIndex, e.target.checked)
                               }
                             />
-                          </div>
-                          <input
-                            id={`branch-allocation-input-${branch.id}`}
-                            type="number"
-                            min={0}
-                            max={100}
-                            disabled={!branch.enabled}
-                            className={inputClass}
-                            value={branch.allocationPct}
-                            onChange={(e) =>
-                              updateKsaBranchAllocation(branchIndex, Number(e.target.value))
-                            }
-                          />
+                            <span>{platform.name}</span>
+                          </label>
+                          <span
+                            className="text-sm font-black"
+                            style={{
+                              color: platform.enabled ? 'var(--accent)' : 'var(--text-secondary)',
+                            }}
+                          >
+                            {platform.enabled
+                              ? `${formatInvoiceAmount(platformBudget, lang)} ${form.currency}`
+                              : `0 ${form.currency}`}
+                          </span>
                         </div>
+                        {platform.enabled ? (
+                          <div
+                            className="grid grid-cols-[1fr_1fr] items-end gap-3 px-3 py-3"
+                            style={{ background: 'var(--surface-2)' }}
+                          >
+                            <div>
+                              <label>{t('docCampaignCount')}</label>
+                              <input
+                                type="number"
+                                min={1}
+                                className={inputClass}
+                                value={platform.campaignCount}
+                                onChange={(e) =>
+                                  updateKsaCampaignCountForAll(
+                                    platformIndex,
+                                    Number(e.target.value),
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="grid grid-cols-[1fr_74px] items-end gap-2">
+                              <div>
+                                <label>Budget Allocation</label>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={100}
+                                  className="w-full"
+                                  value={platform.allocationPct}
+                                  onChange={(e) =>
+                                    updateKsaPlatformAllocationForAll(
+                                      platformIndex,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </div>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                className={inputClass}
+                                value={platform.allocationPct}
+                                onChange={(e) =>
+                                  updateKsaPlatformAllocationForAll(
+                                    platformIndex,
+                                    Number(e.target.value),
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
 
-                        {branch.platforms.map((platform, platformIndex) => {
-                          const platformBudget = getProIconKsaPlatformPreviewBudget(
-                            totalBudget,
-                            branch,
-                            platform,
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => regenerateKsa(1, false)}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--accent-foreground)]"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    <Wand2 size={13} className="me-1 inline" /> {t('docGenerateInvoiceData')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => regenerateKsa(1, true)}
+                    className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <RotateCcw size={13} className="me-1 inline" /> {t('docResetGenerator')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="rounded-lg border px-3 py-2 text-xs"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                {t('docManualGeneratorHint')}
+              </div>
+            )}
+          </DocsEditorCard>
+
+          <DocsEditorCard
+            title={t('docCardCampaignData')}
+            actions={
+              form.invoice_template === 'manual' ? (
+                <button
+                  type="button"
+                  onClick={addBranch}
+                  className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  <Plus size={12} className="me-1 inline" /> {t('docAddBranch')}
+                </button>
+              ) : null
+            }
+          >
+            {branchGroups.length === 0 ? (
+              <div
+                className="rounded-lg border px-3 py-2 text-xs"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                {t('docEmptyCampaignData')}
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              {branchGroups.map((branch, branchIndex) => {
+                const branchTotal = branch.platform_groups.reduce(
+                  (sum, platform) =>
+                    sum +
+                    platform.campaign_rows.reduce(
+                      (rowSum, row) => rowSum + (Number(row.cost) || 0),
+                      0,
+                    ),
+                  0,
+                );
+                const expanded = expandedBranchRows[branch.id] ?? true;
+                return (
+                  <div
+                    key={branch.id}
+                    className="space-y-2 rounded-xl border p-3"
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+                  >
+                    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                      <input
+                        className={inputClass}
+                        value={branch.branch_name}
+                        onChange={(e) => updateBranchName(branchIndex, e.target.value)}
+                        placeholder={t('docBranchNamePh')}
+                      />
+                      <div
+                        className="rounded-lg px-2 py-1 text-xs font-semibold"
+                        style={{ background: 'var(--surface)', color: 'var(--accent)' }}
+                      >
+                        {formatInvoiceAmount(branchTotal, lang)} {form.currency}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleBranchDetails(branch.id)}
+                          className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        >
+                          {expanded ? t('docCollapse') : t('docExpand')}
+                        </button>
+                        {form.invoice_template === 'manual' ? (
+                          <button
+                            type="button"
+                            onClick={() => removeBranch(branchIndex)}
+                            className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                            style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {expanded ? (
+                      <div className="space-y-2">
+                        {branch.platform_groups.map((platform, platformIndex) => {
+                          const platformTotal = platform.campaign_rows.reduce(
+                            (sum, row) => sum + (Number(row.cost) || 0),
+                            0,
                           );
                           return (
                             <div
                               key={platform.id}
-                              className="space-y-2 rounded-lg border p-2"
-                              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                              className="space-y-2 rounded-lg border p-3"
+                              style={{
+                                borderColor: 'var(--border)',
+                                background: 'var(--surface)',
+                              }}
                             >
-                              <div className="grid grid-cols-[1fr_120px] items-center gap-2">
-                                <label
-                                  className="flex items-center gap-2 text-xs font-semibold"
-                                  style={{ color: 'var(--text)' }}
+                              <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                                <input
+                                  className={inputClass}
+                                  value={platform.platform_name}
+                                  onChange={(e) =>
+                                    updatePlatformName(branchIndex, platformIndex, e.target.value)
+                                  }
+                                  placeholder={t('docPlatformNamePh')}
+                                />
+                                <div
+                                  className="rounded-lg px-2 py-1 text-xs font-semibold"
+                                  style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={platform.enabled}
-                                    onChange={(e) =>
-                                      toggleKsaPlatform(
-                                        branchIndex,
-                                        platformIndex,
-                                        e.target.checked,
-                                      )
-                                    }
-                                  />
-                                  <span>{platform.name}</span>
-                                </label>
-                                <span
-                                  className="text-end text-[11px] font-semibold"
-                                  style={{ color: 'var(--accent)' }}
-                                >
-                                  {platform.enabled
-                                    ? `${formatInvoiceAmount(platformBudget, lang)} ${form.currency}`
-                                    : t('docDisabled')}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-[140px_1fr] items-end gap-2">
-                                <div>
-                                  <label>{t('docCampaignCount')}</label>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    disabled={!platform.enabled}
-                                    className={inputClass}
-                                    value={platform.campaignCount}
-                                    onChange={(e) =>
-                                      updateKsaCampaignCount(
-                                        branchIndex,
-                                        platformIndex,
-                                        Number(e.target.value),
-                                      )
-                                    }
-                                  />
+                                  {formatInvoiceAmount(platformTotal, lang)} {form.currency}
                                 </div>
-                                <div>
-                                  <label>Auto distribution</label>
-                                  <div
-                                    className="rounded-lg border px-2 py-2 text-[11px]"
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => addRow(branchIndex, platformIndex)}
+                                    className="rounded-lg border px-2 py-2 text-xs font-semibold"
                                     style={{
                                       borderColor: 'var(--border)',
                                       color: 'var(--text-secondary)',
-                                      background: 'var(--bg-elevated)',
                                     }}
+                                    title={t('docAddRow')}
                                   >
-                                    {platform.enabled
-                                      ? 'Budget is distributed automatically by active campaign counts.'
-                                      : t('docDisabled')}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        <div
-                          className="text-[11px]"
-                          style={{
-                            color:
-                              activeCampaigns > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                          }}
-                        >
-                          {`Active campaigns: ${activeCampaigns}`}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => regenerateKsa(1, false)}
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--accent-foreground)]"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      <Wand2 size={13} className="me-1 inline" /> {t('docGenerateInvoiceData')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => regenerateKsa(1, true)}
-                      className="rounded-lg border px-3 py-2 text-xs font-semibold"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                    >
-                      <RotateCcw size={13} className="me-1 inline" /> {t('docResetGenerator')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="rounded-lg border px-3 py-2 text-xs"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  {t('docManualGeneratorHint')}
-                </div>
-              )}
-            </DocsEditorCard>
-          ) : null}
-
-          {editorPanel === 'data' ? (
-            <DocsEditorCard
-              title={t('docCardCampaignData')}
-              actions={
-                form.invoice_template === 'manual' ? (
-                  <button
-                    type="button"
-                    onClick={addBranch}
-                    className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                  >
-                    <Plus size={12} className="me-1 inline" /> {t('docAddBranch')}
-                  </button>
-                ) : null
-              }
-            >
-              {branchGroups.length === 0 ? (
-                <div
-                  className="rounded-lg border px-3 py-2 text-xs"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  {t('docEmptyCampaignData')}
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                {branchGroups.map((branch, branchIndex) => {
-                  const branchTotal = branch.platform_groups.reduce(
-                    (sum, platform) =>
-                      sum +
-                      platform.campaign_rows.reduce(
-                        (rowSum, row) => rowSum + (Number(row.cost) || 0),
-                        0,
-                      ),
-                    0,
-                  );
-                  const expanded = expandedBranchRows[branch.id] ?? true;
-                  return (
-                    <div
-                      key={branch.id}
-                      className="space-y-2 rounded-xl border p-3"
-                      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-                    >
-                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                        <input
-                          className={inputClass}
-                          value={branch.branch_name}
-                          onChange={(e) => updateBranchName(branchIndex, e.target.value)}
-                          placeholder={t('docBranchNamePh')}
-                        />
-                        <div
-                          className="rounded-lg px-2 py-1 text-xs font-semibold"
-                          style={{ background: 'var(--surface)', color: 'var(--accent)' }}
-                        >
-                          {formatInvoiceAmount(branchTotal, lang)} {form.currency}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleBranchDetails(branch.id)}
-                            className="rounded-lg border px-2 py-2 text-xs font-semibold"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                          >
-                            {expanded ? t('docCollapse') : t('docExpand')}
-                          </button>
-                          {form.invoice_template === 'manual' ? (
-                            <button
-                              type="button"
-                              onClick={() => removeBranch(branchIndex)}
-                              className="rounded-lg border px-2 py-2 text-xs font-semibold"
-                              style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {expanded ? (
-                        <div className="space-y-2">
-                          {branch.platform_groups.map((platform, platformIndex) => {
-                            const platformTotal = platform.campaign_rows.reduce(
-                              (sum, row) => sum + (Number(row.cost) || 0),
-                              0,
-                            );
-                            return (
-                              <div
-                                key={platform.id}
-                                className="space-y-2 rounded-lg border p-3"
-                                style={{
-                                  borderColor: 'var(--border)',
-                                  background: 'var(--surface)',
-                                }}
-                              >
-                                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                                  <input
-                                    className={inputClass}
-                                    value={platform.platform_name}
-                                    onChange={(e) =>
-                                      updatePlatformName(branchIndex, platformIndex, e.target.value)
-                                    }
-                                    placeholder={t('docPlatformNamePh')}
-                                  />
-                                  <div
-                                    className="rounded-lg px-2 py-1 text-xs font-semibold"
-                                    style={{ background: 'var(--surface-2)', color: 'var(--text)' }}
-                                  >
-                                    {formatInvoiceAmount(platformTotal, lang)} {form.currency}
-                                  </div>
-                                  <div className="flex items-center gap-1">
+                                    <Plus size={12} />
+                                  </button>
+                                  {form.invoice_template === 'manual' ? (
                                     <button
                                       type="button"
-                                      onClick={() => addRow(branchIndex, platformIndex)}
-                                      className="rounded-lg border px-2 py-2 text-xs font-semibold"
-                                      style={{
-                                        borderColor: 'var(--border)',
-                                        color: 'var(--text-secondary)',
-                                      }}
-                                      title={t('docAddRow')}
-                                    >
-                                      <Plus size={12} />
-                                    </button>
-                                    {form.invoice_template === 'manual' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => removePlatform(branchIndex, platformIndex)}
-                                        className="rounded-lg border px-2 py-2 text-xs font-semibold"
-                                        style={{
-                                          borderColor: 'var(--border)',
-                                          color: 'var(--text-primary)',
-                                        }}
-                                        title={t('docRemovePlatform')}
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                {platform.campaign_rows.length === 0 ? (
-                                  <div
-                                    className="text-[11px]"
-                                    style={{ color: 'var(--text-secondary)' }}
-                                  >
-                                    {t('docNoCampaignRows')}
-                                  </div>
-                                ) : null}
-
-                                {platform.campaign_rows.map((row, rowIndex) => (
-                                  <div
-                                    key={row.id}
-                                    className="grid grid-cols-[1.2fr_115px_1fr_110px_30px] items-center gap-2"
-                                  >
-                                    <input
-                                      className={inputClass}
-                                      value={row.ad_name}
-                                      onChange={(e) =>
-                                        updateRowField(
-                                          branchIndex,
-                                          platformIndex,
-                                          rowIndex,
-                                          'ad_name',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder={t('docAdNamePh')}
-                                    />
-                                    <input
-                                      type="date"
-                                      className={inputClass}
-                                      value={row.date}
-                                      onChange={(e) =>
-                                        updateRowField(
-                                          branchIndex,
-                                          platformIndex,
-                                          rowIndex,
-                                          'date',
-                                          e.target.value,
-                                        )
-                                      }
-                                    />
-                                    <input
-                                      className={inputClass}
-                                      value={row.results}
-                                      onChange={(e) =>
-                                        updateRowField(
-                                          branchIndex,
-                                          platformIndex,
-                                          rowIndex,
-                                          'results',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder={t('docResultsPh')}
-                                    />
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      className={inputClass}
-                                      value={row.cost}
-                                      onChange={(e) =>
-                                        updateRowField(
-                                          branchIndex,
-                                          platformIndex,
-                                          rowIndex,
-                                          'cost',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder={t('docCostPh')}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeRow(branchIndex, platformIndex, rowIndex)
-                                      }
+                                      onClick={() => removePlatform(branchIndex, platformIndex)}
                                       className="rounded-lg border px-2 py-2 text-xs font-semibold"
                                       style={{
                                         borderColor: 'var(--border)',
                                         color: 'var(--text-primary)',
                                       }}
-                                      title={t('docRemoveRow')}
+                                      title={t('docRemovePlatform')}
                                     >
                                       <Trash2 size={12} />
                                     </button>
-                                  </div>
-                                ))}
+                                  ) : null}
+                                </div>
                               </div>
-                            );
-                          })}
 
-                          {form.invoice_template === 'manual' ? (
-                            <button
-                              type="button"
-                              onClick={() => addPlatform(branchIndex)}
-                              className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
-                              style={{
-                                borderColor: 'var(--border)',
-                                color: 'var(--text-secondary)',
-                              }}
-                            >
-                              <Plus size={12} className="me-1 inline" /> {t('docAddPlatform')}
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </DocsEditorCard>
-          ) : null}
+                              {platform.campaign_rows.length === 0 ? (
+                                <div
+                                  className="text-[11px]"
+                                  style={{ color: 'var(--text-secondary)' }}
+                                >
+                                  {t('docNoCampaignRows')}
+                                </div>
+                              ) : null}
 
-          {editorPanel === 'totals' ? (
-            <DocsEditorCard title={t('docCardTotals')}>
-              <div className="space-y-2">
-                <div
-                  className="flex items-center justify-between border-b py-1.5 text-xs"
-                  style={{ borderColor: 'var(--border)' }}
+                              {platform.campaign_rows.map((row, rowIndex) => (
+                                <div
+                                  key={row.id}
+                                  className="grid grid-cols-[1.2fr_115px_1fr_110px_30px] items-center gap-2"
+                                >
+                                  <input
+                                    className={inputClass}
+                                    value={row.ad_name}
+                                    onChange={(e) =>
+                                      updateRowField(
+                                        branchIndex,
+                                        platformIndex,
+                                        rowIndex,
+                                        'ad_name',
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={t('docAdNamePh')}
+                                  />
+                                  <input
+                                    type="date"
+                                    className={inputClass}
+                                    value={row.date}
+                                    onChange={(e) =>
+                                      updateRowField(
+                                        branchIndex,
+                                        platformIndex,
+                                        rowIndex,
+                                        'date',
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    className={inputClass}
+                                    value={row.results}
+                                    onChange={(e) =>
+                                      updateRowField(
+                                        branchIndex,
+                                        platformIndex,
+                                        rowIndex,
+                                        'results',
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={t('docResultsPh')}
+                                  />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    className={inputClass}
+                                    value={row.cost}
+                                    onChange={(e) =>
+                                      updateRowField(
+                                        branchIndex,
+                                        platformIndex,
+                                        rowIndex,
+                                        'cost',
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder={t('docCostPh')}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeRow(branchIndex, platformIndex, rowIndex)}
+                                    className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                                    style={{
+                                      borderColor: 'var(--border)',
+                                      color: 'var(--text-primary)',
+                                    }}
+                                    title={t('docRemoveRow')}
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+
+                        {form.invoice_template === 'manual' ? (
+                          <button
+                            type="button"
+                            onClick={() => addPlatform(branchIndex)}
+                            className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                            style={{
+                              borderColor: 'var(--border)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            <Plus size={12} className="me-1 inline" /> {t('docAddPlatform')}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </DocsEditorCard>
+
+          <DocsEditorCard
+            title={t('docCardTotals')}
+            actions={
+              form.id ? (
+                <button
+                  type="button"
+                  onClick={() => void deleteInvoice()}
+                  className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 >
-                  <span style={{ color: 'var(--text-secondary)' }}>{t('docFinalBudget')}</span>
-                  <span className="font-semibold" style={{ color: 'var(--text)' }}>
-                    {formatInvoiceAmount(model.totals.finalBudget, lang)} {form.currency}
-                  </span>
-                </div>
-                <div
-                  className="flex items-center justify-between border-b py-1.5 text-xs"
-                  style={{ borderColor: 'var(--border)' }}
-                >
-                  <label htmlFor="invoice-our-fees">{t('docOurFees')}</label>
-                  <input
-                    id="invoice-our-fees"
-                    type="number"
-                    min={0}
-                    className="w-36 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-end text-xs text-[var(--text)] outline-none"
-                    value={form.our_fees}
-                    onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </div>
-                <div
-                  className="flex items-center justify-between rounded-lg px-2 py-2 text-sm"
-                  style={{ background: 'var(--text)', color: 'var(--surface)' }}
-                >
-                  <span className="font-bold">{t('docGrandTotal')}</span>
-                  <span className="font-black">
-                    {formatInvoiceAmount(model.totals.grandTotal, lang)} {form.currency}
-                  </span>
-                </div>
-                {loading ? (
-                  <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    {t('docInvLoadingList')}
-                  </p>
-                ) : null}
+                  <Trash2 size={12} className="me-1 inline" /> {t('docInvDelete')}
+                </button>
+              ) : null
+            }
+          >
+            <div className="space-y-2">
+              <div
+                className="flex items-center justify-between border-b py-1.5 text-xs"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <span style={{ color: 'var(--text-secondary)' }}>{t('docFinalBudget')}</span>
+                <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                  {formatInvoiceAmount(model.totals.finalBudget, lang)} {form.currency}
+                </span>
               </div>
-            </DocsEditorCard>
-          ) : null}
+              <div
+                className="flex items-center justify-between border-b py-1.5 text-xs"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <label htmlFor="invoice-our-fees">{t('docOurFees')}</label>
+                <input
+                  id="invoice-our-fees"
+                  type="number"
+                  min={0}
+                  className="w-36 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-end text-xs text-[var(--text)] outline-none"
+                  value={form.our_fees}
+                  onChange={(e) => setField('our_fees', Math.max(0, Number(e.target.value) || 0))}
+                />
+              </div>
+              <div
+                className="flex items-center justify-between rounded-lg px-2 py-2 text-sm"
+                style={{ background: 'var(--text)', color: 'var(--surface)' }}
+              >
+                <span className="font-bold">{t('docGrandTotal')}</span>
+                <span className="font-black">
+                  {formatInvoiceAmount(model.totals.grandTotal, lang)} {form.currency}
+                </span>
+              </div>
+              {loading ? (
+                <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {t('docInvLoadingList')}
+                </p>
+              ) : null}
+            </div>
+          </DocsEditorCard>
         </div>
       }
       preview={
-        <ScaledDocumentPreview>
-          <InvoicePreview model={model} />
-        </ScaledDocumentPreview>
+        <div className="docs-preview-stack">
+          <ScaledDocumentPreview>
+            <InvoicePreview model={model} />
+          </ScaledDocumentPreview>
+          <div className="docs-floating-export" aria-label="Export invoice">
+            {form.id ? (
+              <a href={`/api/docs/invoices/${form.id}/export`} className="docs-floating-btn">
+                <Download size={16} />
+                <span>XLS</span>
+              </a>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                void exportPreviewPdf(
+                  'invoice-preview',
+                  form.invoice_number || 'invoice',
+                  'invoice',
+                );
+              }}
+              className="docs-floating-btn docs-floating-btn-pdf"
+            >
+              <Printer size={16} />
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
       }
     />
   );
