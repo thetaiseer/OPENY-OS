@@ -48,9 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <Providers>
                 <AssetBreadcrumbOrderPatch />
-                <PageTransition>
-                  {children}
-                </PageTransition>
+                <PageTransition>{children}</PageTransition>
               </Providers>
             </AuthProvider>
           </LangProvider>
