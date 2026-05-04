@@ -269,5 +269,10 @@ docs_employees -> docs_salary_history
 
 ## Documentation
 
-- Product spec: `docs/PRODUCT_SPEC.md`
-- Delivery roadmap: `docs/ROADMAP.md`
+- Documentation index: [`docs/README.md`](docs/README.md)
+- OS modules: [`docs/modules/OS_MODULES.md`](docs/modules/OS_MODULES.md)
+- Docs modules: [`docs/modules/DOCS_MODULES.md`](docs/modules/DOCS_MODULES.md)
+- Database schema: [`docs/architecture/DATABASE.md`](docs/architecture/DATABASE.md)
+- API routes: [`docs/architecture/API_ROUTES.md`](docs/architecture/API_ROUTES.md)
+- Component system: [`docs/architecture/COMPONENTS.md`](docs/architecture/COMPONENTS.md)
+- Delivery roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
