@@ -84,13 +84,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     const storageKey = extractStorageKey(asset as AssetRow);
-    let r2Warning: string | undefined;
     if (storageKey && (asset.storage_provider ?? 'r2') === 'r2') {
       try {
         const r2Delete = await deleteR2Object(storageKey);
         if (!r2Delete.success) {
-          r2Warning = r2Delete.error ?? 'R2 deletion failed.';
-          console.warn('[asset-delete] R2 failed, continue', {
+          console.warn('[asset-delete] R2 delete failed; aborting DB delete', {
             requestId,
             assetId: asset.id,
             storageKey,
@@ -98,21 +96,37 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
             configInvalid: Boolean(r2Delete.configInvalid),
             error: r2Delete.error ?? null,
           });
+          return fail(
+            502,
+            'R2_DELETE_FAILED',
+            r2Delete.error ?? 'Could not delete the file from R2 storage.',
+            {
+              assetId: asset.id,
+              storageKey,
+              configMissing: Boolean(r2Delete.configMissing),
+              configInvalid: Boolean(r2Delete.configInvalid),
+            },
+            requestId,
+          );
         }
         if (r2Delete.missing) {
           console.warn('[asset-delete] R2 object already missing; continuing with soft-delete', {
             requestId,
             storageKey,
           });
-          r2Warning = 'Object was already missing from storage.';
         }
       } catch (e) {
-        r2Warning = 'R2 deletion threw an unexpected error.';
-        console.warn('[asset-delete] R2 failed, continue', e);
+        console.warn('[asset-delete] R2 delete threw; aborting DB delete', e);
+        return fail(
+          502,
+          'R2_DELETE_UNEXPECTED',
+          e instanceof Error ? e.message : 'R2 deletion threw an unexpected error.',
+          { assetId: asset.id, storageKey },
+          requestId,
+        );
       }
     } else if (!storageKey) {
       console.warn('[asset-delete] No storage_key/file_path; skipping R2 delete', { id });
-      r2Warning = 'No storage key on record; skipped R2 delete.';
     }
 
     const clearPublishing = await supabase
@@ -211,8 +225,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return ok(
       {
         id,
-        message: r2Warning ? `Asset hidden. ${r2Warning}` : 'Asset deleted',
-        ...(r2Warning ? { warning: r2Warning } : {}),
+        message: 'Asset deleted',
         requestId,
       },
       200,

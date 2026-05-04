@@ -129,12 +129,19 @@ export async function DELETE(req: NextRequest) {
     if (!key || (asset.storage_provider ?? 'r2') !== 'r2') continue;
     const r2Delete = await deleteR2Object(key);
     if (!r2Delete.success && !r2Delete.missing) {
-      console.warn('[assets/folders] R2 delete failed; continuing', {
+      console.warn('[assets/folders] R2 delete failed; aborting DB delete', {
         requestId,
         assetId: asset.id,
         key,
         error: r2Delete.error ?? null,
       });
+      return fail(
+        502,
+        'R2_DELETE_FAILED',
+        r2Delete.error ?? 'Could not delete one or more files from R2 storage.',
+        { assetId: asset.id, key },
+        requestId,
+      );
     }
   }
 

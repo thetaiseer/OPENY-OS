@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { deleteObject } from '@/lib/storage/r2';
+import { deleteR2Object } from '@/lib/storage/r2';
 
 type ForceDeleteBody = {
   assetId?: string;
@@ -168,15 +168,25 @@ export async function POST(req: NextRequest) {
     for (const asset of assets) {
       const key = asset.storage_key || asset.file_path;
       if (key && (asset.storage_provider ?? 'r2') === 'r2') {
-        try {
-          await deleteObject(key);
-        } catch (error) {
-          console.warn('[force-delete] R2 delete failed, continuing DB delete', {
+        const r2Delete = await deleteR2Object(key);
+        if (!r2Delete.success && !r2Delete.missing) {
+          console.warn('[force-delete] R2 delete failed; aborting DB delete', {
             requestId,
             assetId: asset.id,
             key,
-            error,
+            error: r2Delete.error ?? null,
           });
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: r2Delete.error ?? 'Could not delete file from R2 storage',
+                requestId,
+                details: { assetId: asset.id, key },
+              },
+            },
+            { status: 502 },
+          );
         }
       }
     }
