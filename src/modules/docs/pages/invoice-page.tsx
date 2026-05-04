@@ -1459,6 +1459,7 @@ export default function InvoicePage() {
                   'invoice-preview',
                   form.invoice_number || 'invoice',
                   'invoice',
+                  { singlePage: true },
                 );
               }}
               className="docs-floating-btn docs-floating-btn-pdf"

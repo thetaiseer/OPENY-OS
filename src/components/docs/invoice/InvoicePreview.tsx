@@ -10,18 +10,6 @@ import BranchTable from './BranchTable';
 import TotalsSection from './TotalsSection';
 
 /**
- * Branch names that trigger a PDF page-break before them (for multi-branch invoices).
- * Matches the OPENY-DOCS reference behaviour.
- */
-const PAGE_BREAK_BRANCHES = ['jeddah', 'khobar'];
-
-function shouldBreakBeforeBranch(index: number, branchName: string): boolean {
-  if (index <= 0) return false;
-  const normalized = branchName.trim().toLowerCase();
-  return PAGE_BREAK_BRANCHES.some((b) => normalized.includes(b));
-}
-
-/**
  * Full live invoice preview.
  *
  * Takes the computed `InvoiceDocumentModel` (built from form state via
@@ -46,11 +34,8 @@ export default function InvoicePreview({ model }: { model: InvoiceDocumentModel 
         subtext={model.campaignMonth ? `Campaign Month: ${model.campaignMonth}` : undefined}
       />
 
-      {model.branchTables.map((branchTable, branchIndex) => (
+      {model.branchTables.map((branchTable) => (
         <div key={branchTable.id}>
-          {shouldBreakBeforeBranch(branchIndex, branchTable.branchName) && (
-            <div className="html2pdf__page-break" />
-          )}
           <BranchTable branchTable={branchTable} currency={model.currency} />
         </div>
       ))}

@@ -63,6 +63,7 @@ export async function exportPreviewPdf(
   previewId: string,
   documentCode: string,
   fallbackCode = 'document',
+  options: { singlePage?: boolean } = {},
 ) {
   const preview = document.getElementById(previewId);
   if (!preview) return false;
@@ -99,6 +100,8 @@ export async function exportPreviewPdf(
 
   const sw = Math.max(1, sourceClone.scrollWidth);
   const sh = Math.max(1, sourceClone.scrollHeight);
+  const pageWidthMm = 210;
+  const pageHeightMm = Math.max(297, Math.ceil((sh / sw) * pageWidthMm * 100) / 100);
   // html2pdf runs one full-document html2canvas pass, then slices pages. A huge bitmap
   // (especially scale:2 on tall accounting tables) freezes the tab — cap effective edge.
   const longestEdge = Math.max(sw, sh);
@@ -122,8 +125,14 @@ export async function exportPreviewPdf(
       // Do not pass width/height/windowWidth/windowHeight: they force a single giant
       // canvas matching full scrollHeight and lock the browser on long docs.
     },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
+    jsPDF: {
+      unit: 'mm',
+      format: options.singlePage ? [pageWidthMm, pageHeightMm] : 'a4',
+      orientation: 'portrait',
+    },
+    pagebreak: options.singlePage
+      ? { mode: [], before: [], after: [], avoid: [] }
+      : { mode: ['css', 'legacy'], avoid: ['.avoid-break'] },
   };
 
   try {
