@@ -119,6 +119,7 @@ export async function exportPreviewPdf(
     html2canvas: {
       scale,
       useCORS: true,
+      foreignObjectRendering: true,
       logging: false,
       scrollY: 0,
       scrollX: 0,

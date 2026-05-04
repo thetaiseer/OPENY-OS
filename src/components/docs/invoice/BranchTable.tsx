@@ -37,10 +37,9 @@ const td: CSSProperties = {
 
 const cellBox: CSSProperties = {
   boxSizing: 'border-box',
-  display: 'grid',
+  display: 'table',
   minHeight: 31,
   width: '100%',
-  placeItems: 'center',
   padding: '5px 8px',
   textAlign: 'center',
   lineHeight: 1.05,
@@ -50,9 +49,10 @@ const cellBox: CSSProperties = {
 };
 
 const cellText: CSSProperties = {
-  display: 'block',
+  display: 'table-cell',
   maxWidth: '100%',
-  transform: 'translateY(-1px)',
+  textAlign: 'center',
+  verticalAlign: 'middle',
 };
 
 function fmt(v: number, cur: string) {
