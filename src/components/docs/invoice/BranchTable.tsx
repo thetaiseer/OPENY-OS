@@ -36,17 +36,23 @@ const td: CSSProperties = {
 };
 
 const cellBox: CSSProperties = {
-  display: 'flex',
-  minHeight: 30,
+  boxSizing: 'border-box',
+  display: 'grid',
+  minHeight: 31,
   width: '100%',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '6px 8px',
+  placeItems: 'center',
+  padding: '5px 8px',
   textAlign: 'center',
-  lineHeight: 1.15,
+  lineHeight: 1.05,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   wordBreak: 'normal',
+};
+
+const cellText: CSSProperties = {
+  display: 'block',
+  maxWidth: '100%',
+  transform: 'translateY(-1px)',
 };
 
 function fmt(v: number, cur: string) {
@@ -83,12 +89,12 @@ function CellContent({
     <div
       style={{
         ...cellBox,
-        minHeight: compact ? 26 : cellBox.minHeight,
-        padding: compact ? '5px 6px' : cellBox.padding,
+        minHeight: compact ? 28 : cellBox.minHeight,
+        padding: compact ? '4px 6px' : cellBox.padding,
         fontWeight: strong ? 700 : undefined,
       }}
     >
-      {children}
+      <span style={cellText}>{children}</span>
     </div>
   );
 }
