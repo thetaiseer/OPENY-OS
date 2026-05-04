@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
+import PageTransition from '@/components/layout/PageTransition';
 import FloatingUploadDock from '@/components/layout/FloatingUploadDock';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PageShellProvider } from '@/components/layout/PageLayout';
@@ -14,7 +15,6 @@ import Breadcrumbs from '@/components/ui/navigation/Breadcrumbs';
 import RouteTitle from '@/components/ui/navigation/RouteTitle';
 import { useAuth } from '@/context/auth-context';
 import { workspaceKey } from '@/hooks/workspace-query';
-import PageTransition from '@/components/layout/PageTransition';
 
 function routePermissionTarget(
   pathname: string,
