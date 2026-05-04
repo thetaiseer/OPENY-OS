@@ -487,6 +487,7 @@ function BackupModal({
 function HistoryPanel({
   quotations,
   loading,
+  loadError,
   onEdit,
   onDuplicate,
   onDelete,
@@ -497,6 +498,7 @@ function HistoryPanel({
 }: {
   quotations: DocsQuotation[];
   loading: boolean;
+  loadError?: string;
   onEdit: (q: DocsQuotation) => void;
   onDuplicate: (q: DocsQuotation) => void;
   onDelete: (id: string) => void;
@@ -525,6 +527,14 @@ function HistoryPanel({
 
   return (
     <div className="flex h-full flex-col">
+      {loadError ? (
+        <div
+          className="m-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-red-600"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <AlertCircle size={14} /> {loadError}
+        </div>
+      ) : null}
       <div className="space-y-2 border-b p-4" style={{ borderColor: 'var(--border)' }}>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -697,6 +707,7 @@ export default function QuotationPage() {
   const { t } = useLang();
   const [quotations, setQuotations] = useState<DocsQuotation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -709,14 +720,21 @@ export default function QuotationPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await fetch('/api/docs/quotations');
-      const json = await res.json();
-      setQuotations(json.quotations ?? []);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLoadError((json as { error?: string }).error ?? t('docQtSaveFailed'));
+        return;
+      }
+      setQuotations((json as { quotations?: DocsQuotation[] }).quotations ?? []);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : t('docQtSaveFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -833,11 +851,11 @@ export default function QuotationPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        const errJson = (await res.json()) as { error?: string; code?: string };
+        const errJson = await res.json().catch(() => ({}) as Record<string, unknown>);
         setError(
           errJson.code === 'duplicate_document_number'
             ? t('docDuplicateDocumentNumber')
-            : (errJson.error ?? t('docQtSaveFailed')),
+            : ((errJson.error as string | undefined) ?? t('docQtSaveFailed')),
         );
         return;
       }
@@ -845,6 +863,8 @@ export default function QuotationPage() {
       setTimeout(() => setSaved(false), 2000);
       await load();
       if (!editingId) resetForm();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('docQtSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -1439,6 +1459,7 @@ export default function QuotationPage() {
               <HistoryPanel
                 quotations={quotations}
                 loading={loading}
+                loadError={loadError}
                 onEdit={loadIntoForm}
                 onDuplicate={duplicateQuotation}
                 onDelete={openDeleteQuotation}

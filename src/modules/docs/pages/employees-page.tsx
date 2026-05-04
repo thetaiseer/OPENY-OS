@@ -300,11 +300,14 @@ function EmployeeModal({
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        setError((await res.json()).error ?? t('docQtSaveFailed'));
+        const errJson = await res.json().catch(() => ({}) as Record<string, unknown>);
+        setError((errJson.error as string | undefined) ?? t('docQtSaveFailed'));
         return;
       }
       onDone();
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('docQtSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -474,6 +477,7 @@ export default function EmployeesPage() {
   const { t, lang } = useLang();
   const [employees, setEmployees] = useState<DocsEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState<StatusF>('all');
@@ -489,18 +493,25 @@ export default function EmployeesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const params = new URLSearchParams();
       if (statusF !== 'all') params.set('status', statusF);
       if (typeF !== 'all') params.set('employment_type', typeF);
       if (search) params.set('search', search);
       const r = await fetch(`/api/docs/employees?${params}`);
-      const j = await r.json();
-      setEmployees(j.employees ?? []);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setLoadError((j as { error?: string }).error ?? t('docEmpFailed'));
+        return;
+      }
+      setEmployees((j as { employees?: DocsEmployee[] }).employees ?? []);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : t('docEmpFailed'));
     } finally {
       setLoading(false);
     }
-  }, [search, statusF, typeF]);
+  }, [search, statusF, typeF, t]);
 
   useEffect(() => {
     void load();
@@ -899,7 +910,14 @@ export default function EmployeesPage() {
                             </td>
                           </tr>
                         )}
-                        {!loading && visible.length === 0 && (
+                        {!loading && loadError && (
+                          <tr>
+                            <td colSpan={6} className="py-4 text-center text-sm text-red-600">
+                              {loadError}
+                            </td>
+                          </tr>
+                        )}
+                        {!loading && !loadError && visible.length === 0 && (
                           <tr>
                             <td
                               colSpan={6}

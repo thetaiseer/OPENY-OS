@@ -479,6 +479,7 @@ function BackupModal({
 function HistoryPanel({
   contracts,
   loading,
+  loadError,
   onEdit,
   onDuplicate,
   onDelete,
@@ -489,6 +490,7 @@ function HistoryPanel({
 }: {
   contracts: DocsClientContract[];
   loading: boolean;
+  loadError?: string;
   onEdit: (c: DocsClientContract) => void;
   onDuplicate: (c: DocsClientContract) => void;
   onDelete: (id: string) => void;
@@ -614,7 +616,8 @@ function HistoryPanel({
             {t('docLoading')}
           </div>
         )}
-        {!loading && visible.length === 0 && (
+        {!loading && loadError && <div className="px-4 py-3 text-sm text-red-600">{loadError}</div>}
+        {!loading && !loadError && visible.length === 0 && (
           <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('docCcEmptyList')}
           </div>
@@ -690,6 +693,7 @@ export default function ClientContractPage() {
   const { t } = useLang();
   const [contracts, setContracts] = useState<DocsClientContract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -703,14 +707,21 @@ export default function ClientContractPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const r = await fetch('/api/docs/client-contracts');
-      const j = await r.json();
-      setContracts(j.contracts ?? []);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setLoadError((j as { error?: string }).error ?? t('docQtSaveFailed'));
+        return;
+      }
+      setContracts((j as { contracts?: DocsClientContract[] }).contracts ?? []);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : t('docQtSaveFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -832,11 +843,11 @@ export default function ClientContractPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        const errJson = (await res.json()) as { error?: string; code?: string };
+        const errJson = await res.json().catch(() => ({}) as Record<string, unknown>);
         setError(
           errJson.code === 'duplicate_document_number'
             ? t('docDuplicateDocumentNumber')
-            : (errJson.error ?? t('docQtSaveFailed')),
+            : ((errJson.error as string | undefined) ?? t('docQtSaveFailed')),
         );
         return;
       }
@@ -844,6 +855,8 @@ export default function ClientContractPage() {
       setTimeout(() => setSaved(false), 2000);
       await load();
       if (!editingId) resetForm();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('docQtSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -1434,6 +1447,7 @@ export default function ClientContractPage() {
               <HistoryPanel
                 contracts={contracts}
                 loading={loading}
+                loadError={loadError}
                 onEdit={loadIntoForm}
                 onDuplicate={duplicateContract}
                 onDelete={openDeleteContract}
