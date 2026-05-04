@@ -629,6 +629,11 @@ select {
     color: var(--accent);
   }
 
+  .docs-os-btn {
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+    color: var(--accent);
+  }
+
   /* Sub-tabs inside doc editors (Invoice, etc.) — was unstyled and labels looked concatenated */
   .docs-tabs {
     display: flex;

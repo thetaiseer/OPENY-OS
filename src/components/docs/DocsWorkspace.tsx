@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
-import { Home } from 'lucide-react';
+import { ArrowLeft, Home } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Tabs, TabButton } from '@/components/ui/Tabs';
 import { cn } from '@/lib/cn';
@@ -47,6 +47,15 @@ export function DocsHomeButton() {
   );
 }
 
+export function DocsOsButton() {
+  return (
+    <Link href="/os/dashboard" className="docs-home-btn docs-os-btn" title="Back to OPENY OS">
+      <ArrowLeft size={14} />
+      <span>Back to OS</span>
+    </Link>
+  );
+}
+
 /** Two-row toolbar: doc-type tabs + actions + home button, then optional metadata / quick fields (shared across Docs workspaces). */
 export function DocsToolbarLayout({
   navigation,
@@ -66,6 +75,7 @@ export function DocsToolbarLayout({
         <div className="docs-toolbar-nav">{navigation}</div>
         <div className="docs-toolbar-actions">
           {actions}
+          <DocsOsButton />
           <DocsHomeButton />
         </div>
       </div>

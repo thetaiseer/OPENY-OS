@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ClipboardList, FileText, Users, Briefcase, Calculator } from 'lucide-react';
+import { ArrowLeft, ClipboardList, FileText, Users, Briefcase, Calculator } from 'lucide-react';
 import OpenyLogo from '@/components/branding/OpenyLogo';
 
 const DOC_TYPES = [
@@ -70,6 +70,16 @@ const DOC_TYPES = [
 export default function DocsPage() {
   return (
     <div className="flex min-h-full flex-col items-center px-6 py-10">
+      <div className="mb-8 flex w-full max-w-3xl justify-start">
+        <Link
+          href="/os/dashboard"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] shadow-sm transition-colors hover:border-blue-500 hover:text-blue-600"
+        >
+          <ArrowLeft size={16} />
+          Back to OS
+        </Link>
+      </div>
+
       <div className="mb-10 flex flex-col items-center gap-3">
         <OpenyLogo width={140} height={36} />
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
