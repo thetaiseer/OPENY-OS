@@ -81,9 +81,10 @@ export default function DocsPage() {
         {DOC_TYPES.map((doc) => {
           const Icon = doc.icon;
           return (
-            <div
+            <Link
               key={doc.href}
-              className="flex flex-col gap-3 rounded-2xl border p-6"
+              href={doc.href}
+              className="flex flex-col gap-3 rounded-2xl border p-6 transition-shadow hover:shadow-md"
               style={{
                 borderColor: 'var(--border)',
                 background: 'var(--surface)',
@@ -106,14 +107,13 @@ export default function DocsPage() {
                   {doc.description}
                 </p>
               </div>
-              <Link
-                href={doc.href}
+              <span
                 className="mt-auto inline-flex items-center gap-1 text-sm font-semibold"
                 style={{ color: doc.ctaColor }}
               >
                 {doc.cta} <span aria-hidden>›</span>
-              </Link>
-            </div>
+              </span>
+            </Link>
           );
         })}
       </div>
