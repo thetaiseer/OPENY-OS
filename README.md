@@ -50,6 +50,8 @@ OPENY هو نظام تشغيل متكامل للوكالات التسويقية 
 - Employees
 - Accounting
 
+توثيق تفصيلي بالعربية لجزء OPENY DOCS موجود في [`docs/OPENY_DOCS_AR.md`](docs/OPENY_DOCS_AR.md).
+
 ### الأدوار والصلاحيات
 
 | الدور | الصلاحيات |
