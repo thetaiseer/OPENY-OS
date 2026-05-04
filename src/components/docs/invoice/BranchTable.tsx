@@ -1,42 +1,96 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { InvoiceDocumentBranchTable } from '@/lib/docs-invoice-document-model';
 import { OPENY_DOC_BLACK } from '@/lib/openy-brand';
 
 const DOC_BLACK = OPENY_DOC_BLACK;
-const ROWS_PER_PAGE_CHUNK = 12;
+const ROWS_PER_PAGE_CHUNK = 999;
 
 const th: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
   borderRight: '1px solid #fff',
   borderBottom: '2px solid #fff',
-  padding: '10px 10px',
+  padding: 0,
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: 0.6,
   textTransform: 'uppercase',
   textAlign: 'center',
   verticalAlign: 'middle',
-  lineHeight: 1.25,
-  whiteSpace: 'nowrap',
+  lineHeight: 1.15,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  wordBreak: 'normal',
 };
 
 const td: CSSProperties = {
   border: `1px solid ${DOC_BLACK}`,
-  padding: '8px 10px',
-  fontSize: 11,
+  padding: 0,
+  fontSize: 10.5,
   textAlign: 'center',
   verticalAlign: 'middle',
   background: 'var(--accent-foreground)',
-  lineHeight: 1.35,
-  whiteSpace: 'nowrap',
+  lineHeight: 1.15,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  wordBreak: 'normal',
+};
+
+const cellBox: CSSProperties = {
+  display: 'flex',
+  minHeight: 30,
+  width: '100%',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '6px 8px',
+  textAlign: 'center',
+  lineHeight: 1.15,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  wordBreak: 'normal',
 };
 
 function fmt(v: number, cur: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: cur,
+  return `${new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
-  }).format(v || 0);
+    maximumFractionDigits: 2,
+  }).format(v || 0)} ${cur}`;
+}
+
+function formatInvoiceDate(value: string) {
+  if (!value) return '—';
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date
+    .toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+    .replace(/ /g, '-');
+}
+
+function CellContent({
+  children,
+  strong = false,
+  compact = false,
+}: {
+  children: ReactNode;
+  strong?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        ...cellBox,
+        minHeight: compact ? 26 : cellBox.minHeight,
+        padding: compact ? '5px 6px' : cellBox.padding,
+        fontWeight: strong ? 700 : undefined,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -68,7 +122,15 @@ export default function BranchTable({
         return (
           <div key={`${branchTable.id}-chunk-${chunkIndex}`} className="avoid-break">
             {chunkIndex > 0 ? <div className="html2pdf__page-break" /> : null}
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '32%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '17%' }} />
+              </colgroup>
               <thead>
                 {/* Branch name — full-width black header spanning all columns */}
                 <tr style={{ background: DOC_BLACK, color: 'var(--accent-foreground)' }}>
@@ -76,7 +138,7 @@ export default function BranchTable({
                     colSpan={6}
                     style={{
                       border: `1px solid ${DOC_BLACK}`,
-                      padding: '10px 12px',
+                      padding: 0,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1.2,
@@ -84,11 +146,13 @@ export default function BranchTable({
                       textAlign: 'center',
                       verticalAlign: 'middle',
                       borderBottom: '2px solid #fff',
-                      lineHeight: 1.35,
-                      whiteSpace: 'nowrap',
+                      lineHeight: 1.15,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'normal',
                     }}
                   >
-                    {branchTable.branchName}
+                    <CellContent strong>{branchTable.branchName} Branch</CellContent>
                   </th>
                 </tr>
 
@@ -96,7 +160,9 @@ export default function BranchTable({
                 <tr style={{ background: DOC_BLACK, color: 'var(--accent-foreground)' }}>
                   {(['BRANCH', 'PLATFORM', 'AD NAME', 'DATE', 'RESULTS'] as const).map((col) => (
                     <th key={col} style={th}>
-                      {col}
+                      <CellContent strong compact>
+                        {col}
+                      </CellContent>
                     </th>
                   ))}
                   <th
@@ -105,7 +171,9 @@ export default function BranchTable({
                       borderRight: `1px solid ${DOC_BLACK}`,
                     }}
                   >
-                    COST ({currency})
+                    <CellContent strong compact>
+                      COST ({currency})
+                    </CellContent>
                   </th>
                 </tr>
               </thead>
@@ -114,7 +182,7 @@ export default function BranchTable({
                 {chunk.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ ...td, color: '#666', verticalAlign: 'middle' }}>
-                      No campaign data.
+                      <CellContent>No campaign data.</CellContent>
                     </td>
                   </tr>
                 ) : (
@@ -123,20 +191,33 @@ export default function BranchTable({
                       key={`${branchTable.id}-c${chunkIndex}-r${rowIndex}`}
                       style={{ pageBreakInside: 'avoid' }}
                     >
-                      <td
-                        style={{
-                          ...td,
-                          fontWeight: 600,
-                          verticalAlign: 'middle',
-                        }}
-                      >
-                        {row.branch || branchTable.branchName}
-                      </td>
-                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.platform || '—'}</td>
+                      {row.showBranch ? (
+                        <td
+                          rowSpan={rows.length}
+                          style={{
+                            ...td,
+                            fontWeight: 600,
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          <CellContent strong>{row.branch || branchTable.branchName}</CellContent>
+                        </td>
+                      ) : null}
+                      {row.showPlatform ? (
+                        <td rowSpan={row.platformSpan} style={{ ...td, verticalAlign: 'middle' }}>
+                          <CellContent>{row.platform || '—'}</CellContent>
+                        </td>
+                      ) : null}
 
-                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.ad_name || '—'}</td>
-                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.date || '—'}</td>
-                      <td style={{ ...td, verticalAlign: 'middle' }}>{row.results || '—'}</td>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>
+                        <CellContent>{row.ad_name || '—'}</CellContent>
+                      </td>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>
+                        <CellContent compact>{formatInvoiceDate(row.date)}</CellContent>
+                      </td>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>
+                        <CellContent>{row.results || '—'}</CellContent>
+                      </td>
                       <td
                         style={{
                           ...td,
@@ -144,7 +225,7 @@ export default function BranchTable({
                           verticalAlign: 'middle',
                         }}
                       >
-                        {fmt(row.cost, currency)}
+                        <CellContent strong>{fmt(row.cost, currency)}</CellContent>
                       </td>
                     </tr>
                   ))
@@ -162,7 +243,7 @@ export default function BranchTable({
                         verticalAlign: 'middle',
                       }}
                     >
-                      {branchTable.branchName} Total
+                      <CellContent strong>{branchTable.branchName} Branch Total</CellContent>
                     </td>
                     <td
                       style={{
@@ -172,7 +253,7 @@ export default function BranchTable({
                         verticalAlign: 'middle',
                       }}
                     >
-                      {fmt(branchTable.subtotal, currency)}
+                      <CellContent strong>{fmt(branchTable.subtotal, currency)}</CellContent>
                     </td>
                   </tr>
                 ) : null}
